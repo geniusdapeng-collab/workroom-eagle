@@ -1,0 +1,46 @@
+# eagle 鹰眼咨询行业 Bundle · 第⑧装配槽：反馈枚举表（D24 自我进化飞轮 M1）
+# 口径：
+#  - 驳回（reject）必须命中本表受控词表——自由文本无法聚类，校准信号的可信度前提是受控枚举；
+#  - 编辑（edit）手势另以 editKind 二分归因（correction 纠错→缺陷池 / preference 口味→偏好池），
+#    本表 enums 同样可用于 edit 的补充说明；
+#  - 枚举码一旦上线只增不改（历史事件里流转的是 code；改 code = 切断归因链）。
+version: consulting-feedback-enums/v1
+enums:
+  # ---- 诊断与内容类 ----
+  - code: data.stale
+    label: 数据过时/口径不符
+    appliesTo: [reject, edit]
+  - code: framework.misfit
+    label: 诊断框架不当（生搬硬套）
+    appliesTo: [reject]
+  - code: depth.insufficient
+    label: 分析深度不足
+    appliesTo: [reject]
+  - code: fact.wrong
+    label: 事实性错误（企业信息/数字/引用）
+    appliesTo: [reject, edit]
+  # ---- 客户贴合类 ----
+  - code: client.preference
+    label: 不符客户偏好（风格/立场/忌口）
+    appliesTo: [reject, edit]
+  - code: reply.tone
+    label: 语气不符（过冷/过热/不像我说的话）
+    appliesTo: [reject, edit]
+  # ---- 风险与合规类 ----
+  - code: risk.confidential
+    label: 涉密风险（客户敏感信息外泄隐患）
+    appliesTo: [reject]
+  - code: risk.compliance
+    label: 合规存疑（劳动法/税务等边界）
+    appliesTo: [reject]
+  - code: risk.personnel
+    label: 人员评价敏感（措辞需软化）
+    appliesTo: [reject, edit]
+  # ---- 经营类 ----
+  - code: quote.off
+    label: 报价偏离（高估/低估/口径错）
+    appliesTo: [reject, edit]
+  # ---- 通用 ----
+  - code: other
+    label: 其他（须附自由文本说明）
+    appliesTo: [reject, edit]

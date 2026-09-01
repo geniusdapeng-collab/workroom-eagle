@@ -1,0 +1,68 @@
+{
+  "$id": "workloom://bundles/consulting/schemas/archive",
+  "title": "一企一档字段组（咨询版 · §2.2 槽①）——一个企业一个档案，七大分区持续加厚",
+  "type": "object",
+  "required": ["firm", "clients", "forbidden"],
+  "properties": {
+    "firm": {
+      "type": "object",
+      "description": "咨询所基础信息（主理人/专长/方法论/价目表）",
+      "properties": {
+        "name": { "type": "string" },
+        "principal": { "type": "string", "description": "主理咨询师" },
+        "specialties": { "type": "array", "items": { "type": "string" } },
+        "methodologies": { "type": "array", "items": { "type": "string" }, "description": "诊断框架库：7S/五力/SWOT/BLM 等" },
+        "price_list": { "type": "object", "description": "标准价目表（C-R1 auto 判定基准）" }
+      }
+    },
+    "clients": {
+      "type": "array",
+      "description": "企业客户档案清单——每家企业一份持续加厚的认知资产档案（七大分区）",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "stage"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "stage": { "type": "string", "enum": ["audit", "diagnosis", "proposal", "delivery", "retainer", "dormant"] },
+          "profile": { "type": "object", "description": "分区一·基本面：工商信息/股权结构/组织图谱/发展阶段/行业赛道" },
+          "metrics": { "type": "object", "description": "分区二·经营仪表盘：核心指标月度序列（营收/毛利/人效/现金流等）" },
+          "cognition": { "type": "array", "description": "分区三·认知沉积：历次诊断结论/方案要点/汇报纪要/决策与取舍记录" },
+          "people": { "type": "array", "description": "分区四·人物志：关键人画像（决策偏好/沟通风格/关系温度）" },
+          "actions": { "type": "array", "description": "分区五·行动账本：行动项/负责人/期限/完成状态/逾期升级" },
+          "files": { "type": "array", "description": "分区六·文件库：合同/财报/纪要/录音转写/截图（PII 脱敏后入库）" },
+          "value_ledger": { "type": "array", "description": "分区七·价值台账：每次服务动作与挽回/创造价值的量化留痕（续约弹药）" }
+        }
+      }
+    },
+    "charter": {
+      "type": "object",
+      "description": "数字CEO 宪章（D21）：授权边界/升级线/熔断线——咨询版默认整体偏紧"
+    },
+    "service_standard": {
+      "type": "object",
+      "description": "服务标准：响应时长承诺/月报口径/保密红线/禁用表达",
+      "properties": {
+        "response_sla": { "type": "object" },
+        "monthly_report_template": { "type": "string" },
+        "confidentiality": { "type": "array", "items": { "type": "string" } },
+        "banned_words": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "forbidden": {
+      "type": "array",
+      "description": "硬约束（与围栏 block 级规则同源双写，L1.6）",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rule": { "type": "string" },
+          "scope": { "type": "string" }
+        }
+      }
+    },
+    "inspection": {
+      "type": "object",
+      "description": "巡检只读快照（M9/F9.1 探针输入）：客户经营异动/行动项逾期/续约窗口"
+    }
+  }
+}

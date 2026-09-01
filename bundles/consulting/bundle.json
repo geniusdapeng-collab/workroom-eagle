@@ -1,0 +1,44 @@
+{
+  "name": "@workloom/consulting",
+  "version": "1.0.0",
+  "workloom": {
+    "industry": "consulting",
+    "displayName": "eagle 鹰眼咨询管理系统 · 企业管理咨询行业 Bundle",
+    "description": "eagle 鹰眼咨询行业差异资产包：12 个专业数字员工 preset + 基线围栏 C-R1~C-R9 + 对象/阶段枚举 + 一企一档 Schema + 10 个官方技能 + 服务前台资产 + 模型路由策略 + 反馈枚举表（一个企业一个档案，信任=判断力×上下文深度×可归因性）",
+    "provides": {
+      "presets": [
+        "presets/chief-of-staff.yml",
+        "presets/lead-concierge.yml",
+        "presets/intel-researcher.yml",
+        "presets/interview-secretary.yml",
+        "presets/diagnosis-analyst.yml",
+        "presets/proposal-architect.yml",
+        "presets/report-composer.yml",
+        "presets/quality-officer.yml",
+        "presets/companion-keeper.yml",
+        "presets/resource-broker.yml",
+        "presets/night-watch.yml",
+        "presets/finance-keeper.yml"
+      ],
+      "fences": ["fences/consulting-baseline.yml"],
+      "skills": [
+        "skills/lead-triage/SKILL.md",
+        "skills/pre-meeting-brief/SKILL.md",
+        "skills/interview-kit/SKILL.md",
+        "skills/enterprise-diagnosis/SKILL.md",
+        "skills/proposal-forge/SKILL.md",
+        "skills/report-composer/SKILL.md",
+        "skills/red-team-review/SKILL.md",
+        "skills/companion-watch/SKILL.md",
+        "skills/expert-match/SKILL.md",
+        "skills/finance-keeper/SKILL.md"
+      ],
+      "schemas": [
+        "schemas/objects.json",
+        "schemas/stages.json",
+        "schemas/archive.schema.json"
+      ],
+      "ui": ["ui/cases.json"]
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "brandName": "鹰眼咨询所",
+  "agentName": "小鹰",
+  "logoText": "鹰",
+  "theme": {
+    "primary": "#C9A227",
+    "secondary": "#4C6FFF"
+  },
+  "welcomeText": "您好，这里是{brand}AI 服务前台。我是{agent}，7×24 在线：可以帮您查报告进度、约深谈、提交资料（截图/语音/文件都行），也可以基于您企业的档案解答经营问题。紧急事项我会先接住并立刻叫醒陈鹰老师。",
+  "quickReplies": [
+    { "label": "我的月报", "sendText": "这个月的月度观察报告出来了吗？" },
+    { "label": "预约深谈", "serviceKind": "meeting" },
+    { "label": "提交资料", "serviceKind": "material" },
+    { "label": "紧急呼叫", "serviceKind": "urgent" }
+  ],
+  "serviceEntries": [
+    { "kind": "meeting", "title": "预约深谈", "desc": "视频或到场，会前情报简报自动备好", "icon": "约", "sla": "2 小时内响应", "titlePlaceholder": "例如：预约下周季度复盘会" },
+    { "kind": "material", "title": "提交资料", "desc": "报表/截图/语音/文件，自动解析归档", "icon": "交", "sla": "即时归档入企业档案", "titlePlaceholder": "例如：8 月各门店营收汇总表" },
+    { "kind": "report", "title": "报告与档案", "desc": "月报/年度价值报告/档案导出申请", "icon": "报", "sla": "月报每月 5 日前送达", "titlePlaceholder": "例如：申请导出企业档案" },
+    { "kind": "urgent", "title": "紧急呼叫", "desc": "AI 先行安抚与信息收集，同步叫醒主理咨询师", "icon": "急", "sla": "夜间 15 分钟 / 日间 5 分钟", "titlePlaceholder": "请简述紧急事项" },
+    { "kind": "other", "title": "其他需求", "desc": "更多个性化服务", "icon": "他", "sla": "客户成功 30 分钟内响应", "titlePlaceholder": "请描述您的需求" }
+  ],
+  "memberLevels": {
+    "常年顾问客户": { "label": "常年顾问客户" },
+    "诊断期客户": { "label": "诊断期客户" },
+    "体检期客户": { "label": "体检期客户" },
+    "游客": { "label": "游客" }
+  },
+  "enableTabs": ["chat", "service", "tickets", "messages", "me"],
+  "supportPhone": "400-800-1234",
+  "demoHistory": [
+    { "role": "user", "text": "这个月月报什么时候能看？" },
+    { "role": "ai", "text": "王总早。8 月月度观察报告初稿昨夜已生成，今早已送陈鹰老师审核（结论涉及毛利异动，按规矩必须他本人拍板），预计今天中午前推送给您。先说结论：营收环比 -6%，毛利率 25%，主要是原材料涨价加低毛利订单占比上升。" },
+    { "role": "user", "text": "[图片] 8月各门店营收汇总表截图" },
+    { "role": "ai", "text": "收到，已为您解析这张报表截图：12 家门店合计营收 445 万（环比 -3.3%）。两处与历史口径对不上，已自动标注：春熙路店数据缺失；双流店环比 -18% 与访谈说法矛盾，已列入陈鹰老师的追问清单。资料已脱敏归档进贵司企业档案。" }
+  ]
+}

@@ -1,0 +1,102 @@
+# eagle 鹰眼咨询版基线围栏包（L2.6：行业阈值默认值由行业 Bundle 提供，底座不内置）
+# 设计原则（调研二 §3.7 围栏三原则）：
+#   ① 数值围栏先行：报价/合同/折扣/PII——确定性最强，第一批生效（C-R1/C-R3/C-R5/C-R6）
+#   ② 语义围栏保守路由：内容型风险走「分类器命中即必审」，宁多审勿漏放（C-R2/C-R7）
+#   ③ 信任型行业默认值偏紧：block 占比高于交易型行业；所有对外发送默认人审，
+#      直至 scorecard 积分卡证明审批一次通过率稳定后才逐项降级
+# 单调守卫（F2.3）：is_baseline=true 的规则，任何上层 patch 只可收紧不可放宽
+# DSL 求值语义：match 命中后求值 when 表达式（沙箱，禁任意代码 L2.5）；
+#   命中 → 按 level 判定；block 优先于 review 优先于 auto（deny 优先并集求值 E2.2）；
+#   写类动作无任何规则命中 → 按 default_level 处理；求值异常 → 按 block（宁可错杀 E2.1）
+version: consulting-baseline/v1
+default_level: review
+rules:
+  - rule_id: C-R1
+    name: 小额标准报价自动
+    level: auto
+    is_baseline: true
+    match:
+      object_types: [contract]
+      actions: [quote.send]
+    when: "params.amount <= 20000 && params.standard_price == true"
+    note: 单笔报价 ≤2 万元且使用标准价目表自动执行；超线由 C-R3 或 default_level 接管
+
+  - rule_id: C-R2
+    name: 诊断结论与人员评价外发必审
+    level: review
+    is_baseline: true
+    match:
+      object_types: [deliverable, enterprise]
+      actions: [deliverable.send, report.send, diagnosis.publish]
+    when: "params.contains_conclusion == true || params.contains_personnel_eval == true || params.contains_org_advice == true"
+    note: 语义围栏：凡含诊断结论、组织调整建议、人员评价的内容对外发出一律人审（分类器命中即必审，宁多审勿漏放）
+
+  - rule_id: C-R3
+    name: 大额合同与非标条款必审
+    level: review
+    is_baseline: true
+    match:
+      object_types: [contract]
+      actions: [quote.send, contract.send]
+    when: "params.amount > 100000 || params.nonstandard_terms == true"
+    note: 合同金额 >10 万元或付款条款非标必审
+
+  - rule_id: C-R4
+    name: AI 不得代替咨询师进行高信任场景接触
+    level: block
+    is_baseline: true
+    match:
+      object_types: [lead, interview, contract]
+      actions: [meeting.attend, interview.conduct, negotiation.conduct]
+    when: "params.as_consultant == true"
+    note: 高光时刻留给人：AI 不得以咨询师身份与客户进行首次会面、访谈、谈判；仅允许素材准备（断点 2/5/9）
+
+  - rule_id: C-R5
+    name: 客户 PII 未脱敏处理即拦截
+    level: block
+    is_baseline: true
+    match:
+      object_types: [enterprise, interview, deliverable]
+      actions: [archive.write, deliverable.send, content.publish, data.export]
+    when: "params.pii_desensitized == false"
+    note: 涉及客户员工个人信息、薪酬明细的处理必先脱敏；未脱敏即拦截（与安全网关三段瀑布同源）
+
+  - rule_id: C-R6
+    name: 退款折扣与免费增项必审
+    level: review
+    is_baseline: true
+    match:
+      object_types: [invoice, contract]
+      actions: [invoice.refund, discount.apply, addon.promise]
+    when: "params.amount >= 1 || params.discount_rate > 0.2 || params.free_addon == true"
+    note: 退款、折扣 >20%、免费增项承诺必审
+
+  - rule_id: C-R7
+    name: 合规边界建议必审且附合规提示
+    level: review
+    is_baseline: true
+    match:
+      object_types: [deliverable, enterprise]
+      actions: [deliverable.send, advice.send]
+    when: "params.compliance_domain == true"
+    note: 涉及劳动法、税务等合规边界的建议（裁员方案、税务安排等）必审，且交付物必须附合规提示段落
+
+  - rule_id: C-R8
+    name: 涉密领域专家对接拦截
+    level: block
+    is_baseline: true
+    match:
+      object_types: [expert]
+      actions: [expert.outreach, expert.arrange]
+    when: "params.sensitive_domain == true || params.cross_border == true"
+    note: 涉密领域专家对接、跨境敏感信息传递拦截（资源对接合规红线）
+
+  - rule_id: C-R9
+    name: 客户敏感数据外发第三方拦截
+    level: block
+    is_baseline: true
+    match:
+      object_types: [enterprise]
+      actions: [data.export, data.share]
+    when: "params.third_party == true"
+    note: 认知资产归客户：客户敏感数据外发任何第三方一律拦截（数据主权宪法）
