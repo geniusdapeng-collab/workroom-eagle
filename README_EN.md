@@ -31,7 +31,7 @@ The trust formula of AI-era consulting — and the design constitution of eagle:
 
 ## What it is
 
-**eagle** is the AI all-in-one work system for independent management consultants and boutique consulting firms: **one consultant + a professional digital consulting team of 12 digital employees working 24/7**, covering the full chain — lead generation, diagnosis, proposal, delivery, year-round retainer companionship, knowledge compounding, and firm operations — more professional than a professional human team, and never off duty.
+**eagle** is the AI all-in-one work system for independent management consultants and boutique consulting firms: **one consultant + a professional digital consulting team of 22 digital employees working 24/7, armed with 199 professional skills**, covering the full chain — lead generation, diagnosis, proposal, delivery, year-round retainer companionship, knowledge compounding, and firm operations — more professional than a professional human team, and never off duty.
 
 Built on the [WorkLoom Enterprise Agent IM](https://github.com/geniusdapeng-collab/workloom-im) foundation: all nine capability domains (five-element event store / fence engine / review console / IM channels / night shift / inspection / skill marketplace / multi-tenancy / model router + self-evolution flywheel + digital CEO) are inherited unchanged; every consulting-specific difference is injected via the industry bundle (`bundles/consulting/`).
 
@@ -40,7 +40,7 @@ Built on the [WorkLoom Enterprise Agent IM](https://github.com/geniusdapeng-coll
 ## Highlights
 
 - **One enterprise, one archive** — seven-zone living client archive (profile / metrics / cognition / people / actions / files / value ledger). The cognitive asset belongs to the client (exportable, local-first data sovereignty).
-- **12 digital employees** — chief-of-staff, lead concierge, intel researcher, interview secretary, diagnosis analyst, proposal architect, report composer, quality officer, companion keeper, resource broker, night watch, finance keeper; 10 of them work the night shift on off-peak compute.
+- **22 digital employees** — 12 core-pipeline roles plus 10 vertical experts (strategy / org-HR / ops-lean / growth / finance / digital-AI / risk-compliance / industry / delivery / value-service), and a 199-skill library in 15 categories. Core roles: chief-of-staff, lead concierge, intel researcher, interview secretary, diagnosis analyst, proposal architect, report composer, quality officer, companion keeper, resource broker, night watch, finance keeper; 10 of them work the night shift on off-peak compute.
 - **Trust engineering** — baseline fences C-R1~C-R9 (default_level=review, patches can only tighten): semantic fences route any conclusion/personnel/compliance content to mandatory human review; every rejection becomes a calibration sample (self-evolution flywheel + scorecard).
 - **Retainer as first-class citizen** — five cadences (daily monitoring / weekly digest / monthly observation report / quarterly review / annual value report with drill-down evidence chains).
 - **Multimodal service front** — clients send screenshots, voice notes and files; the system parses, cross-checks against historical baselines, flags anomalies and files them into the enterprise archive. Before the client even asks in the morning, the consultant already knows.

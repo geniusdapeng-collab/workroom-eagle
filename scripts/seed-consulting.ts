@@ -600,7 +600,7 @@ async function main(): Promise<void> {
       ],
     );
   }
-  console.log(`✓ Agent 实例 ×${presets.length}（12 数字员工班组；未声明 fence_bindings 禁写 F2.10）`);
+  console.log(`✓ Agent 实例 ×${presets.length}（22 数字员工班组全员就绪；未声明 fence_bindings 禁写 F2.10）`);
 
   const archive = { ...eagleArchive(), dataMode: "simulated" };
   await q(
