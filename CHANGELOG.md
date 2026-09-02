@@ -2,6 +2,11 @@
 
 本文件记录 eagle 鹰眼咨询管理系统及其 WorkLoom IM 底座的变更历史。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## [base-sync-1.11.0] - 2026-09-02 · 基座同步：技能保鲜环 P0（下行分发通道）
+
+> 自 workloom-im@1.11.0 同步（vendored 基座公共段一致）：packages/base/skill-ops 全量 + 迁移 0018 + skills.skillOps.* 路由 + suite Y 域用例。
+> 门禁：typecheck 全绿 · vitest skill-ops 19/19（含 RUN_DB_TESTS=1 PG 集成）· suite 全绿。
+
 ## [eagle-2.0.0] - 2026-09-02 · 专业技能库扩容：22 数字员工 × 199 技能 + 增值服务化
 
 ### 新增
