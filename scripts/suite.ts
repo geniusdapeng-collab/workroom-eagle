@@ -2370,8 +2370,6 @@ function defineE2E(): void {
     await api("/trpc/skills.skillOps.setPolicy", { method: "POST", token: tokenOwner, body: { mode: "silent" } });
   });
 
-
-
 /* ---- D24 落地向导 E2E：模拟态横幅事实源 → 真实模型装配 → ask 真实推理 → 真实模式 ---- */
 let llmStub: Server | null = null;
 const STUB_PORT = 8791;
@@ -3478,7 +3476,6 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
     await yCleanup(skillId);
   });
 }
-
 
 /* ================= 主流程 ================= */
 
