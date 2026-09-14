@@ -556,8 +556,9 @@ async function main(): Promise<void> {
     [TENANT_ID, "演示租户（Demo）"],
   );
   await q(
-    `INSERT INTO workspaces (id, tenant_id, name, slug, industry, stage, night_config)
-     VALUES ($1,$2,$3,$4,'consulting','retainer',$5) ON CONFLICT (id) DO NOTHING`,
+    `INSERT INTO workspaces (id, tenant_id, name, slug, industry, stage, night_config, bundle_id, is_example)
+     VALUES ($1,$2,$3,$4,'consulting','retainer',$5,'consulting',true)
+     ON CONFLICT (id) DO UPDATE SET bundle_id='consulting', is_example=true`,
     [
       WS_ID, TENANT_ID, WS_NAME, WS_SLUG,
       JSON.stringify({ enabled: true, candidateTime: "18:00", startTime: "22:00", packageTime: "08:30", timezone: "Asia/Shanghai" }),
