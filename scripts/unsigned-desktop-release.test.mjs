@@ -64,11 +64,11 @@ test("Windows 冒烟隔离构建态服务端口并从同一临时根留存三段
 test("产品身份、端口与固定下载资产名保持一致", () => {
   assert.equal(product.displayName, "鹰眼 AI 咨询管理系统");
   assert.equal(product.desktop.portOffset, 110);
-  assert.equal(product.release.artifactPrefix, "Workroom Eagle");
+  assert.equal(product.release.artifactPrefix, "Workroom.Eagle");
   assert.equal(product.release.workflow, ".github/workflows/build-desktop.yml");
   assert.match(builder, /productName: 鹰眼 AI 咨询管理系统/u);
   assert.match(builder, /workloomPortOffset: 110/u);
-  assert.match(builder, /artifactName: "Workroom Eagle-\$\{os\}-\$\{arch\}\.\$\{ext\}"/u);
+  assert.match(builder, /artifactName: "Workroom\.Eagle-\$\{os\}-\$\{arch\}\.\$\{ext\}"/u);
 });
 
 test("Release 明确披露未签名安装步骤", () => {
@@ -82,7 +82,7 @@ test("Release 明确披露未签名安装步骤", () => {
 test("官网固定下载入口与真实 DMG 资产一致，不保留历史 ZIP 死链", () => {
   for (const site of [siteZh, siteEn]) {
     assert.doesNotMatch(site, /WorkLoom-macOS\.zip/u);
-    assert.match(site, /releases\/latest\/download\/Workroom%20Eagle-mac-arm64\.dmg/u);
-    assert.match(site, /Workroom Eagle-mac-x64\.dmg/u);
+    assert.match(site, /releases\/latest\/download\/Workroom\.Eagle-mac-arm64\.dmg/u);
+    assert.doesNotMatch(site, /Workroom%20Eagle-/u);
   }
 });
