@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R2]      # 对外文案与策略结论类内容外发必审
+coverage:
+  - { eventPrefix: "consulting.growth-marketer.", label: 营销增长 }
 skills: [mkt-brand-positioning, mkt-growth-hacking, mkt-content, mkt-sales-funnel, mkt-customer-segment]
 tools:
   - { name: web.research, access: read,   desc: 竞品动态、渠道情报与行业营销趋势检索 }

@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R2]      # 战略结论与方向建议类内容外发必审
+coverage:
+  - { eventPrefix: "consulting.strategy-counselor.", label: 战略咨询 }
 skills: [diag-7s, diag-swot-deep, diag-five-forces, strat-three-year, strat-competitive, strat-second-curve]
 tools:
   - { name: archive.read, access: read,   desc: 读取一企一档、诊断素材包与历史战略纪要 }

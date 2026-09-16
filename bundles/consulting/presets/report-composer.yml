@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R2, C-R5]   # 结论类内容外发必审 / PII 未脱敏即拦截
+coverage:
+  - { eventPrefix: "consulting.report-composer.", label: 报告编制 }
 skills: [report-composer]
 tools:
   - { name: archive.read, access: read,   desc: 读取诊断素材包与引用链 }

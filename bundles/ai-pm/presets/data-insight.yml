@@ -8,6 +8,9 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: ['R-PM4']
+coverage:
+  - event_prefix: ai-pm.data-insight.
+    label: 兼容事件域
 skills: ['metric-digest']
 tools:
   - { name: metrics.read, access: read, desc: 读取指标序列 }

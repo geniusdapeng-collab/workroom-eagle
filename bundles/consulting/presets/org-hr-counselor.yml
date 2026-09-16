@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R2, C-R7]      # 人员评价必审；合规边界建议必审
+coverage:
+  - { eventPrefix: "consulting.org-hr-counselor.", label: 组织人力 }
 skills: [org-structure, org-performance, org-talent-pipeline, org-change-management, org-labor-compliance]
 tools:
   - { name: archive.read, access: read,   desc: 读取组织架构、花名册脱敏摘要与访谈纪要 }

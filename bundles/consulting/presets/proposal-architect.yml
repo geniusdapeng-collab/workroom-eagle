@@ -8,6 +8,8 @@ readonly: false
 night_shift: false
 high_risk: false
 fence_bindings: [C-R1, C-R3]   # 小额标准价自动 / 大额合同与非标条款必审
+coverage:
+  - { eventPrefix: "consulting.proposal-architect.", label: 方案设计 }
 skills: [proposal-forge]
 tools:
   - { name: archive.read, access: read,   desc: 读取客户档案与诊断素材 }

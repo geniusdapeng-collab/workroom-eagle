@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R2, C-R7]   # 结论/人员评价外发必审 / 合规边界建议必审且附合规提示
+coverage:
+  - { eventPrefix: "consulting.quality-officer.", label: 交付质检 }
 skills: [red-team-review]
 tools:
   - { name: archive.read, access: read,   desc: 读取交付物与引用链、引用记忆 }

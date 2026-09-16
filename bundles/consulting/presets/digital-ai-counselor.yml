@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R2]      # 转型路线与选型建议类结论外发必审
+coverage:
+  - { eventPrefix: "consulting.digital-ai-counselor.", label: 数智转型 }
 skills: [dig-roadmap, ai-strategy, ai-scenario-discovery, ai-roadmap, ai-digital-workforce, ai-governance]
 tools:
   - { name: archive.read, access: read,   desc: 读取业务流程档案、系统清单与数据资产盘点 }

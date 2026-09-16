@@ -8,6 +8,9 @@ readonly: false
 night_shift: false
 high_risk: false
 fence_bindings: ['R-PM5']
+coverage:
+  - event_prefix: ai-pm.user-listener.
+    label: 兼容事件域
 skills: ['review-miner']
 tools:
   - { name: feedback.read, access: read, desc: 读取用户反馈 }

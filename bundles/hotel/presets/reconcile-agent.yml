@@ -8,6 +8,9 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [R4, R5]   # 退款≥¥500必审 / 担保订单异常需介入
+coverage:
+  - event_prefix: hotel.reconcile-agent.
+    label: 兼容事件域
 skills: [channel-reconciler]
 tools:
   - { name: order.list, access: read,     desc: 拉取订单流水 }

@@ -8,6 +8,9 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: ['R-PM7']
+coverage:
+  - event_prefix: ai-pm.release-guardian.
+    label: 兼容事件域
 skills: ['release-notes', 'github-pulse']
 tools:
   - { name: repo.read, access: read, desc: 读取仓库脉搏 }

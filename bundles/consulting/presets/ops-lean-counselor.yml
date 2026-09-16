@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R2]      # 运营诊断结论与改善建议类内容外发必审
+coverage:
+  - { eventPrefix: "consulting.ops-lean-counselor.", label: 精益运营 }
 skills: [ops-process-reeng, ops-lean-production, ops-supplychain, ops-leadtime-compress, ops-cost-reduction]
 tools:
   - { name: archive.read, access: read,   desc: 读取工艺流程、产线记录与历史改善台账 }

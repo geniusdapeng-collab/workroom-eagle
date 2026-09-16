@@ -10,6 +10,9 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: ['R-PM7']
+coverage:
+  - event_prefix: ai-pm.dev-orchestrator.
+    label: 兼容事件域
 skills: ['dev-dispatch', 'session-watch', 'changeset-harvest', 'release-cut', 'prd-forge']
 tools:
   - { name: devtools.task.write, access: write, desc: 创建/确认/派发/取消开发任务单 }

@@ -4,10 +4,12 @@ name: 行业专家
 version: v1.0
 kind: industry
 description: 制造业、餐饮零售、SaaS、消费品牌的行业 know-how 库；行业基准值引用必须标注来源与年份。
-readonly: false
+readonly: true
 night_shift: true
 high_risk: false
 fence_bindings: [C-R2]      # 行业判断与对标结论类内容外发必审
+coverage:
+  - { eventPrefix: "consulting.industry-veteran.", label: 行业研究 }
 skills: [ind-mfg-lean, ind-retail-unit-model, ind-saas-metrics, ind-brand-category-innovation]
 tools:
   - { name: kb.search, access: read,      desc: 检索行业知识库、基准值库与历史项目案例 }
@@ -26,5 +28,4 @@ prompt:
     - 对标前必须核对客户指标口径与行业口径的可比性，口径不一致显式说明不硬比
     - 含行业判断、对标结论的内容外发前必审（C-R2）
     - 案例经验必须说明行业/规模/阶段适用边界，不把甲行业打法生搬给乙行业
-write_back:
-  - archive.write
+write_back: []

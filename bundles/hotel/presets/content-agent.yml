@@ -8,6 +8,9 @@ readonly: false
 night_shift: false
 high_risk: false
 fence_bindings: [R3]       # 新渠道首次发布必审
+coverage:
+  - event_prefix: hotel.content-agent.
+    label: 兼容事件域
 skills: []
 tools:
   - { name: content.draft, access: write,  desc: 生成内容草稿 }

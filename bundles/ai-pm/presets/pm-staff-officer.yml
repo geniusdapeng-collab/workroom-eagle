@@ -8,6 +8,9 @@ readonly: false
 night_shift: false
 high_risk: false
 fence_bindings: ['R-PM1']
+coverage:
+  - event_prefix: ai-pm.pm-staff-officer.
+    label: 兼容事件域
 skills: ['metric-digest', 'meeting-digest']
 tools:
   - { name: team.briefing.write, access: write, desc: 晨报汇总与发布 }

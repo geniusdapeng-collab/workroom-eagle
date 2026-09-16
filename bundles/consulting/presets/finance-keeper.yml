@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R6]      # 退款、折扣 >20%、免费增项承诺必审
+coverage:
+  - { eventPrefix: "consulting.finance-keeper.", label: 经营账务 }
 skills: [finance-keeper]
 tools:
   - { name: ledger.read, access: read,    desc: 读取台账：应收/开票/项目盈亏 }

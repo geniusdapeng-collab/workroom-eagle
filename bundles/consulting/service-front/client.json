@@ -1,0 +1,123 @@
+{
+  "workspaceKey": "consulting",
+  "brandName": "鹰眼咨询所",
+  "agentName": "小鹰",
+  "logoText": "鹰",
+  "theme": {
+    "primary": "#765D00",
+    "secondary": "#2457C5"
+  },
+  "welcomeText": "您好，这里是{brand} AI 服务前台。我是{agent}，全天在线，可以帮您查询报告进度、预约深谈、提交资料，也可以基于企业档案解答经营问题。紧急事项我会先接住并通知主理咨询师。",
+  "quickReplies": [
+    {
+      "label": "查看我的月报",
+      "sendText": "这个月的月度观察报告出来了吗？"
+    },
+    {
+      "label": "预约深谈",
+      "serviceKind": "meeting"
+    },
+    {
+      "label": "提交资料",
+      "serviceKind": "material"
+    },
+    {
+      "label": "紧急呼叫",
+      "serviceKind": "urgent"
+    }
+  ],
+  "serviceEntries": [
+    {
+      "kind": "meeting",
+      "title": "预约深谈",
+      "desc": "预约视频或到场会谈，会前情报简报自动备好",
+      "icon": "约",
+      "sla": "两小时内响应",
+      "titlePlaceholder": "例如：预约下周季度复盘会"
+    },
+    {
+      "kind": "material",
+      "title": "提交资料",
+      "desc": "提交报表、截图、语音或文件，自动解析归档",
+      "icon": "交",
+      "sla": "收到后即时归入企业档案",
+      "titlePlaceholder": "例如：八月各门店营收汇总表"
+    },
+    {
+      "kind": "report",
+      "title": "报告与档案",
+      "desc": "申请查看月报、年度价值报告或企业档案",
+      "icon": "报",
+      "sla": "月报每月五日前送达",
+      "titlePlaceholder": "例如：申请导出企业档案"
+    },
+    {
+      "kind": "urgent",
+      "title": "紧急呼叫",
+      "desc": "服务助手先收集信息，并同步通知主理咨询师",
+      "icon": "急",
+      "sla": "夜间十五分钟内响应，日间五分钟内响应",
+      "titlePlaceholder": "请简述紧急事项"
+    },
+    {
+      "kind": "other",
+      "title": "其他需求",
+      "desc": "提交更多个性化服务需求",
+      "icon": "他",
+      "sla": "客户成功人员三十分钟内响应",
+      "titlePlaceholder": "请描述您的需求"
+    }
+  ],
+  "memberLevels": {
+    "常年顾问客户": {
+      "label": "常年顾问客户"
+    },
+    "诊断期客户": {
+      "label": "诊断期客户"
+    },
+    "体检期客户": {
+      "label": "体检期客户"
+    },
+    "游客": {
+      "label": "游客"
+    }
+  },
+  "profile": {
+    "identityBinding": false,
+    "membership": false,
+    "orders": false,
+    "labels": {
+      "identity": "企业服务身份",
+      "membership": "顾问服务权益",
+      "points": "可用服务积分",
+      "orders": "近期服务事项",
+      "emptyOrders": "暂无服务事项"
+    }
+  },
+  "enableTabs": [
+    "chat",
+    "service",
+    "tickets",
+    "messages",
+    "me"
+  ],
+  "supportPhone": "",
+  "demoHistory": [
+    {
+      "role": "user",
+      "text": "这个月的月报什么时候能看？"
+    },
+    {
+      "role": "ai",
+      "text": "八月月度观察报告初稿已生成，正在由主理咨询师审核。结论涉及毛利异动，按规则必须由本人确认，预计今天中午前推送。"
+    },
+    {
+      "role": "user",
+      "text": "我刚提交了八月各门店营收汇总表。"
+    },
+    {
+      "role": "ai",
+      "text": "资料已收到并解析。两处数据与历史口径不一致，已自动标注并列入追问清单；资料完成脱敏后才会归入企业档案。"
+    }
+  ]
+}

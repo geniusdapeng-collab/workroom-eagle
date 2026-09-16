@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R2]      # 月报与应答中含结论/建议类内容外发必审
+coverage:
+  - { eventPrefix: "consulting.companion-keeper.", label: 客户陪伴 }
 skills: [companion-watch]
 tools:
   - { name: metric.watch, access: read,   desc: 客户月度指标监测与异动判定 }

@@ -8,6 +8,7 @@ readonly: true
 night_shift: true
 high_risk: false
 fence_bindings: []          # 只读型 Agent，无写类动作，受 default_level 兜底
+coverage: []
 skills: [pre-meeting-brief]
 tools:
   - { name: web.research, access: read, desc: 公开信息检索（官网/新闻/工商/研报） }

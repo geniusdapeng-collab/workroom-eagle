@@ -8,6 +8,8 @@ readonly: false
 night_shift: false
 high_risk: false
 fence_bindings: [C-R8, C-R9]   # 涉密/跨境专家对接拦截 / 客户敏感数据外发第三方拦截
+coverage:
+  - { eventPrefix: "consulting.resource-broker.", label: 资源对接 }
 skills: [expert-match]
 tools:
   - { name: expert.match, access: read,     desc: 专家库语义匹配与画像检索 }

@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R1]      # 标准价目内的小额初步报价可自动响应，超线升级
+coverage:
+  - { eventPrefix: "consulting.lead-concierge.", label: 线索服务 }
 skills: [lead-triage]
 tools:
   - { name: archive.write, access: write, desc: 写入线索五元化登记卡 }

@@ -8,6 +8,9 @@ readonly: false
 night_shift: false
 high_risk: false
 fence_bindings: ['R-PM6']
+coverage:
+  - event_prefix: ai-pm.doc-writer.
+    label: 兼容事件域
 skills: ['prd-forge', 'release-notes']
 tools:
   - { name: documents.read, access: read, desc: 读取文档库 }

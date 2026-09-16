@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R3, C-R6]      # 大额合同必审；退款折扣建议必审
+coverage:
+  - { eventPrefix: "consulting.finance-advisor.", label: 财务资本 }
 skills: [fin-statement-analysis, fin-budget, fin-cashflow, fin-valuation, fin-fundraising-prep]
 tools:
   - { name: ledger.read, access: read,    desc: 读取账套科目余额、凭证摘要与往来明细 }

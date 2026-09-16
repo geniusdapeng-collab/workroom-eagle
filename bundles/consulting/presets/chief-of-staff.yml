@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R2]      # 含诊断结论/人员评价/组织建议的汇总件外发必审
+coverage:
+  - { eventPrefix: "consulting.chief-of-staff.", label: 议题调度 }
 skills: []
 tools:
   - { name: archive.read, access: read,   desc: 读取一企一档，掌握客户全貌 }

@@ -8,6 +8,9 @@ readonly: false
 night_shift: false
 high_risk: false
 fence_bindings: ['R-PM2']
+coverage:
+  - event_prefix: ai-pm.requirement-analyst.
+    label: 兼容事件域
 skills: ['prd-forge']
 tools:
   - { name: requirements.read, access: read, desc: 读取需求池 }

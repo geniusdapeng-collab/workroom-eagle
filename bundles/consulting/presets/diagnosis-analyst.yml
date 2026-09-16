@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R2]      # 诊断结论类内容外发必审
+coverage:
+  - { eventPrefix: "consulting.diagnosis-analyst.", label: 诊断分析 }
 skills: [enterprise-diagnosis, red-team-review]
 tools:
   - { name: archive.read, access: read,    desc: 读取一企一档资料与访谈纪要 }

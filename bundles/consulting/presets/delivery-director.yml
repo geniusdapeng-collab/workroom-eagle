@@ -8,6 +8,8 @@ readonly: false
 night_shift: false
 high_risk: false
 fence_bindings: [C-R2, C-R5]      # 交付物结论必审；客户数据 PII 未脱敏拦截
+coverage:
+  - { eventPrefix: "consulting.delivery-director.", label: 咨询交付 }
 skills: [dlv-report-writing, dlv-ppt-storyline, dlv-workshop-facilitation, dlv-case-review, dlv-doc-automation]
 tools:
   - { name: archive.read, access: read,   desc: 读取诊断素材包、数据底稿与项目过程记录 }

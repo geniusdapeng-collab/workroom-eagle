@@ -8,6 +8,8 @@ readonly: false
 night_shift: true
 high_risk: false
 fence_bindings: [C-R2]      # 服务建议书与定价方案外发必审
+coverage:
+  - { eventPrefix: "consulting.value-service-designer.", label: 增值服务 }
 skills: [cs-valueadd-design, cs-service-productize, cs-intel-subscription, cs-watchtower, cs-knowledge-subscription]
 tools:
   - { name: archive.read, access: read,   desc: 读取客户档案、价值台账与服务历史 }
