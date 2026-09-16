@@ -601,6 +601,21 @@ async function main(): Promise<void> {
       ],
     );
   }
+
+  // 游客首进场只接受与产品 defaultBundle 精确匹配的唯一 active 安装。
+  // 台账和工作区指针在同一 owner 连接中幂等写入，禁止回退到其他行业示例。
+  await q(
+    `UPDATE bundle_installs SET status='inactive'
+     WHERE workspace_id=$1 AND bundle_id<>'consulting' AND status='active'`,
+    [WS_ID],
+  );
+  await q(
+    `INSERT INTO bundle_installs (id, workspace_id, bundle_id, assets, status)
+     VALUES ($1,$2,'consulting',$3,'active')
+     ON CONFLICT (id) DO UPDATE SET bundle_id='consulting', status='active'`,
+    [`bi-${WS_ID}-consulting`, WS_ID, JSON.stringify({ seed_batch_id: `seed-consulting-${WS_ID}` })],
+  );
+  console.log("✓ 咨询 Bundle active 装配台账已就绪（游客体验入口）");
   console.log(`✓ Agent 实例 ×${presets.length}（22 数字员工班组全员就绪；未声明 fence_bindings 禁写 F2.10）`);
 
   const archive = { ...eagleArchive(), dataMode: "simulated" };
