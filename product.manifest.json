@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "workloom.product/v1",
+  "productId": "workroom-eagle",
+  "role": "industry",
+  "displayName": "鹰眼 AI 咨询管理系统",
+  "packageName": "workroom-eagle",
+  "repository": "geniusdapeng-collab/workroom-eagle",
+  "defaultBundle": "consulting",
+  "demoWorkspaceSlug": "eagle-consulting",
+  "demoMemberNo": "MEM-E01",
+  "release": {
+    "appId": "com.geniusdapeng.workroomeagle",
+    "channel": "stable",
+    "artifactPrefix": "Workroom.Eagle",
+    "workflow": ".github/workflows/build-desktop.yml",
+    "website": "apps/site"
+  },
+  "desktop": {
+    "portOffset": 110
+  },
+  "clients": {
+    "bPc": { "enabled": true, "entry": "apps/web" },
+    "bMobile": { "enabled": true, "entry": "apps/webb" },
+    "cMobile": { "enabled": true, "entry": "apps/webc" }
+  }
+}

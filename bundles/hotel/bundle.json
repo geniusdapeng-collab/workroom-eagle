@@ -1,0 +1,89 @@
+{
+  "name": "@workloom/hotel",
+  "version": "1.0.0",
+  "workloom": {
+    "industry": "hotel",
+    "displayName": "WorkLoom for Hotels · 未来前台（演示 Bundle）",
+    "description": "酒店行业兼容差异资产包：数字员工、基线围栏、对象与阶段枚举、一店一档数据结构和官方技能。仅保留给既有种子与回归测试，不作为当前产品三端主导航来源。",
+    "provides": {
+      "presets": [
+        "presets/pricing-agent.yml",
+        "presets/review-agent.yml",
+        "presets/reconcile-agent.yml",
+        "presets/inspection-agent.yml",
+        "presets/content-agent.yml",
+        "presets/competitor-agent.yml",
+        "presets/desktop-agent.yml"
+      ],
+      "fences": [
+        "fences/hotel-baseline.yml"
+      ],
+      "skills": [
+        "skills/revenue-manager/SKILL.md",
+        "skills/review-crisis/SKILL.md",
+        "skills/channel-reconciler/SKILL.md"
+      ],
+      "schemas": [
+        "schemas/objects.json",
+        "schemas/stages.json",
+        "schemas/archive.schema.json"
+      ],
+      "ui": [
+        "ui/cases.json"
+      ]
+    },
+    "status": "candidate",
+    "owner": "鹰眼咨询兼容资产维护组",
+    "example": true,
+    "compatibility": {
+      "base": ">=0.1.0 <1.0.0",
+      "ui": ">=0.1.0 <1.0.0",
+      "contract": "2.0.0"
+    },
+    "ui": {
+      "schemaVersion": "workloom.bundle.ui/v1",
+      "terminology": {},
+      "navigation": {
+        "slots": []
+      },
+      "home": {
+        "widgets": []
+      },
+      "objects": [],
+      "workflows": [],
+      "serviceFront": {
+        "enabled": false,
+        "identityPolicy": "disabled",
+        "tabs": [],
+        "services": []
+      },
+      "theme": {
+        "brand": {}
+      },
+      "permissions": [],
+      "experiments": []
+    }
+  },
+  "schemaVersion": "workloom.bundle/v1",
+  "integrity": {
+    "algorithm": "sha256",
+    "digest": "2487122bc04cd1d4e2fb59297a1690e8597bcfac539bff09819116a6c17ba9dc",
+    "assets": {
+      "fences/hotel-baseline.yml": "39aee1cad30ba88af4313d024179b4006f2981ecaef7cd6ca4f25d05fc568cfc",
+      "presets/competitor-agent.yml": "7481c3aeb736c778d25a8ab5f0051af28b6de1ca8fb442abd544c15458b0bb65",
+      "presets/content-agent.yml": "7363ebfecb86a0cf292fa938dd010e9d866769a6de7db6f187ea5aa4a02ee85e",
+      "presets/desktop-agent.yml": "207d65201710c52c5164ef357a06c8975f9d5246efa2eebb67aea4f48b4c768a",
+      "presets/inspection-agent.yml": "cc02af0732c8efafee4444b8572d35f141a12db9d5685e28439e29c809d53017",
+      "presets/pricing-agent.yml": "8718d3d3babfd9e36540e9ff9ae29bd40409e600154545898fea6f5bf3e053f2",
+      "presets/reconcile-agent.yml": "027540b08303cd72899f648ee7e9afd76d20cd9e6fdafc8dfb7c7ad624b9f3b7",
+      "presets/review-agent.yml": "77d87aac5e880b6ce2b0e555c236a1e9d095f30eeae45eab45c0c52511fe5fc6",
+      "schemas/archive.schema.json": "2a555cd7b966e37731d83d60ffa7282eefe127150765c748e30fab7f94665358",
+      "schemas/objects.json": "551e2043cfad30c401a8ed59fe1b7a681183ddcfb6efa88d69ab2fbc1afa2a23",
+      "schemas/stages.json": "f01f0a3668ee49e2f3946c9dced0f84dcb8faf247c8c6e97ec75b3ff61c0762a",
+      "skills/channel-reconciler/SKILL.md": "0295393886cf59b41c9373df9fde463d51b64b5eaa292550f7014f02624dd207",
+      "skills/revenue-manager/SKILL.md": "5e05d1d2571fd3fddd10d608d0fd49a5bd2b39e7bf0fe3fd8090da7c4f4cfbd2",
+      "skills/review-crisis/SKILL.md": "7a160eb5029ac5dc97227cd092e5faca3c117d09a6ddb380dcf30fc274a6c4fa",
+      "ui/cases.json": "7142f13139484b0aa8de9ab6ac516e37beefce6512b4d3f2c51ae2e69d3e5235"
+    }
+  }
+}

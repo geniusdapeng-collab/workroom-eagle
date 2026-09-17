@@ -1,0 +1,12 @@
+{
+  "$id": "workloom://bundles/consulting/schemas/stages",
+  "description": "eagle 鹰眼咨询版客户经营阶段枚举（§2.2 槽②：阶段判定走确定性代码框架）——对齐客户旅程 Audit-Only→持续体检→影子→正式托管",
+  "stages": [
+    { "id": "audit", "label": "体检期", "hint": "Audit-Only 只读接入，快照快扫出《快速体检报告》，写操作物理 block" },
+    { "id": "diagnosis", "label": "诊断期", "hint": "访谈/调研/数据分析，建立企业深度档案，矛盾点交叉验证" },
+    { "id": "proposal", "label": "方案期", "hint": "方案设计与报告撰写，红队反证，报价测算必审" },
+    { "id": "delivery", "label": "落地陪跑期", "hint": "行动项拆解催办，落地辅导，常规问题分级应答" },
+    { "id": "retainer", "label": "常年顾问期", "hint": "日监测/周速览/月月报/季复盘/年度价值报告，认知常流" },
+    { "id": "dormant", "label": "休眠唤醒期", "hint": "服务间歇期档案值守，异动与续约窗口自动唤醒" }
+  ]
+}

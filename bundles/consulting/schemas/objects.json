@@ -1,0 +1,18 @@
+{
+  "$id": "workloom://bundles/consulting/schemas/objects",
+  "description": "eagle 鹰眼咨询版事件 Object 类型枚举（§2.2 槽② / 附录 E：对象枚举行业化）——围绕「一个企业一个档案」组织",
+  "objects": [
+    { "type": "enterprise", "label": "企业档案" },
+    { "type": "lead", "label": "线索" },
+    { "type": "issue", "label": "战略议题" },
+    { "type": "research_task", "label": "研究任务" },
+    { "type": "interview", "label": "访谈" },
+    { "type": "deliverable", "label": "交付物" },
+    { "type": "expert", "label": "专家资源" },
+    { "type": "action_item", "label": "行动项" },
+    { "type": "metric", "label": "经营指标" },
+    { "type": "contract", "label": "合同" },
+    { "type": "invoice", "label": "发票应收" },
+    { "type": "content", "label": "内容资产" }
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "name": "@workloom/ai-pm",
+  "version": "1.0.0",
+  "workloom": {
+    "industry": "ai-pm",
+    "displayName": "WorkLoom · AI 产品经理版（示例 Bundle）",
+    "description": "AI 产品经理兼容示例包：9 个数字员工、基线围栏、技能、楼层场景、运行态种子和行业考题。仅保留给既有种子与回归测试，不作为鹰眼咨询三端主导航来源。",
+    "example": true,
+    "provides": {
+      "presets": [
+        "presets/pm-staff-officer.yml",
+        "presets/requirement-analyst.yml",
+        "presets/competitor-scout.yml",
+        "presets/data-insight.yml",
+        "presets/user-listener.yml",
+        "presets/doc-writer.yml",
+        "presets/industry-radar.yml",
+        "presets/release-guardian.yml",
+        "presets/dev-orchestrator.yml"
+      ],
+      "fences": [
+        "fences/ai-pm-baseline.yml"
+      ],
+      "skills": [
+        "skills/prd-forge/SKILL.md",
+        "skills/competitor-scan/SKILL.md",
+        "skills/industry-radar/SKILL.md",
+        "skills/review-miner/SKILL.md",
+        "skills/metric-digest/SKILL.md",
+        "skills/release-notes/SKILL.md",
+        "skills/github-pulse/SKILL.md",
+        "skills/meeting-digest/SKILL.md",
+        "skills/dev-dispatch/SKILL.md",
+        "skills/session-watch/SKILL.md",
+        "skills/changeset-harvest/SKILL.md",
+        "skills/release-cut/SKILL.md"
+      ],
+      "schemas": [
+        "schemas/objects.json",
+        "schemas/stages.json",
+        "schemas/archive.schema.json"
+      ],
+      "floorScene": "floor-scene.json",
+      "modelPolicy": "model-policy.yml",
+      "feedbackEnums": "feedback-enums.yml",
+      "serviceFront": [
+        "service-front/faq.json"
+      ],
+      "evalQuestions": "eval/questions.json",
+      "seeds": [
+        "seeds/requirements.json",
+        "seeds/competitors.json",
+        "seeds/metrics.json",
+        "seeds/feedback.json",
+        "seeds/documents.json",
+        "seeds/approvals.json",
+        "seeds/night-jobs.json",
+        "seeds/kb.json"
+      ]
+    },
+    "status": "candidate",
+    "owner": "鹰眼咨询兼容资产维护组",
+    "compatibility": {
+      "base": ">=0.1.0 <1.0.0",
+      "ui": ">=0.1.0 <1.0.0",
+      "contract": "2.0.0"
+    },
+    "ui": {
+      "schemaVersion": "workloom.bundle.ui/v1",
+      "terminology": {},
+      "navigation": {
+        "slots": []
+      },
+      "home": {
+        "widgets": []
+      },
+      "objects": [],
+      "workflows": [],
+      "serviceFront": {
+        "enabled": false,
+        "identityPolicy": "disabled",
+        "tabs": [],
+        "services": []
+      },
+      "theme": {
+        "brand": {}
+      },
+      "permissions": [],
+      "experiments": []
+    }
+  },
+  "schemaVersion": "workloom.bundle/v1",
+  "integrity": {
+    "algorithm": "sha256",
+    "digest": "31c2998b415bced69a12fed1148a8fc7fb4f30c037b003829468738141ca28fb",
+    "assets": {
+      "eval/questions.json": "f49fd197375c488c3c46503914ce3aa9c710d8703fed4291ff3018dad60cefa3",
+      "feedback-enums.yml": "184bf74d1e70d4e490d6c1fba07b2516f93c5c8cd507f1e1986501fad18151d1",
+      "fences/ai-pm-baseline.yml": "695e454672e765f4a44fb1287d37c589b422a42504b9dbd4234ff4a2f449f384",
+      "floor-scene.json": "8fc029125994ebfaf3fd3538b05e9d2a1f152d054bc4a85b197654a5f7d5b718",
+      "model-policy.yml": "4c72f4be7ebe8a74a60afc487ff5851207b34c1fb9aeb65b1037cfadc971b5a6",
+      "presets/competitor-scout.yml": "9f1a662cd43532d4230f2c9f26b3dcd7cc2c1b71fed57f3a70811d1df0b1740d",
+      "presets/data-insight.yml": "cee9bda34ab6e5efcc1329e599ac741331c219554a87fade9e8e41fc8ba68fda",
+      "presets/dev-orchestrator.yml": "1ee2367a99ee5caf43fb6f60b883f8aba9adf1fc7934e8aa9f45412a89fb1780",
+      "presets/doc-writer.yml": "d01e2e93c89406570aeca196165de54ed7fec7a2cbe7eecac29d034edbf58cbf",
+      "presets/industry-radar.yml": "c9e60d7add90d146b435937bf71b929d722e608f40aabef09e737f850dff20bd",
+      "presets/pm-staff-officer.yml": "8f34144d18c8067024d0e4d2941a068062b362238a05fee185032692771f8772",
+      "presets/release-guardian.yml": "305052c7c258b76c22e2b71e23ed337d7fd320270e9e2be2b45be45a6bbb249a",
+      "presets/requirement-analyst.yml": "00c4b6e38dc2896e7c08f3055c9f2d6ff76888e9db763f24e0acfb626049b3e4",
+      "presets/user-listener.yml": "2a1bfaeda7500d077cb96b95923146202e95d3bb6b330d1f4f70832ee53d5846",
+      "schemas/archive.schema.json": "93d0d1c2bccc4fb3b393148a00c5e662f1bc56722acd2c6d81e8fe1527b691a0",
+      "schemas/objects.json": "f467072531e2f2a990e395f57658c422534974bb52c1cffda2859c9dcef120be",
+      "schemas/stages.json": "33b8ebbe5d864e4d8e7f9033be8c8e5d76746b0323f90ad4a14772091bafe577",
+      "seeds/approvals.json": "c87a95fd2bc3d25b046f7d89584747f2b984ec2784868399b62b549bf5516275",
+      "seeds/competitors.json": "791f410aa9740b45c7552ab8e7efe490998c913af2100534e44f1b70102d9fc2",
+      "seeds/documents.json": "8bbaadb82fa7719df688e950a8237bddbc2d2a7ae4b2ce17579bb2625efa95ea",
+      "seeds/feedback.json": "5ae6b4c51747c649a759c42bd2b7c0d9ac6c1fa67b5af289dbef2ed622609e9b",
+      "seeds/kb.json": "2f0e788cfe2738a5478544d0eccf500fa56255e3513c37490b6fb2c722b5259f",
+      "seeds/metrics.json": "70948478764dfb1e70ae7ffb81ee6f711d402310b59a030c644e0b7caa14ff85",
+      "seeds/night-jobs.json": "3a93da206d93ef88cd31d3ea74b6d770c3e0066f3c5211726756947f2d6f1e1a",
+      "seeds/requirements.json": "7b3d38df4877a9c58af1b72d1073711c313281d22d0166a9ef25a8414f62528c",
+      "service-front/faq.json": "36e443f5ece68d14369f8502bbf6e80599f234e7ade98a2c99f5e594db1bd7d2",
+      "skills/changeset-harvest/SKILL.md": "c9466906caee84a722756fa9072477d73a4f4e7b7c86afcf20e183d0d3cce7b2",
+      "skills/competitor-scan/SKILL.md": "c2213c5eadc31a3d107db6819b64f90e9a7e464e57a7023b853e9f05b0e154f8",
+      "skills/dev-dispatch/SKILL.md": "748b37c5c01b0790792b232b578270238685f00d65ef06ee0265bd4b90a48e9a",
+      "skills/github-pulse/SKILL.md": "537bf1233548142a7391f01e8af3700ba89fe09a5b050da82cb363ba0fffabee",
+      "skills/industry-radar/SKILL.md": "198f1d9320909b5317a9d95680f5ba5c49de677d40b6a4c01b674b443b2e154e",
+      "skills/meeting-digest/SKILL.md": "46e45dec0d90f02721c424bbfec1dc912770702f3985d76ab4e0d3d672f2a370",
+      "skills/metric-digest/SKILL.md": "6cda6d573f5a6e0561a4552edce1c7bebb645b707957322b59e02c7bbfa5554c",
+      "skills/prd-forge/SKILL.md": "fd50416f6beeb203646b05bbde89b836d434cf91604f2b66a7356867cc7e125a",
+      "skills/release-cut/SKILL.md": "b248b4d79e5fc59dd58f7e74e941f76daaf328f7bdf06cd67a2223002be7b939",
+      "skills/release-notes/SKILL.md": "d85510937253f7a44ac0162ec311bda3e2a6279bf81b05a579f78a420df6d4f7",
+      "skills/review-miner/SKILL.md": "3899a084a15ee2856edffd17f41c70cf52da83bdb209bf037d7a4555b29b55bd",
+      "skills/session-watch/SKILL.md": "4e239bb82b790a517ec353609e817481a9f0ee7f40c252ba5791eb27e8ca2534"
+    }
+  }
+}

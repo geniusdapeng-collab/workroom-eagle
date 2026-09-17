@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "description": "eagle 鹰眼咨询版 · C 端服务前台服务目录（企业客户视角：快速问答/预约深谈/资料提交/报告查看/紧急呼叫）",
+  "categories": [
+    { "key": "ask", "name": "快速问答" },
+    { "key": "meeting", "name": "预约深谈" },
+    { "key": "material", "name": "资料提交" },
+    { "key": "report", "name": "报告与档案" },
+    { "key": "urgent", "name": "紧急呼叫" }
+  ],
+  "items": [
+    { "name": "经营问题快速咨询", "category": "ask", "sla": "即时", "note": "基于您企业的档案与方案知识库应答；敏感问题自动升级主理咨询师", "channel": "chat" },
+    { "name": "行业与竞对情报速览", "category": "ask", "sla": "即时", "note": "夜班情报研究员每日扫描，问答可调取最新情报卡", "channel": "chat" },
+    { "name": "行动项进度查询", "category": "ask", "sla": "即时", "note": "落地陪跑期行动账本实时可查，逾期项自动标注升级状态", "channel": "chat" },
+    { "name": "预约深度会谈", "category": "meeting", "sla": "2 小时内响应", "note": "视频或到场；会前 10 分钟情报简报自动备好", "channel": "ticket" },
+    { "name": "预约季度复盘会", "category": "meeting", "sla": "2 小时内响应", "note": "常年顾问客户专属；复盘包自动预生成", "channel": "ticket" },
+    { "name": "提交经营资料", "category": "material", "sla": "即时", "note": "支持文件/截图/语音；自动解析归档入企业档案（脱敏后入库）", "channel": "chat" },
+    { "name": "补充访谈对象信息", "category": "material", "sla": "即时", "note": "诊断期专用；提纲与保密承诺自动生成", "channel": "ticket" },
+    { "name": "查看月度观察报告", "category": "report", "sla": "即时", "note": "每月 5 日前推送；数据异动与建议一览", "channel": "push" },
+    { "name": "查看年度价值报告", "category": "report", "sla": "即时", "note": "续约季自动生成；每项价值可下钻到服务记录", "channel": "push" },
+    { "name": "企业档案导出申请", "category": "report", "sla": "24 小时", "note": "认知资产归客户所有；导出申请留痕可审计", "channel": "ticket" },
+    { "name": "紧急事项呼叫主理人", "category": "urgent", "sla": "夜间 15 分钟/日间 5 分钟", "note": "AI 前台先行安抚与信息收集，同步升级叫醒主理咨询师", "channel": "ticket" }
+  ]
+}

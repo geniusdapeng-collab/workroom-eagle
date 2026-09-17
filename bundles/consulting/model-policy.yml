@@ -1,0 +1,45 @@
+# eagle 鹰眼咨询行业 · 模型路由策略（bundle 第⑦装配槽，v3.0 通用模型路由系统）
+# 档位：L1 轻量 0.2× / L2 中坚 1× / L3 旗舰 3×；谷时 22:00–08:00 非实时任务再 ×0.2
+# 咨询行业原则：信任型行业「宁可不答不可错答」——对外内容降级语义一律 passthrough-disclose；
+# 诊断/红队/价值报告等质量红线场景 noDowngrade；夜班批量（转写/监测/研究）谷时排队吃 0.2× 洼地
+# 场景未点名时继承底座 DEFAULT_MODEL_POLICY
+version: "v3.0"
+scenes:
+  # —— 高频轻量（占调用量 ~75%，小模型又快又省） ——
+  intent-classify:   { tier: L1, fallback: rule-template }              # 意图分类（3s 硬超时，失败走规则）
+  nl-translate:      { tier: L1, fallback: rule-template }              # NL→检索过滤器
+  cs-answer:         { tier: L1, escalateOn: [low-confidence, thumbs-down] }  # C 端服务前台组答（咨询 FAQ KB 命中后改写）
+  voice-concierge:   { tier: L1, escalateOn: [low-confidence, thumbs-down] }  # 语音前台（2.8s 体感红线）
+  lead-classify:     { tier: L1, window: off-peak-only }                # 线索资格初筛批量打分
+  doc-transcribe:    { tier: L1, window: off-peak-only }                # 访谈转写/语音转文字（谷时批量）
+  mm-parse:          { tier: L1, escalateOn: [low-confidence] }         # 多模态解析：截图 OCR/报表提取/文件摘要
+  # —— 中频中等（主力中坚档） ——
+  ask-synthesize:    { tier: L2, escalateOn: [thumbs-down] }            # ASK 经营问询（需跨档案归因，默认 L2）
+  quest-plan:        { tier: L2 }                                       # Quest 任务规划
+  meeting-brief:     { tier: L2, window: off-peak-only }                # 会前情报简报（谷时预制）
+  interview-summary: { tier: L2, window: off-peak-only }                # 访谈纪要初稿（谷时批量）
+  monthly-report:    { tier: L2, escalateOn: [thumbs-down], window: off-peak-only }  # 月度观察报告初稿
+  proposal-draft:    { tier: L2, escalateOn: [thumbs-down, redteam-fail] }  # 提案/报告初稿（人审前）
+  briefing:          { tier: L2 }                                       # CEO 晨报/周会/月报
+  ceo-decision:      { tier: L2 }                                       # CEO L2 常规裁决
+  night-report:      { tier: L2, window: off-peak-only }                # 夜班决策包合成（谷时）
+  kb-extract:        { tier: L2, window: off-peak-only }                # 知识库/纪要结构化入库
+  # —— 低频重度（旗舰档，质量红线；对外内容宁可不答不可错答） ——
+  diagnosis-synthesize: { tier: L3, noDowngrade: true, downgrade: passthrough-disclose }  # 诊断素材综合
+  redteam-review:    { tier: L3, noDowngrade: true }                    # 红队反证（结论对抗审查）
+  value-report:      { tier: L3, noDowngrade: true, window: off-peak-only }  # 年度价值报告（续约弹药）
+  quote-advice:      { tier: L3, downgrade: passthrough-disclose }      # 报价测算建议（错了就是钱）
+  ceo-deep-analysis: { tier: L3, noDowngrade: true }                    # 六步深度管线（多方案+红队对抗）
+  hr-replacement:    { tier: L3, noDowngrade: true }                    # 汰换诊断书
+  incident-rootcause: { tier: L3, noDowngrade: true }                   # 断点根因闭环
+  fast-scan-report:  { tier: L3, noDowngrade: true, billTo: platform }  # 售前体检报告：效果拉满，平台承担成本
+plans:
+  lite:     { defaultShift: -1 }   # 智享版：整体压一档（个体咨询师起步）
+  standard: { defaultShift: 0 }    # 标准版：标准混合（主推）
+  smart:                           # 智能版：简单任务也保底 L2（又快又准），裁决走 L3
+    defaultShift: 1
+    tierOverrides:
+      intent-classify: L1          # 延迟红线场景保持 L1 快速款
+      nl-translate: L1
+      voice-concierge: L1
+      ceo-decision: L3
