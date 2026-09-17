@@ -4,7 +4,7 @@
   "role": "industry",
   "displayName": "鹰眼 AI 咨询管理系统",
   "packageName": "workroom-eagle",
-  "repository": "geniusdapeng-collab/workroom-eagle",
+  "repository": "workloom-ai/workroom-eagle",
   "defaultBundle": "consulting",
   "demoWorkspaceSlug": "eagle-consulting",
   "demoMemberNo": "MEM-E01",

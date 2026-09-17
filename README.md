@@ -8,7 +8,7 @@
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-9A7B2D)](LICENSE)
 [![Runtime](https://img.shields.io/badge/runtime%20foundation-DeepSeek%20Harness-4C6FFF)](https://www.npmjs.com/package/@deepseek-ai/dsh)
-[![Base](https://img.shields.io/badge/基于-WorkLoom%20企业级%20Agent%20IM%20基座-1B2A4E)](https://github.com/geniusdapeng-collab/workloom-im)
+[![Base](https://img.shields.io/badge/基于-WorkLoom%20企业级%20Agent%20IM%20基座-1B2A4E)](https://github.com/workloom-ai/workloom-im)
 [![Bundle](https://img.shields.io/badge/consulting%20bundle-v2.0.0%20·%2022员工%20·%20199技能-C9A227)]()
 [![Tests](https://img.shields.io/badge/tests-vitest%20%2B%20445%20suite%20%2B%20verify--chain-green)]()
 [![Data](https://img.shields.io/badge/data%20sovereignty-local--first%20PG17-blueviolet)]()
@@ -65,7 +65,7 @@ eagle 就是为你造的：**你继续做只有你能做的事——见客户、
 
 **eagle 鹰眼咨询管理系统** = 一个咨询师 + 一支 24 小时不停歇的专业数码咨询班组（22 个数字员工）+ 一个 199 项技能的专业技能库 + 每家企业客户一份持续加厚的认知资产档案。
 
-它基于 [WorkLoom 企业级 Agent IM 基座](https://github.com/geniusdapeng-collab/workloom-im) 深度定制：底座九域能力（五元事件库 / 围栏引擎 / 审批触达 / IM 通道 / 夜班班组 / 巡检中心 / 技能市场 / 多租户 / 模型路由 + 自我进化飞轮 + 数字CEO）**原样继承、零改动**；咨询行业差异 100% 经行业 Bundle（`bundles/consulting/` v2.0.0）装配注入。
+它基于 [WorkLoom 企业级 Agent IM 基座](https://github.com/workloom-ai/workloom-im) 深度定制：底座九域能力（五元事件库 / 围栏引擎 / 审批触达 / IM 通道 / 夜班班组 / 巡检中心 / 技能市场 / 多租户 / 模型路由 + 自我进化飞轮 + 数字CEO）**原样继承、零改动**；咨询行业差异 100% 经行业 Bundle（`bundles/consulting/` v2.0.0）装配注入。
 
 **人机分工铁律——高光时刻留给人**：澄清会、访谈执行、诊断定调、汇报会、续约谈判这 5 类高信任场景，系统**硬性禁止 AI 替身**（围栏 C-R4，block 级）；AI 把高光之外的一切碾平。对咨询全流程 30 个环节的拆解结论：11 个环节完全自动化、13 个人机协作、只有 6 个必须人来——而那 6 个，恰是客户付费感知的全部高光。
 
@@ -298,7 +298,7 @@ pnpm setup && pnpm preview:all
 
 ## 血缘与致谢
 
-eagle 鹰眼基于 **[WorkLoom 织元 · DeepSeek Harness 企业级 Agent IM](https://github.com/geniusdapeng-collab/workloom-im)** 深度定制——以消息（五元事件）为唯一事实源、以规则围栏为行动权限边界、以三态会话为人机分工范式的人机协作网络。酒店行业演示 Bundle（`bundles/hotel/`）作为基座参考实现一并保留。运行时地基 [DeepSeek Harness](https://www.npmjs.com/package/@deepseek-ai/dsh)（MIT）；[pgvector](https://github.com/pgvector/pgvector) 组织记忆语义检索；Hono / tRPC / React / Vite 工程基座。
+eagle 鹰眼基于 **[WorkLoom 织元 · DeepSeek Harness 企业级 Agent IM](https://github.com/workloom-ai/workloom-im)** 深度定制——以消息（五元事件）为唯一事实源、以规则围栏为行动权限边界、以三态会话为人机分工范式的人机协作网络。酒店行业演示 Bundle（`bundles/hotel/`）作为基座参考实现一并保留。运行时地基 [DeepSeek Harness](https://www.npmjs.com/package/@deepseek-ai/dsh)（MIT）；[pgvector](https://github.com/pgvector/pgvector) 组织记忆语义检索；Hono / tRPC / React / Vite 工程基座。
 
 ## License
 

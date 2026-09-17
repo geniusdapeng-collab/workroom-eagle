@@ -9,7 +9,7 @@ Traditional consulting sells a report. eagle operates a **continuously deepening
 **[简体中文](README.md)** · English
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-9A7B2D)](LICENSE)
-[![Base](https://img.shields.io/badge/built%20on-WorkLoom%20Enterprise%20Agent%20IM-1B2A4E)](https://github.com/geniusdapeng-collab/workloom-im)
+[![Base](https://img.shields.io/badge/built%20on-WorkLoom%20Enterprise%20Agent%20IM-1B2A4E)](https://github.com/workloom-ai/workloom-im)
 
 </div>
 
@@ -33,7 +33,7 @@ The trust formula of AI-era consulting — and the design constitution of eagle:
 
 **eagle** is the AI all-in-one work system for independent management consultants and boutique consulting firms: **one consultant + a professional digital consulting team of 22 digital employees working 24/7, armed with 199 professional skills**, covering the full chain — lead generation, diagnosis, proposal, delivery, year-round retainer companionship, knowledge compounding, and firm operations — more professional than a professional human team, and never off duty.
 
-Built on the [WorkLoom Enterprise Agent IM](https://github.com/geniusdapeng-collab/workloom-im) foundation: all nine capability domains (five-element event store / fence engine / review console / IM channels / night shift / inspection / skill marketplace / multi-tenancy / model router + self-evolution flywheel + digital CEO) are inherited unchanged; every consulting-specific difference is injected via the industry bundle (`bundles/consulting/`).
+Built on the [WorkLoom Enterprise Agent IM](https://github.com/workloom-ai/workloom-im) foundation: all nine capability domains (five-element event store / fence engine / review console / IM channels / night shift / inspection / skill marketplace / multi-tenancy / model router + self-evolution flywheel + digital CEO) are inherited unchanged; every consulting-specific difference is injected via the industry bundle (`bundles/consulting/`).
 
 - **Human-machine rule**: the spotlight moments stay human — first meetings, interviews, diagnosis calls, presentations and renewal negotiations are hard-blocked from AI substitution (fence C-R4). AI flattens everything else.
 
@@ -61,7 +61,7 @@ The demo seed is a full consulting-firm runtime: 3 client archives (Hengchang Ma
 
 ## Provenance
 
-eagle is a deep customization of **[WorkLoom · Enterprise Agent IM powered by DeepSeek Harness](https://github.com/geniusdapeng-collab/workloom-im)**. The hotel demo bundle (`bundles/hotel/`) is kept as the base reference implementation. Runtime foundation: DeepSeek Harness (MIT). Engineering base: Hono / tRPC / React / Vite / PostgreSQL 17 + pgvector.
+eagle is a deep customization of **[WorkLoom · Enterprise Agent IM powered by DeepSeek Harness](https://github.com/workloom-ai/workloom-im)**. The hotel demo bundle (`bundles/hotel/`) is kept as the base reference implementation. Runtime foundation: DeepSeek Harness (MIT). Engineering base: Hono / tRPC / React / Vite / PostgreSQL 17 + pgvector.
 
 ## License
 
