@@ -182,7 +182,18 @@ function yunqiArchive(): Record<string, unknown> {
       version: 1,
       mode: "trial",
       identity: { name: "公司CEO", persona: "稳健经营型" },
-      autonomy: { price_band: [0.85, 1.15], procurement_cap: 5000, campaign_cap: 2000 },
+      // 自治边界必须用基座通用契约 {ranges,caps}（键名由行业包命名）。
+      // 旧写法 price_band/procurement_cap/campaign_cap 会被 charterSchema(.strict) 拒绝，
+      // parseCharter 兜底 disabled → 晨报/裁决/熔断/绩效/董事会包整片静默。
+      autonomy: {
+        ranges: {
+          "price-change-ratio": { label: "房价调整比例", lower: 0.85, upper: 1.15, anchor: 1 },
+        },
+        caps: {
+          procurement: { label: "采购金额上限", limit: 5000 },
+          campaign: { label: "营销支出上限", limit: 2000 },
+        },
+      },
       escalate: ["修改保底价/安全禁区相关", "单月累计让利超上限", "围栏规则放宽（任何放宽）", "新渠道/新平台上线", "对外公开承诺（赔偿/免费/声明）", "宪章变更"],
       briefing: { daily: "08:30", weekly: "Mon 09:00", monthly: "1st 10:00", channel: "both" },
       circuit_breaker: { window_days: 14, kpi_floor: { occ: 0.7 }, tightened: false },
@@ -815,6 +826,10 @@ async function main(): Promise<void> {
   for (const [idx, row] of reviewEvents.rows.entries()) {
     const p = row.payload as SeedEvent;
     const status = idx === 0 ? "pending" : "approved";
+    // D21 通用裁决判据：行业只声明 key/value，基座负责比较（不再依赖行业私有 base_price 字段）
+    const beforeValue = Number((p.decision.before as Record<string, unknown> | null)?.price);
+    const afterValue = Number((p.decision.after as Record<string, unknown> | null)?.price);
+    const hasChangeRatio = Number.isFinite(beforeValue) && beforeValue !== 0 && Number.isFinite(afterValue);
     await gw.query(
       `INSERT INTO approvals (approval_id, tenant_id, workspace_id, event_id, channel, status, gesture, snapshot, decided_by, decided_at)
        VALUES ($1,$2,$3,$4,'inapp',$5,$6,$7,$8,$9)
@@ -831,10 +846,12 @@ async function main(): Promise<void> {
         JSON.stringify({
           before: p.decision.before ?? null,
           after: p.decision.after ?? null,
-          // D21：裁决判据字段（action/params/base_price）——公司CEO 可据此裁决而非保守全上浮
+          // D21：裁决判据字段（action/params + 通用自治区间）——公司CEO 可据此裁决而非保守全上浮
           action: p.decision.action,
           params: p.decision.params ?? {},
           base_price: (p.decision.before as Record<string, unknown> | null)?.price ?? null,
+          autonomy_range_key: hasChangeRatio ? "price-change-ratio" : undefined,
+          autonomy_range_value: hasChangeRatio ? afterValue / beforeValue : undefined,
           expires_at: iso(new Date(Date.now() + 24 * 3600 * 1000)), // G6：24h
         }),
         status === "approved" ? "MEM-001" : null,

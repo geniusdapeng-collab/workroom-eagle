@@ -256,7 +256,19 @@ function eagleArchive(): Record<string, unknown> {
       version: 1,
       mode: "trial",
       identity: { name: "总参谋长", persona: "严谨稳健型" },
-      autonomy: { quote_cap: 20000, procurement_cap: 3000, content_cap: 2000 },
+      // 自治边界用基座通用契约 {ranges,caps}：键名由咨询行业包命名（报价浮动/采购/内容投放）。
+      // 旧写法 quote_cap/procurement_cap/content_cap 会被 charterSchema(.strict) 拒绝 →
+      // parseCharter 兜底 disabled，咨询版的晨报/裁决/熔断/交付复盘会整片静默。
+      autonomy: {
+        ranges: {
+          "quote-adjust-ratio": { label: "报价浮动比例", lower: 0.9, upper: 1.1, anchor: 1 },
+        },
+        caps: {
+          quote: { label: "单份报价上限", limit: 20000 },
+          procurement: { label: "采购金额上限", limit: 3000 },
+          content: { label: "内容投放上限", limit: 2000 },
+        },
+      },
       escalate: ["任何诊断结论/人员评价外发", "合同金额超 10 万或非标条款", "涉密专家对接", "客户数据外发", "围栏规则放宽（任何放宽）", "对外公开承诺", "宪章变更"],
       briefing: { daily: "08:30", weekly: "Mon 09:00", monthly: "1st 10:00", channel: "both" },
       circuit_breaker: { window_days: 14, kpi_floor: { approval_pass_rate: 0.6 }, tightened: false },
