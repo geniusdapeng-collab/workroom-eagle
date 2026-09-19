@@ -55,7 +55,10 @@
     "bundle:seal": "tsx scripts/bundle-governance.mts --refresh-digests",
     "bundle:release": "tsx scripts/bundle-governance.mts --refresh-digests --release",
     "projections:generate": "tsx scripts/generate-client-projections.mts --write",
-    "projections:check": "tsx scripts/generate-client-projections.mts"
+    "projections:check": "tsx scripts/generate-client-projections.mts",
+    "oss:inventory": "bash scripts/oss-watch.sh --inventory",
+    "oss:check": "bash scripts/oss-watch.sh --check",
+    "test:oss": "node --test scripts/oss-inventory.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
