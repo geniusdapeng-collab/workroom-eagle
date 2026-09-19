@@ -10,7 +10,7 @@
 [![Runtime](https://img.shields.io/badge/runtime%20foundation-DeepSeek%20Harness-4C6FFF)](https://www.npmjs.com/package/@deepseek-ai/dsh)
 [![Base](https://img.shields.io/badge/基于-WorkLoom%20企业级%20Agent%20IM%20基座-1B2A4E)](https://github.com/workloom-ai/workloom-im)
 [![Bundle](https://img.shields.io/badge/consulting%20bundle-v2.0.0%20·%2022员工%20·%20199技能-C9A227)]()
-[![Tests](https://img.shields.io/badge/tests-vitest%20%2B%20445%20suite%20%2B%20verify--chain-green)]()
+[![Tests](https://img.shields.io/badge/tests-vitest%20%2B%20suite%20437%2F459%20%28%E6%9C%AC%E6%9C%BA%E5%AE%9E%E6%B5%8B%20%C2%B7%20%E5%BE%85%E4%BF%AE%2022%29-yellow)]()
 [![Data](https://img.shields.io/badge/data%20sovereignty-local--first%20PG17-blueviolet)]()
 
 **[English](README_EN.md)** · 简体中文
@@ -19,16 +19,17 @@
 
 
 <!-- CAPABILITIES:BEGIN -->
-<!-- 本区块由 scripts/generate-capabilities.mjs 自动生成（2026-09-02），请勿手改；重跑 pnpm capabilities 更新 -->
+<!-- 本区块由 scripts/generate-capabilities.mjs 自动生成（2026-09-19），请勿手改；重跑 pnpm capabilities 更新 -->
 
 ## 🧩 系统能力速览（自动生成 · 与代码同步）
 
 - 🖥 **三端应用（开箱即看）**：PC 端 · B 端工作台 · 移动端 · B 端高保真 · 移动端 · C 端 AI 服务前台
-- 🏨 **行业 Bundle（垂直能力包）**：bundles/consulting/ · bundles/hotel/
+- 🏨 **行业 Bundle（垂直能力包）**：bundles/ai-pm/ · bundles/consulting/ · bundles/hotel/
+- 🧑‍💼 **数字员工与数字人（本仓自带）**：数字员工中心（`/agents`） · 织伴数字人（Live2D 常驻浮层） · 语音与口型引擎 · Live2D 渲染后端与资产
 - 🖐 **操作电脑能力（本仓自带 · 可装生产工作站）**：computer-use 三层感知（65 动作） · HTTP 远程驱动 + MCP server
-- 🤖 **AI 自动化引擎（系统内置能力）**：围栏 DSL 引擎 · L2 编排（ASK/QUEST） · 夜班自动运行 · 模型路由 · 五元事件 + RLS 隔离 · IM 渠道 等 9 项
+- 🤖 **AI 自动化引擎（系统内置能力）**：围栏 DSL 引擎 · 技能保鲜环（下行分发） · L2 编排（ASK/QUEST） · 夜班自动运行 · 模型路由 · 五元事件 + RLS 隔离 等 10 项
 - ✅ **验证与质量（工程纪律）**：一键安装（bootstrap） · 主测试套件 · 发布门禁 · 五元事件验链 · Agent 能力巡游 · 环境自检
-- 🎁 **演示与交付资产**：高保真演示页 ×6 · 官网静态站 · 自带技能 ×4 · 能力导览 PPT · Mock 数据体系
+- 🎁 **演示与交付资产**：高保真演示页 ×6 · 官网静态站 · 自带技能 ×5 · 能力导览 PPT · Mock 数据体系
 
 > 📖 完整能力导览（含截图与体验路径）：[docs/capabilities.auto.md](docs/capabilities.auto.md) ｜ 🤖 AI Agent 入口：[AGENTS.md](AGENTS.md) ｜ 🎯 首启必跑：`pnpm preview:all`
 <!-- CAPABILITIES:END -->
@@ -71,11 +72,59 @@ eagle 就是为你造的：**你继续做只有你能做的事——见客户、
 
 ---
 
+## 实机运行截图（真实运行态实拍 · 非设计稿）
+
+下面这批图，是把本仓原样跑起来（`pnpm preview:all` + `pnpm db:seed`，「鹰眼咨询所」演示数据集：3 家企业客户档案 / 100 条五元事件剧本）之后一页一页截下来的。页面顶部琥珀色横幅是刻意的运行态标识。
+
+### 经营剧场 · 22 个数字员工 · 数字人织伴
+
+| 经营剧场（首页 `/`） | 数字员工 · 人机混编通讯录（`/agents`） |
+|---|---|
+| ![经营剧场](docs/images/shots/pc-home.png) | ![数字员工](docs/images/shots/pc-agents.png) |
+
+| 织伴数字人 · 首装开场 | 织伴面板（聊聊 / 设置 / 记忆） |
+|---|---|
+| ![织伴开场](docs/images/shots/pc-mate-welcome.png) | ![织伴面板](docs/images/shots/pc-mate-chat.png) |
+
+> 通讯录里和您并列的 22 位就是**数字员工编制**（总参谋长、线索管家、情报研究员、诊断分析师、方案架构师……），夜班岗位 22:00–08:00 自动上线；**织伴**是全页面常驻的数字人秘书：语音 + 口型播报晨报、屏保守夜、随时对话，记忆面板把它「记住了什么」摊开给您看。
+
+### 咨询业务主线
+
+| 客户档案（`/consulting/archives`） | 诊断研判（`/consulting/diagnosis`） |
+|---|---|
+| ![客户档案](docs/images/shots/pc-consulting-archives.png) | ![诊断研判](docs/images/shots/pc-consulting-diagnosis.png) |
+
+| 交付复盘（`/consulting/deliveries`） | 咨询议题（内嵌导航） |
+|---|---|
+| ![交付复盘](docs/images/shots/pc-consulting-deliveries.png) | ![组织记忆](docs/images/shots/pc-memory.png) |
+
+### 信任治理与夜班
+
+| 审批中心（`/approvals`） | 夜班中心（`/night`） |
+|---|---|
+| ![审批中心](docs/images/shots/pc-approvals.png) | ![夜班中心](docs/images/shots/pc-night.png) |
+
+| 围栏规则（`/guardrails`） | 事件账本（`/events`） |
+|---|---|
+| ![围栏规则](docs/images/shots/pc-guardrails.png) | ![事件账本](docs/images/shots/pc-events.png) |
+
+| 技能中心 · 199 技能（`/skills`） | 经营驾驶舱 · 数字CEO（`/executive`） |
+|---|---|
+| ![技能中心](docs/images/shots/pc-skills.png) | ![经营驾驶舱](docs/images/shots/pc-executive.png) |
+
+### 三端
+
+| B 端移动 · 经营主页 | B 端移动 · 数字员工 | C 端 · 咨询服务前台 |
+|---|---|---|
+| ![B 端首页](docs/images/shots/mobile-b-home.png) | ![B 端数字员工](docs/images/shots/mobile-b-agents.png) | ![C 端对话](docs/images/shots/mobile-c-chat.png) |
+
+---
+
 ## 系统架构图
 
-<p align="center"><img src="docs/images/eagle/architecture.svg" alt="eagle 系统架构图" width="92%"/></p>
+<p align="center"><img src="docs/images/eagle/architecture.png" alt="eagle 系统架构图（体验层 / 服务层 / 咨询 Bundle + 基座十域 / 运行时地基 / 数据层）" width="92%"/></p>
 
-五层结构自上而下：**体验层**（PC 工作台 / 移动 B 端 / C 端咨询服务前台 / IM 通道）→ **服务层**（Hono + tRPC，PG 行级安全）→ **咨询行业 Bundle**（22 数字员工 / 199 技能 / 围栏 C-R1~C-R9 / 一企一档 / 服务前台资产）→ **底座九域**（WorkData 数据大脑为核心）→ **运行时与数据层**（DeepSeek Harness + PostgreSQL 17 + pgvector，本地优先、数据主权）。
+五层结构自上而下：**体验层**（PC 工作台 / 移动 B 端 / C 端咨询服务前台 / 织伴数字人 + IM 通道）→ **服务层**（Hono + tRPC v11，PG 行级安全按客户隔离，三域账号：咨询师 / 客户 observer / 专家 contractor）→ **能力层**（咨询行业 Bundle v2.0.0：22 数字员工岗位 / 199 技能 / 围栏 C-R1~C-R9 / 一企一档七大分区 / 服务前台资产 ＋ 基座十域零改动继承）→ **运行时地基**（DeepSeek Harness seam 适配）→ **数据层**（PostgreSQL 17 + pgvector，五元事件哈希链 + 组织记忆，本地优先、数据主权）。
 
 ---
 
@@ -98,6 +147,8 @@ eagle 就是为你造的：**你继续做只有你能做的事——见客户、
 ---
 
 ## 22 个数字员工：一支比人类团队更专业的咨询班组
+
+> 这 22 位不是"人设列表"，而是**编制内的同事**：在 `/agents` 人机混编通讯录里，每位都有平台档案——身份与来源 Bundle、**围栏授权逐条对账**（悬空标红）、绑定技能包、运行约束、**30 天战绩**（动作数 / 采纳率 / 被驳回 / 积分与谷时占比）与等级段位；点「派遣」当场建任务线程。夜班岗位 22:00–08:00 自动上线（青脉冲），只读岗位标绿（无写工具）。
 
 ### 核心管线班组（获客→诊断→交付→陪伴→经营）
 
@@ -163,9 +214,11 @@ eagle 就是为你造的：**你继续做只有你能做的事——见客户、
 
 ## Agent 协作数据管道图
 
-<p align="center"><img src="docs/images/eagle/data-pipeline.svg" alt="Agent 协作数据管道图" width="96%"/></p>
+<p align="center"><img src="docs/images/eagle/data-pipeline.png" alt="Agent 协作数据管道图（客户信号 → 安全网关 → 意图路由 → 班组协作 → 围栏判定 → 留痕归档）" width="96%"/></p>
 
 客户消息（文字/截图/语音/文件）→ 入站五元化 → 安全网关三段瀑布（PII 脱敏→围栏预检→幂等）→ 意图路由（Ask/Agent/Quest 三态）→ 班组协作管道（研究→诊断→方案→质检）→ 围栏判定（auto 自动 / review 人审 / block 熔断）→ 执行留痕 → 一企一档归档 → 组织记忆夜班提炼 → 偏好注入回流（越用越懂你）→ 月报/价值报告/清晨决策包输出。**每一次驳回都回流为校准样本——系统进化的飞轮在管道里，不在 PPT 里。**
+
+> 管道之外还有一位常驻者：**数字人织伴（LoomMate）**——PC 端全页面不离场的 Live2D 秘书（语音 + 口型播报、三态切换、屏保守夜、记忆透明面板），和 C 端「咨询服务前台」一起，把"客户随时找得到人、咨询师随时收得到话"变成默认状态。
 
 ---
 
@@ -295,6 +348,8 @@ pnpm setup && pnpm preview:all
 | `packages/base/*` | **底座零改动**（WorkLoom 九域能力原样继承） |
 
 质量门禁与基座同口径：`pnpm typecheck` · `pnpm test`（vitest）· `pnpm db:verify-chain`（哈希链）· `pnpm suite`（全场景用例）· `pnpm release:gate`。
+
+> **本机实测（2026-09-19，两块库分别复现）**：`pnpm suite` 当前 **437/459 通过、22 项失败**，全部集中在四簇——① 酒店域样例（O-02 / O-06 / O-14 / J-01 / D-15 等，本仓 bundle 组合与酒店仓不同）；② 数字CEO 裁决与自治（R-03 / R-06 / R-09 / R-10 / R-11 / R-19 / R-20 / R-21 / R-26）；③ 开箱运行态与真实模型装配（H-04 / H-09 / H-11 / H-13 / H-14 / H-15 / H-18）；④ HTTP E2E 派单（H-45）。同一套基线在酒店仓为 459/459，因此判断为 **eagle 侧取样/装配与基座新语义的漂移**，非环境问题；本 PR 为文档改动，未修改这些逻辑，已在 PR 中如实登记为待修项。
 
 ## 血缘与致谢
 

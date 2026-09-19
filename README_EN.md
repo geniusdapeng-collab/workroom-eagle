@@ -44,6 +44,13 @@ Built on the [WorkLoom Enterprise Agent IM](https://github.com/workloom-ai/workl
 - **Trust engineering** — baseline fences C-R1~C-R9 (default_level=review, patches can only tighten): semantic fences route any conclusion/personnel/compliance content to mandatory human review; every rejection becomes a calibration sample (self-evolution flywheel + scorecard).
 - **Retainer as first-class citizen** — five cadences (daily monitoring / weekly digest / monthly observation report / quarterly review / annual value report with drill-down evidence chains).
 - **Multimodal service front** — clients send screenshots, voice notes and files; the system parses, cross-checks against historical baselines, flags anomalies and files them into the enterprise archive. Before the client even asks in the morning, the consultant already knows.
+- **Digital workforce roster (`/agents`)** — the 22 employees live in one mixed human-agent directory: per-employee profile (provenance bundle, guardrail bindings reconciled line by line, skill packs, runtime constraints, 30-day record, rank); night-shift roles come online automatically 22:00–08:00 and read-only roles have no write tools at all.
+- **LoomMate, the digital human** — a Live2D avatar that stays on every PC page: speech with lip-sync, mood/gesture, gaze tracking, three states (small corner / large presence / screensaver), and a transparent memory panel where any remembered entry can be deleted.
+
+<p align="center">
+  <img src="docs/images/shots/pc-agents.png" alt="Digital workforce roster: humans and 22 digital employees in one directory" width="70%"/><br/>
+  <sub>The digital workforce roster in the seeded demo workspace — humans and digital employees share one directory</sub>
+</p>
 
 ## Quick start (fully simulated runtime)
 
