@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import pg from "pg";
 import YAML from "yaml";
 import { eventHash, safeParseReplayAwareEvent } from "@workloom/base/workdata";
+import { alignReadableIdSequences } from "@workloom/base/workdata";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -750,6 +751,11 @@ async function main(): Promise<void> {
   console.log("✓ 凭据引用 ×2（企微通道/专家网络，占位密文）");
 
   // —— 事件写入：切 gateway 角色（F1.2 唯一可 INSERT biz_events）
+    // GR-02（2026-09-29 第二次修复，基座 T-2026-0929-0003）：手写号段写入方收尾对齐号源。
+  // 取号函数只做 nextval（0050 把 max() 读回取号函数导致并发撞号且不收敛）；
+  // "序列落后于手写 id"的问题必须在**写入方**解决——只抬不降、幂等，可重复执行。
+  const seqFloor = await alignReadableIdSequences(owner);
+  console.log(`✓ 可读号源对齐：threads→${seqFloor.threads}`);
   await owner.end();
   const gw = new pg.Client({ connectionString: GATEWAY_URL });
   await gw.connect();
