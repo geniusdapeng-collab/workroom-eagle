@@ -76,7 +76,7 @@
   "description": "鹰眼 AI 咨询管理系统 · 基于 WorkLoom IM 的咨询行业经营体",
   "pnpm": {
     "overrides": {
-      "@workloom/ui@0.1.19": "https://cnb.cool/workloom-ai/workloom-im/-/releases/download/ui-v0.1.19/workloom-ui-0.1.19.tgz"
+      "@workloom/ui@0.1.20": "https://cnb.cool/workloom-ai/workloom-im/-/releases/download/ui-v0.1.20/workloom-ui-0.1.20.tgz"
     }
   }
 }
