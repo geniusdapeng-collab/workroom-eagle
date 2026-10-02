@@ -2,7 +2,7 @@
  "schema": "workloom.capabilities/v2",
  "repo": "workroom-eagle",
  "description": "鹰眼 AI 咨询管理系统 · 基于 WorkLoom IM 的咨询行业经营体",
- "generatedAt": "2026-10-02T18:43:24.953Z",
+ "generatedAt": "2026-10-02T19:47:24.835Z",
  "demoPages": [
   "service-front-b-mobile.html",
   "service-front-b-pc.html",
