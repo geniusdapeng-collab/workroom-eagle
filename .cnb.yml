@@ -64,7 +64,7 @@
           ln -s "$instrumentation_dir/node_modules/playwright" node_modules/playwright
           playwright_link_created=1
         fi
-        pnpm test:governance
+        node --test --test-concurrency=1 scripts/delivery/*.test.mjs scripts/acceptance/fleet-run.test.mjs scripts/acceptance/lib/environment-safety.test.mjs scripts/acceptance/lib/outcome-contract.test.mjs scripts/acceptance/lib/live/budget.test.mjs scripts/acceptance/lib/live/live-truth.test.mjs scripts/acceptance/lib/live/providers.test.mjs scripts/acceptance/lib/live/usage.test.mjs scripts/acceptance/lib/live/audit.test.mjs scripts/acceptance/lib/live/providers-http.test.mjs scripts/capability-status.test.mjs scripts/oss-inventory.test.mjs scripts/oss-watch.test.mjs scripts/tools/provision-safety.test.mjs sync/direct-push.test.mjs scripts/acceptance/lib/live/product.test.mjs scripts/acceptance/lib/live/media-negative.test.mjs scripts/acceptance/lib/live/live-cli.test.mjs scripts/acceptance/outcome.test.mjs scripts/acceptance/lib/profile-contract.test.mjs scripts/acceptance/profile-check.test.mjs scripts/ui-release-registration.test.mjs scripts/acceptance/lib/live/dsh-process.test.mjs scripts/acceptance/lib/live/live-cli-wire.test.mjs sync/fanout-safety.test.mjs
         node scripts/generate-capabilities.mjs --check
         node scripts/acceptance/profile-check.mjs --repo .
 
@@ -77,7 +77,7 @@
         export PLAYWRIGHT_BROWSERS_PATH="$instrumentation_dir/browsers"
         node "$instrumentation_dir/node_modules/playwright/cli.js" install --with-deps chromium
         export NODE_PATH="$instrumentation_dir/node_modules${NODE_PATH:+:$NODE_PATH}"
-        pnpm test:media
+        node --test --test-concurrency=1 scripts/acceptance/lib/live/media-decoder.test.mjs scripts/acceptance/lib/live/live-cli-browser.test.mjs
 
 .db-gate: &db_gate
   name: db-gate
