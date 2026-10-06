@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 93,
+  "revision": 95,
   "tasks": {
     "77": {
       "number": 77,
@@ -1737,7 +1737,12 @@
           "mergedBy": "cnb.dYiF05kxAGA",
           "verifiedAt": "2026-10-06T19:42:57.178Z"
         }
-      ]
+      ],
+      "issueReceipt": {
+        "issue": 90,
+        "marker": "delivery-receipt:91:2771ffeab0250c88ae25185c4f2eed923a773e6a",
+        "verifiedAt": 1791315767606
+      }
     },
     "92": {
       "number": 92,
@@ -5256,6 +5261,33 @@
       },
       "previous": "59e6b950282b9d494e5548d8653ed1df0b0cafb43682ef17408a92a7880a7c3e",
       "digest": "9e0c14655b140e0c6a36ea5128d253d5c887cd223b034402a6438fa3dcf6d505"
+    },
+    {
+      "sequence": 94,
+      "at": "2026-10-06T19:42:47.606Z",
+      "kind": "task",
+      "data": {
+        "number": 91,
+        "patch": {
+          "issueReceipt": {
+            "issue": 90,
+            "marker": "delivery-receipt:91:2771ffeab0250c88ae25185c4f2eed923a773e6a",
+            "verifiedAt": 1791315767606
+          }
+        }
+      },
+      "previous": "9e0c14655b140e0c6a36ea5128d253d5c887cd223b034402a6438fa3dcf6d505",
+      "digest": "56ea1fa5bf5e54ea7ca75e2f221f29ac1d0db32999b3f21f6dd9f4e7a3847fe2"
+    },
+    {
+      "sequence": 95,
+      "at": "2026-10-06T19:43:00.385Z",
+      "kind": "transaction",
+      "data": {
+        "id": "e0e42464-5186-4ed1-b869-2ca147d7db04"
+      },
+      "previous": "56ea1fa5bf5e54ea7ca75e2f221f29ac1d0db32999b3f21f6dd9f4e7a3847fe2",
+      "digest": "b95a007c7a9b8d416bdb25a278e23b5d1ef63e33551ffe75aa79a60bf733516d"
     }
   ]
 }
