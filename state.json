@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 106,
+  "revision": 108,
   "tasks": {
     "77": {
       "number": 77,
@@ -5488,6 +5488,35 @@
       },
       "previous": "c92c4056242bf868169d4550609184a541859cd7896631108d2d0432d7423925",
       "digest": "b21c8f606288990ee6b7bf105c40b00abcca8b10d7eba3e1565cff907600a70d"
+    },
+    {
+      "sequence": 107,
+      "at": "2026-10-06T19:47:26.010Z",
+      "kind": "installation_updated",
+      "data": {
+        "installer": 91,
+        "merge": {
+          "sha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
+          "sourceSha": "f4088052b1440752ee16c7f87fabdcb9a9354411",
+          "mainSha": "9227f5e99ecbfa4ca118fa3afea6685873606e82",
+          "checkSha": "a0eb20885534aa3ccec348077b378d949517465b",
+          "mergedBy": "cnb.dYiF05kxAGA",
+          "verifiedAt": "2026-10-06T19:47:22.045Z"
+        },
+        "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a"
+      },
+      "previous": "b21c8f606288990ee6b7bf105c40b00abcca8b10d7eba3e1565cff907600a70d",
+      "digest": "061439e4653775d6dfb9dc7486f8d9cce157e2bbde89881a21d19ac5c0485c87"
+    },
+    {
+      "sequence": 108,
+      "at": "2026-10-06T19:47:25.155Z",
+      "kind": "transaction",
+      "data": {
+        "id": "install-updated:91:2771ffeab0250c88ae25185c4f2eed923a773e6a"
+      },
+      "previous": "061439e4653775d6dfb9dc7486f8d9cce157e2bbde89881a21d19ac5c0485c87",
+      "digest": "52f9b4c52314cc6ac28aceff17981e332b5bfee4f423810d07bd50e48d4d311f"
     }
   ]
 }
