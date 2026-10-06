@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 77,
+  "revision": 79,
   "tasks": {
     "77": {
       "number": 77,
-      "status": "waiting_ci",
+      "status": "parked",
       "firstSeen": 1791311111752,
       "attempts": {},
       "headSha": "7adcbd326c6e319e5f8b3594644691cc41839cdc",
@@ -49,7 +49,17 @@
         "generation": {
           "dependencies": 1
         }
-      }
+      },
+      "error": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
+      "repairRequired": {
+        "provider": "codex",
+        "headSha": "7adcbd326c6e319e5f8b3594644691cc41839cdc",
+        "mainSha": "9227f5e99ecbfa4ca118fa3afea6685873606e82",
+        "reason": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
+        "at": 1791315767606
+      },
+      "recoveryIntent": null,
+      "blockedUntil": 1791316367606
     },
     "88": {
       "number": 88,
@@ -4755,6 +4765,39 @@
       },
       "previous": "1891c364ecb68776b6d44101f89722421a8a11c8a1864e257dfdb1e0b517e852",
       "digest": "6fe9363fab58f9ce9bb474765c858cead322712226e2cd8a58ed1f3c1b88dd9e"
+    },
+    {
+      "sequence": 78,
+      "at": "2026-10-06T19:42:47.606Z",
+      "kind": "task",
+      "data": {
+        "number": 77,
+        "patch": {
+          "status": "parked",
+          "error": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
+          "repairRequired": {
+            "provider": "codex",
+            "headSha": "7adcbd326c6e319e5f8b3594644691cc41839cdc",
+            "mainSha": "9227f5e99ecbfa4ca118fa3afea6685873606e82",
+            "reason": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
+            "at": 1791315767606
+          },
+          "recoveryIntent": null,
+          "blockedUntil": 1791316367606
+        }
+      },
+      "previous": "6fe9363fab58f9ce9bb474765c858cead322712226e2cd8a58ed1f3c1b88dd9e",
+      "digest": "0df6b272bac7bcef9df0600f568f9f413ee657f1ad5a1cb8c4a475ce0cc09343"
+    },
+    {
+      "sequence": 79,
+      "at": "2026-10-06T19:42:50.759Z",
+      "kind": "transaction",
+      "data": {
+        "id": "32575e24-5f1b-4dd4-96e9-2bb71d745318"
+      },
+      "previous": "0df6b272bac7bcef9df0600f568f9f413ee657f1ad5a1cb8c4a475ce0cc09343",
+      "digest": "34d3cd06614e8c04cd0e1cf53b7ef4268c875d886ae49c72eb3c34ee3b932240"
     }
   ]
 }
