@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 31,
+  "revision": 33,
   "tasks": {
     "88": {
       "number": 88,
@@ -3573,6 +3573,28 @@
       },
       "previous": "fe53e63054ef509eb6b3dedac10c115beb8e867e666acb18151904be429f607a",
       "digest": "296625705d486bf10d27b93e894771ad8d0fdbcbaad50d0758be256a133c4983"
+    },
+    {
+      "sequence": 32,
+      "at": "2026-10-06T18:11:29.184Z",
+      "kind": "installer_replacement_closed",
+      "data": {
+        "number": 88,
+        "replacement": 89,
+        "sha": "9227f5e99ecbfa4ca118fa3afea6685873606e82"
+      },
+      "previous": "296625705d486bf10d27b93e894771ad8d0fdbcbaad50d0758be256a133c4983",
+      "digest": "d83c3c35a8385af5da576d3f5888573f0b2cbe9b38bcd011d0b804f8dfe05f54"
+    },
+    {
+      "sequence": 33,
+      "at": "2026-10-06T18:11:28.547Z",
+      "kind": "transaction",
+      "data": {
+        "id": "installer-replacement-closed:88:89"
+      },
+      "previous": "d83c3c35a8385af5da576d3f5888573f0b2cbe9b38bcd011d0b804f8dfe05f54",
+      "digest": "55b8d185e3e33eb0cc53f5cd8a6cced70fa8bae7904a0e68bc4e76c01cef5a9e"
     }
   ]
 }
