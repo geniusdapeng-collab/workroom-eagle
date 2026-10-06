@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 97,
+  "revision": 99,
   "tasks": {
     "77": {
       "number": 77,
-      "status": "parked",
+      "status": "aligning",
       "firstSeen": 1791311111752,
       "attempts": {},
       "headSha": "7adcbd326c6e319e5f8b3594644691cc41839cdc",
@@ -28,8 +28,12 @@
       ],
       "ciSince": 1791314543363,
       "updatedAt": 1791315793111,
-      "alignmentCount": 0,
-      "alignmentIntent": null,
+      "alignmentCount": 1,
+      "alignmentIntent": {
+        "headSha": "7adcbd326c6e319e5f8b3594644691cc41839cdc",
+        "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
+        "at": 1791315793111
+      },
       "developerReview": null,
       "alignment": {
         "sha": "7adcbd326c6e319e5f8b3594644691cc41839cdc",
@@ -5339,6 +5343,36 @@
       },
       "previous": "328043482fca9f631e679d95142d2de8feb319dfc7d95e7e9c5be36f748f0f20",
       "digest": "d78c4f9cc4a72f822965849c9be5b4e2a9e426a17480122de419a294de68cd46"
+    },
+    {
+      "sequence": 98,
+      "at": "2026-10-06T19:43:13.111Z",
+      "kind": "task",
+      "data": {
+        "number": 77,
+        "patch": {
+          "status": "aligning",
+          "alignmentCount": 1,
+          "alignmentIntent": {
+            "headSha": "7adcbd326c6e319e5f8b3594644691cc41839cdc",
+            "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
+            "at": 1791315793111
+          },
+          "developerReview": null
+        }
+      },
+      "previous": "d78c4f9cc4a72f822965849c9be5b4e2a9e426a17480122de419a294de68cd46",
+      "digest": "8a2c85611327b4e15525ee31ae1061487caaf0b569bdcae123b844ac8ecc61db"
+    },
+    {
+      "sequence": 99,
+      "at": "2026-10-06T19:43:14.686Z",
+      "kind": "transaction",
+      "data": {
+        "id": "bdc0a7ad-18ea-4537-bc42-6a23feaa71bc"
+      },
+      "previous": "8a2c85611327b4e15525ee31ae1061487caaf0b569bdcae123b844ac8ecc61db",
+      "digest": "d0b32e439915a9cbc7bb60e8d78abfc42c2c67f7a82e070854ff9caa26a1449b"
     }
   ]
 }
