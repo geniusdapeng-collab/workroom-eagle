@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 114,
+  "revision": 116,
   "tasks": {
     "77": {
       "number": 77,
@@ -50,16 +50,16 @@
           "dependencies": 2
         }
       },
-      "error": "CNB 429 https://api.cnb.cool/workloom-ai/workroom-eagle/-/pulls/77 :: {\"errcode\":8,\"errmsg\":\"Too many requests. Please try again later.\"}\n",
+      "error": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
       "repairRequired": {
         "provider": "codex",
-        "headSha": "7adcbd326c6e319e5f8b3594644691cc41839cdc",
-        "mainSha": "9227f5e99ecbfa4ca118fa3afea6685873606e82",
+        "headSha": "4344653e32dc3406044977b931790ca3c5599365",
+        "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
         "reason": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
-        "at": 1791315767606
+        "at": 1791317112632
       },
       "recoveryIntent": null,
-      "blockedUntil": 1791317112391,
+      "blockedUntil": 1791317712632,
       "recoveryCount": 0,
       "reviewFailures": null,
       "candidate": null
@@ -5609,6 +5609,39 @@
       },
       "previous": "6abe0590c517eddc800859d5cb484432a2448dd806fa115c7a82018643b3c11b",
       "digest": "b7f7e081a1995883c881f3697f1c278f5859e2c44e4080084c774507ccd96fa4"
+    },
+    {
+      "sequence": 115,
+      "at": "2026-10-06T20:05:12.632Z",
+      "kind": "task",
+      "data": {
+        "number": 77,
+        "patch": {
+          "status": "parked",
+          "error": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
+          "repairRequired": {
+            "provider": "codex",
+            "headSha": "4344653e32dc3406044977b931790ca3c5599365",
+            "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
+            "reason": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
+            "at": 1791317112632
+          },
+          "recoveryIntent": null,
+          "blockedUntil": 1791317712632
+        }
+      },
+      "previous": "b7f7e081a1995883c881f3697f1c278f5859e2c44e4080084c774507ccd96fa4",
+      "digest": "b876824358d8aa865df38da038bfc0a3310a3f359f9c33ab4a70d628edbc0edf"
+    },
+    {
+      "sequence": 116,
+      "at": "2026-10-06T20:05:14.211Z",
+      "kind": "transaction",
+      "data": {
+        "id": "dde55fa2-2613-4a73-9f14-f6745fc9f231"
+      },
+      "previous": "b876824358d8aa865df38da038bfc0a3310a3f359f9c33ab4a70d628edbc0edf",
+      "digest": "e8c268ee7d9cd93a833759f2669b1f44216e479fb6601576cb49396d4fccfb2a"
     }
   ]
 }
