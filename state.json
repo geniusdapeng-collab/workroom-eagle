@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "repo": "workloom-ai/workroom-eagle",
+  "revision": 6,
+  "tasks": {
+    "88": {
+      "number": 88,
+      "status": "developing",
+      "firstSeen": 1791249054825,
+      "attempts": {},
+      "admission": {
+        "number": 88,
+        "headSha": "b3b5285d775678836a5c8273fed78c1e0b45c591",
+        "mainSha": "04a16d5b7bd7e2a3b32752acf63ad091abd282ab",
+        "filesHash": "b814ff36fd08ff01b966812e57c78938197df55dd03afc29e85a7fb580499a6a",
+        "scopes": [
+          "protocol"
+        ],
+        "owner": "admission/pr-88",
+        "generation": {
+          "protocol": 1
+        }
+      },
+      "updatedAt": 1791249054825
+    }
+  },
+  "leases": {
+    "protocol": {
+      "owner": null,
+      "generation": 1,
+      "acquiredAt": 1791249054825,
+      "expiresAt": 1791249054825
+    }
+  },
+  "releases": {},
+  "events": [
+    {
+      "sequence": 1,
+      "at": "2026-10-06T01:10:54.825Z",
+      "kind": "lease_acquire",
+      "data": {
+        "scopes": [
+          "protocol"
+        ],
+        "owner": "admission/pr-88",
+        "generation": {
+          "protocol": 1
+        }
+      },
+      "previous": null,
+      "digest": "a67327ae83f507236651334444f9cd44dad0f9028f97e4f2f20aff460b4f9756"
+    },
+    {
+      "sequence": 2,
+      "at": "2026-10-06T01:10:54.825Z",
+      "kind": "lease_release",
+      "data": {
+        "scopes": [
+          "protocol"
+        ],
+        "owner": "admission/pr-88",
+        "generation": {
+          "protocol": 1
+        }
+      },
+      "previous": "a67327ae83f507236651334444f9cd44dad0f9028f97e4f2f20aff460b4f9756",
+      "digest": "9fb7ddc06cd3be942ca0c4a07132edea678f7a2b2e1a93092df4e4dabebff955"
+    },
+    {
+      "sequence": 3,
+      "at": "2026-10-06T01:10:54.825Z",
+      "kind": "source_admitted",
+      "data": {
+        "number": 88,
+        "headSha": "b3b5285d775678836a5c8273fed78c1e0b45c591",
+        "mainSha": "04a16d5b7bd7e2a3b32752acf63ad091abd282ab",
+        "filesHash": "b814ff36fd08ff01b966812e57c78938197df55dd03afc29e85a7fb580499a6a",
+        "scopes": [
+          "protocol"
+        ],
+        "owner": "admission/pr-88",
+        "generation": {
+          "protocol": 1
+        }
+      },
+      "previous": "9fb7ddc06cd3be942ca0c4a07132edea678f7a2b2e1a93092df4e4dabebff955",
+      "digest": "05f4c1ed9ae41b80ef5af4acf2dbf8d1df6cbc6e5dd471ab39e96a44645f5c2e"
+    },
+    {
+      "sequence": 4,
+      "at": "2026-10-06T01:10:54.825Z",
+      "kind": "task",
+      "data": {
+        "number": 88,
+        "patch": {
+          "admission": {
+            "number": 88,
+            "headSha": "b3b5285d775678836a5c8273fed78c1e0b45c591",
+            "mainSha": "04a16d5b7bd7e2a3b32752acf63ad091abd282ab",
+            "filesHash": "b814ff36fd08ff01b966812e57c78938197df55dd03afc29e85a7fb580499a6a",
+            "scopes": [
+              "protocol"
+            ],
+            "owner": "admission/pr-88",
+            "generation": {
+              "protocol": 1
+            }
+          }
+        }
+      },
+      "previous": "05f4c1ed9ae41b80ef5af4acf2dbf8d1df6cbc6e5dd471ab39e96a44645f5c2e",
+      "digest": "d5d7fb60f1011981970eb75efd1e74b341236ed9cbfd23c8cff60620278a0b00"
+    },
+    {
+      "sequence": 5,
+      "at": "2026-10-06T01:10:54.831Z",
+      "kind": "installation_prepared",
+      "data": {
+        "installer": 88,
+        "headSha": "b3b5285d775678836a5c8273fed78c1e0b45c591",
+        "mainSha": "04a16d5b7bd7e2a3b32752acf63ad091abd282ab"
+      },
+      "previous": "d5d7fb60f1011981970eb75efd1e74b341236ed9cbfd23c8cff60620278a0b00",
+      "digest": "27bdbdbfd884662ea634fe25203f1b1a59f89dddf9f486901db822e92b5a2c80"
+    },
+    {
+      "sequence": 6,
+      "at": "2026-10-06T01:10:54.589Z",
+      "kind": "transaction",
+      "data": {
+        "id": "install-state:88:b3b5285d775678836a5c8273fed78c1e0b45c591"
+      },
+      "previous": "27bdbdbfd884662ea634fe25203f1b1a59f89dddf9f486901db822e92b5a2c80",
+      "digest": "ad343a29822fc2d403d9bb0926583b1bb2d2220403dc5ef5907ddd32a04ce8cb"
+    }
+  ]
+}
