@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 88,
+  "revision": 90,
   "tasks": {
     "77": {
       "number": 77,
@@ -1610,7 +1610,7 @@
         "marker": "delivery-origin:91:f4088052b1440752ee16c7f87fabdcb9a9354411:9227f5e99ecbfa4ca118fa3afea6685873606e82",
         "at": 1791314543363
       },
-      "mergePhase": "merge_requested",
+      "mergePhase": "merge_verified",
       "mergeSnapshot": {
         "repo": "workloom-ai/workroom-eagle",
         "number": 92,
@@ -1718,7 +1718,15 @@
           "protocol": 7
         }
       },
-      "mergeRequestedAt": 1791315767606
+      "mergeRequestedAt": 1791315767606,
+      "merge": {
+        "sha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
+        "sourceSha": "f4088052b1440752ee16c7f87fabdcb9a9354411",
+        "mainSha": "9227f5e99ecbfa4ca118fa3afea6685873606e82",
+        "checkSha": "a0eb20885534aa3ccec348077b378d949517465b",
+        "mergedBy": "cnb.dYiF05kxAGA",
+        "verifiedAt": "2026-10-06T19:42:57.178Z"
+      }
     },
     "92": {
       "number": 92,
@@ -5147,6 +5155,37 @@
       },
       "previous": "de2c1dfb8cd673ea108d7a6ee260efccae88234f9c012c80e62b5f58010b7092",
       "digest": "32cf63452d4ec3710e8a1e770eeff79fe2ab7bc83f9e67f67e25a9e455d193de"
+    },
+    {
+      "sequence": 89,
+      "at": "2026-10-06T19:42:47.606Z",
+      "kind": "task",
+      "data": {
+        "number": 91,
+        "patch": {
+          "mergePhase": "merge_verified",
+          "merge": {
+            "sha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
+            "sourceSha": "f4088052b1440752ee16c7f87fabdcb9a9354411",
+            "mainSha": "9227f5e99ecbfa4ca118fa3afea6685873606e82",
+            "checkSha": "a0eb20885534aa3ccec348077b378d949517465b",
+            "mergedBy": "cnb.dYiF05kxAGA",
+            "verifiedAt": "2026-10-06T19:42:57.178Z"
+          }
+        }
+      },
+      "previous": "32cf63452d4ec3710e8a1e770eeff79fe2ab7bc83f9e67f67e25a9e455d193de",
+      "digest": "399facf97124355e43df960e99f08759abdd2032094534e128270ef869e69a12"
+    },
+    {
+      "sequence": 90,
+      "at": "2026-10-06T19:42:57.178Z",
+      "kind": "transaction",
+      "data": {
+        "id": "c4abc681-994c-4230-b169-81dcc6854761"
+      },
+      "previous": "399facf97124355e43df960e99f08759abdd2032094534e128270ef869e69a12",
+      "digest": "ae378ff2d714261b1b08db75fa88b011430c5c201890919968918cf7838ad797"
     }
   ]
 }
