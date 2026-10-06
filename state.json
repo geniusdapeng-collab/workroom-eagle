@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 55,
+  "revision": 57,
   "tasks": {
     "77": {
       "number": 77,
-      "status": "aligning",
+      "status": "waiting_ci",
       "firstSeen": 1791311111752,
       "attempts": {},
       "headSha": "7eefda205444c6b628ee93cdc2fe5a566aa9a3e1",
@@ -27,7 +27,7 @@
         "pnpm-lock.yaml"
       ],
       "ciSince": 1791311111752,
-      "updatedAt": 1791311417233,
+      "updatedAt": 1791314543363,
       "alignmentCount": 1,
       "alignmentIntent": {
         "headSha": "7eefda205444c6b628ee93cdc2fe5a566aa9a3e1",
@@ -4310,6 +4310,48 @@
       },
       "previous": "012eb1dac3bfa25c85c786e5cf6e90408f2814eed2c98b6ef97ca2657333a7f6",
       "digest": "e71c705d6bd1eab963d7cea7e08aff6518c46b9f19b4177109c891197c81fd5c"
+    },
+    {
+      "sequence": 56,
+      "at": "2026-10-06T19:22:23.363Z",
+      "kind": "task",
+      "data": {
+        "number": 77,
+        "patch": {
+          "headSha": "7eefda205444c6b628ee93cdc2fe5a566aa9a3e1",
+          "mainSha": "9227f5e99ecbfa4ca118fa3afea6685873606e82",
+          "branch": "chore/workloom-ui-v0.1.20",
+          "intent": {
+            "taskId": null,
+            "dependsOn": [],
+            "releases": []
+          },
+          "originalBody": "此 PR 由 WorkLoom IM 基座稳定版本发布流程创建。\n\n- 共享 UI：`@workloom/ui@0.1.20`（精确稳定版本）\n- 客户端基座：`ui-v0.1.20`（同一不可变稳定标签）\n- 更新范围：B 端 PC、B 端移动、C 端移动的应用壳、导航、布局、状态与 API 接线（缺一不可）\n- 冲突保护：逐文件比对上一稳定版 SHA-256，行业改动不静默覆盖\n- 行业差异：仅保留 Bundle、主题白名单、投影、配置和 extension 路径\n\n合并前必须由 `workloom-ui-contract` 工作流实际通过：\n- 共享 UI 消费契约与三端客户端基座指纹门禁\n- 产品身份一致性与全量行业 Bundle 契约、资产和完整性门禁\n- 三端逐一 typecheck 与生产 build\n- 仓库现有 pnpm 测试；仓根存在 Python 测试时同时运行 pytest\n- Playwright 对三端生产预览的基础主入口、首帧及稳定帧横向溢出冒烟\n\n本流程从不直推 main，也禁止复制公共组件或在受管客户端文件中硬编码行业差异。",
+          "files": [
+            ".workloom-client-foundation.json",
+            ".workloom-ui.json",
+            "apps/web/package.json",
+            "apps/webb/package.json",
+            "apps/webc/package.json",
+            "package.json",
+            "pnpm-lock.yaml"
+          ],
+          "status": "waiting_ci",
+          "ciSince": 1791311111752
+        }
+      },
+      "previous": "e71c705d6bd1eab963d7cea7e08aff6518c46b9f19b4177109c891197c81fd5c",
+      "digest": "847124965a514f963db53addafcd0b2c17b8f53cea38d927dc9bb7ef6537689d"
+    },
+    {
+      "sequence": 57,
+      "at": "2026-10-06T19:22:25.145Z",
+      "kind": "transaction",
+      "data": {
+        "id": "c806aefb-c48a-4d42-aede-3cd304b8ea8d"
+      },
+      "previous": "847124965a514f963db53addafcd0b2c17b8f53cea38d927dc9bb7ef6537689d",
+      "digest": "79247bd0cc9aa0b782f14a47a12936b4a1c755e25e3c87cf339c8f932815f790"
     }
   ]
 }
