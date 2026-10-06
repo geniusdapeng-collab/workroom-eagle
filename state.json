@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 108,
+  "revision": 110,
   "tasks": {
     "77": {
       "number": 77,
-      "status": "waiting_ci",
+      "status": "parked",
       "firstSeen": 1791311111752,
       "attempts": {},
       "headSha": "4344653e32dc3406044977b931790ca3c5599365",
@@ -27,7 +27,7 @@
         "pnpm-lock.yaml"
       ],
       "ciSince": 1791315793111,
-      "updatedAt": 1791315803970,
+      "updatedAt": 1791316217260,
       "alignmentCount": 1,
       "alignmentIntent": null,
       "developerReview": null,
@@ -50,7 +50,7 @@
           "dependencies": 2
         }
       },
-      "error": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
+      "error": "CNB 429 https://api.cnb.cool/workloom-ai/workroom-eagle/-/pulls/77 :: {\"errcode\":8,\"errmsg\":\"Too many requests. Please try again later.\"}\n",
       "repairRequired": {
         "provider": "codex",
         "headSha": "7adcbd326c6e319e5f8b3594644691cc41839cdc",
@@ -59,7 +59,7 @@
         "at": 1791315767606
       },
       "recoveryIntent": null,
-      "blockedUntil": 0,
+      "blockedUntil": 1791316817260,
       "recoveryCount": 0,
       "reviewFailures": null,
       "candidate": null
@@ -5517,6 +5517,31 @@
       },
       "previous": "061439e4653775d6dfb9dc7486f8d9cce157e2bbde89881a21d19ac5c0485c87",
       "digest": "52f9b4c52314cc6ac28aceff17981e332b5bfee4f423810d07bd50e48d4d311f"
+    },
+    {
+      "sequence": 109,
+      "at": "2026-10-06T19:50:17.260Z",
+      "kind": "task",
+      "data": {
+        "number": 77,
+        "patch": {
+          "status": "parked",
+          "error": "CNB 429 https://api.cnb.cool/workloom-ai/workroom-eagle/-/pulls/77 :: {\"errcode\":8,\"errmsg\":\"Too many requests. Please try again later.\"}\n",
+          "blockedUntil": 1791316817260
+        }
+      },
+      "previous": "52f9b4c52314cc6ac28aceff17981e332b5bfee4f423810d07bd50e48d4d311f",
+      "digest": "e73a7025f2b155596cfe2e90450d3b3afc5654960fa9518cd03b2b212914b522"
+    },
+    {
+      "sequence": 110,
+      "at": "2026-10-06T19:50:21.736Z",
+      "kind": "transaction",
+      "data": {
+        "id": "8d1d12da-121b-48b5-9832-57001d9d9303"
+      },
+      "previous": "e73a7025f2b155596cfe2e90450d3b3afc5654960fa9518cd03b2b212914b522",
+      "digest": "0333a6ba1512a35d8303ca318463a69446dad6999888fd4fed58ae284d87ba57"
     }
   ]
 }
