@@ -28,11 +28,11 @@
     },
     {
       "path": "apps/web/package.json",
-      "sha256": "50415eafa283cf2bd51a57f056c23b77ca2353c971cc982829f0be2f7e6130ed"
+      "sha256": "17273b001dea29afe53c13a4f3cdd17685cea4081bde2521ab5157ec45a1081b"
     },
     {
       "path": "package.json",
-      "sha256": "190d8ea695b2308d46ba1a631ece054201c5a56769589e184a8eae49e65aa24b"
+      "sha256": "6542ad59d0725eae7532d625d6644b77578467f7dcce9df214b4fbf6a4da76f2"
     },
     {
       "path": "packages/base/package.json",
@@ -56,7 +56,7 @@
     },
     {
       "path": "pnpm-lock.yaml",
-      "sha256": "510793e0b5cf67fd27fd8ae2ed85846f4fcb4363cabd2d5d6740eb13adef6cb8"
+      "sha256": "3b4aec3a48e6b319ff739395dee81fc91d7180b67d501e452507f7c26e4f8f00"
     },
     {
       "path": "product.manifest.json",

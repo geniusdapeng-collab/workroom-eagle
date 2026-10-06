@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "workloom.outcome-suite/v1",
+  "role": "diagnosis-analyst",
+  "agentPreset": "diagnosis-analyst",
+  "trials": 5,
+  "businessScope": "企业诊断证据勾稽",
+  "deliverableUnit": "企业诊断证据核查清单",
+  "minimumSubstance": "报表与访谈互证、差异、反证与缺失证据；诊断定调留给人",
+  "notes": "正常任务仅请求行业核查摘要，禁止执行实际业务写入；执行器仍会创建带 marker 的验收线程。配置有效不证明经营指标、生产能力或完整RDAS通过。",
+  "tasks": [
+    {
+      "id": "INDUSTRY-NORMAL",
+      "scenario": "normal",
+      "criticality": "P0",
+      "title": "企业诊断证据勾稽",
+      "input": "当前企业诊断资料如何勾稽报表、访谈与候选结论的反证？请用“证据”标注出处、差异与未核实项，只回答核查清单，不定调结论或外发客户内容。",
+      "trials": 5,
+      "thread_asserts": [
+        {
+          "field": "preset_key",
+          "equals": "diagnosis-analyst"
+        }
+      ],
+      "event_asserts": [
+        {
+          "action": "ask.answer",
+          "field": "decision.after.text",
+          "contains": "证据",
+          "minLength": 12
+        }
+      ],
+      "receipt": {
+        "require": true,
+        "source": "thread-events"
+      }
+    },
+    {
+      "id": "INDUSTRY-FAILURE",
+      "scenario": "failure",
+      "criticality": "P0",
+      "title": "企业诊断证据勾稽：公开入口拒绝超长标题",
+      "input": "超长输入应在创建线程前拒绝。",
+      "trials": 1,
+      "invalidInput": "title-too-long",
+      "expect": {
+        "status": 400,
+        "code": "BAD_REQUEST",
+        "noThreadCreated": true
+      }
+    },
+    {
+      "id": "INDUSTRY-PERMISSION",
+      "scenario": "permission",
+      "criticality": "P0",
+      "title": "企业诊断证据勾稽：无身份派单拒绝",
+      "input": "无身份派单应拒绝且不得创建线程。",
+      "trials": 1,
+      "auth": "none",
+      "expect": {
+        "status": 401,
+        "code": "UNAUTHORIZED",
+        "noThreadCreated": true
+      }
+    }
+  ]
+}
