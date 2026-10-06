@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 101,
+  "revision": 106,
   "tasks": {
     "77": {
       "number": 77,
@@ -27,7 +27,7 @@
         "pnpm-lock.yaml"
       ],
       "ciSince": 1791315793111,
-      "updatedAt": 1791315793111,
+      "updatedAt": 1791315803970,
       "alignmentCount": 1,
       "alignmentIntent": null,
       "developerReview": null,
@@ -39,15 +39,15 @@
       },
       "admission": {
         "number": 77,
-        "headSha": "7adcbd326c6e319e5f8b3594644691cc41839cdc",
-        "mainSha": "9227f5e99ecbfa4ca118fa3afea6685873606e82",
+        "headSha": "4344653e32dc3406044977b931790ca3c5599365",
+        "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
         "filesHash": "a53395455fd0e862b923e0bb7777edc1f2caee4f4fa6f7ec0d39e8a61ef9e270",
         "scopes": [
           "dependencies"
         ],
         "owner": "admission/pr-77",
         "generation": {
-          "dependencies": 1
+          "dependencies": 2
         }
       },
       "error": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
@@ -1777,9 +1777,9 @@
     },
     "dependencies": {
       "owner": null,
-      "generation": 1,
-      "acquiredAt": 1791314555648,
-      "expiresAt": 1791314555648
+      "generation": 2,
+      "acquiredAt": 1791315803970,
+      "expiresAt": 1791315803970
     }
   },
   "releases": {},
@@ -5401,6 +5401,93 @@
       },
       "previous": "7cd1e22606cb1820a83109bd446cb086e004ade5cc3a6d21c0de14639dac1e6c",
       "digest": "86d157b2b69baba06fe53fdce20a0c68eade9392eaeaeda045ca6870a47f1cd8"
+    },
+    {
+      "sequence": 102,
+      "at": "2026-10-06T19:43:23.970Z",
+      "kind": "lease_acquire",
+      "data": {
+        "scopes": [
+          "dependencies"
+        ],
+        "owner": "admission/pr-77",
+        "generation": {
+          "dependencies": 2
+        }
+      },
+      "previous": "86d157b2b69baba06fe53fdce20a0c68eade9392eaeaeda045ca6870a47f1cd8",
+      "digest": "65a16e64efd4d63e91b5721b63b4a646c6739884901b87cdaec2a8c734ddf079"
+    },
+    {
+      "sequence": 103,
+      "at": "2026-10-06T19:43:23.970Z",
+      "kind": "lease_release",
+      "data": {
+        "scopes": [
+          "dependencies"
+        ],
+        "owner": "admission/pr-77",
+        "generation": {
+          "dependencies": 2
+        }
+      },
+      "previous": "65a16e64efd4d63e91b5721b63b4a646c6739884901b87cdaec2a8c734ddf079",
+      "digest": "325a1b4f541d80f1490df8ee76523f69726155705b8904799481c4ee463283fc"
+    },
+    {
+      "sequence": 104,
+      "at": "2026-10-06T19:43:23.970Z",
+      "kind": "source_admitted",
+      "data": {
+        "number": 77,
+        "headSha": "4344653e32dc3406044977b931790ca3c5599365",
+        "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
+        "filesHash": "a53395455fd0e862b923e0bb7777edc1f2caee4f4fa6f7ec0d39e8a61ef9e270",
+        "scopes": [
+          "dependencies"
+        ],
+        "owner": "admission/pr-77",
+        "generation": {
+          "dependencies": 2
+        }
+      },
+      "previous": "325a1b4f541d80f1490df8ee76523f69726155705b8904799481c4ee463283fc",
+      "digest": "c011bebf892be4f052dafbf9926e3c14b18b835b1acc81914ed38fd4a70f5f4e"
+    },
+    {
+      "sequence": 105,
+      "at": "2026-10-06T19:43:23.970Z",
+      "kind": "task",
+      "data": {
+        "number": 77,
+        "patch": {
+          "admission": {
+            "number": 77,
+            "headSha": "4344653e32dc3406044977b931790ca3c5599365",
+            "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
+            "filesHash": "a53395455fd0e862b923e0bb7777edc1f2caee4f4fa6f7ec0d39e8a61ef9e270",
+            "scopes": [
+              "dependencies"
+            ],
+            "owner": "admission/pr-77",
+            "generation": {
+              "dependencies": 2
+            }
+          }
+        }
+      },
+      "previous": "c011bebf892be4f052dafbf9926e3c14b18b835b1acc81914ed38fd4a70f5f4e",
+      "digest": "c92c4056242bf868169d4550609184a541859cd7896631108d2d0432d7423925"
+    },
+    {
+      "sequence": 106,
+      "at": "2026-10-06T19:43:23.716Z",
+      "kind": "transaction",
+      "data": {
+        "id": "source-admit:77:4344653e32dc3406044977b931790ca3c5599365:2771ffeab0250c88ae25185c4f2eed923a773e6a"
+      },
+      "previous": "c92c4056242bf868169d4550609184a541859cd7896631108d2d0432d7423925",
+      "digest": "b21c8f606288990ee6b7bf105c40b00abcca8b10d7eba3e1565cff907600a70d"
     }
   ]
 }
