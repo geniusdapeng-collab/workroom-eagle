@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 444,
+  "revision": 446,
   "tasks": {
     "77": {
       "number": 77,
@@ -50,16 +50,16 @@
           "dependencies": 2
         }
       },
-      "error": "CNB 429 https://api.cnb.cool/workloom-ai/workroom-eagle/-/pulls/77/commit-statuses :: {\"errcode\":8,\"errmsg\":\"Too many requests. Please try again later.\"}\n",
+      "error": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
       "repairRequired": {
         "provider": "codex",
         "headSha": "4344653e32dc3406044977b931790ca3c5599365",
         "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
         "reason": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
-        "at": 1791390911580
+        "at": 1791391815481
       },
       "recoveryIntent": null,
-      "blockedUntil": 1791391814234,
+      "blockedUntil": 1791392415481,
       "recoveryCount": 0,
       "reviewFailures": null,
       "candidate": null
@@ -11384,6 +11384,39 @@
       },
       "previous": "e2e1416eba00970b02ca5eb7419e9f9087dc14c831f093a050ed4ff5490bd5ad",
       "digest": "19c32cff48ad1016cc8ba7e57582548cdfc8473c873ca09b0ab829270519d861"
+    },
+    {
+      "sequence": 445,
+      "at": "2026-10-07T16:50:15.481Z",
+      "kind": "task",
+      "data": {
+        "number": 77,
+        "patch": {
+          "status": "parked",
+          "error": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
+          "repairRequired": {
+            "provider": "codex",
+            "headSha": "4344653e32dc3406044977b931790ca3c5599365",
+            "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
+            "reason": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
+            "at": 1791391815481
+          },
+          "recoveryIntent": null,
+          "blockedUntil": 1791392415481
+        }
+      },
+      "previous": "19c32cff48ad1016cc8ba7e57582548cdfc8473c873ca09b0ab829270519d861",
+      "digest": "d02747e07d32568ea2bb8f00e85808df30e3bb7287acf7c364bbc6bd409a522e"
+    },
+    {
+      "sequence": 446,
+      "at": "2026-10-07T16:50:17.356Z",
+      "kind": "transaction",
+      "data": {
+        "id": "c63ded90-f478-4c1c-b773-4b218cb900c5"
+      },
+      "previous": "d02747e07d32568ea2bb8f00e85808df30e3bb7287acf7c364bbc6bd409a522e",
+      "digest": "0d4572e7eb7d4c21ad6cb098a86da6946a793f2508218634a2e4ac88b2f853e3"
     }
   ]
 }
