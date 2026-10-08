@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 876,
+  "revision": 878,
   "tasks": {
     "77": {
       "number": 77,
@@ -27,7 +27,7 @@
         "pnpm-lock.yaml"
       ],
       "ciSince": 1791315793111,
-      "updatedAt": 1791484818302,
+      "updatedAt": 1791485714923,
       "alignmentCount": 1,
       "alignmentIntent": null,
       "developerReview": null,
@@ -19017,6 +19017,48 @@
       },
       "previous": "1047f9d8d09ac265297d7151e3b0d9b66cd1a81b9c707a28cf44b8efcd96eacc",
       "digest": "b26bd6c93617dbb252a674ac78b5879604cae8e34e8616c56f79edaa5855c6a6"
+    },
+    {
+      "sequence": 877,
+      "at": "2026-10-08T18:55:14.923Z",
+      "kind": "task",
+      "data": {
+        "number": 77,
+        "patch": {
+          "headSha": "4344653e32dc3406044977b931790ca3c5599365",
+          "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
+          "branch": "chore/workloom-ui-v0.1.20",
+          "intent": {
+            "taskId": null,
+            "dependsOn": [],
+            "releases": []
+          },
+          "originalBody": "此 PR 由 WorkLoom IM 基座稳定版本发布流程创建。\n\n- 共享 UI：`@workloom/ui@0.1.20`（精确稳定版本）\n- 客户端基座：`ui-v0.1.20`（同一不可变稳定标签）\n- 更新范围：B 端 PC、B 端移动、C 端移动的应用壳、导航、布局、状态与 API 接线（缺一不可）\n- 冲突保护：逐文件比对上一稳定版 SHA-256，行业改动不静默覆盖\n- 行业差异：仅保留 Bundle、主题白名单、投影、配置和 extension 路径\n\n合并前必须由 `workloom-ui-contract` 工作流实际通过：\n- 共享 UI 消费契约与三端客户端基座指纹门禁\n- 产品身份一致性与全量行业 Bundle 契约、资产和完整性门禁\n- 三端逐一 typecheck 与生产 build\n- 仓库现有 pnpm 测试；仓根存在 Python 测试时同时运行 pytest\n- Playwright 对三端生产预览的基础主入口、首帧及稳定帧横向溢出冒烟\n\n本流程从不直推 main，也禁止复制公共组件或在受管客户端文件中硬编码行业差异。",
+          "files": [
+            ".workloom-client-foundation.json",
+            ".workloom-ui.json",
+            "apps/web/package.json",
+            "apps/webb/package.json",
+            "apps/webc/package.json",
+            "package.json",
+            "pnpm-lock.yaml"
+          ],
+          "status": "parked",
+          "ciSince": 1791315793111
+        }
+      },
+      "previous": "b26bd6c93617dbb252a674ac78b5879604cae8e34e8616c56f79edaa5855c6a6",
+      "digest": "a3780317adcd0223003d38b5f0c58e8bf724fb2739e3a0943250eed1ca6ab1c5"
+    },
+    {
+      "sequence": 878,
+      "at": "2026-10-08T18:55:15.985Z",
+      "kind": "transaction",
+      "data": {
+        "id": "5568e237-fac5-4884-98b9-37aef555ab0e"
+      },
+      "previous": "a3780317adcd0223003d38b5f0c58e8bf724fb2739e3a0943250eed1ca6ab1c5",
+      "digest": "4054b8a39d5d822412b3ff6c18d467840438743b87d62c4cd6ae6f41550c46a3"
     }
   ]
 }
