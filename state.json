@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 644,
+  "revision": 646,
   "tasks": {
     "77": {
       "number": 77,
@@ -27,7 +27,7 @@
         "pnpm-lock.yaml"
       ],
       "ciSince": 1791315793111,
-      "updatedAt": 1791433514908,
+      "updatedAt": 1791433821626,
       "alignmentCount": 1,
       "alignmentIntent": null,
       "developerReview": null,
@@ -50,7 +50,7 @@
           "dependencies": 2
         }
       },
-      "error": "CNB 429 https://api.cnb.cool/workloom-ai/workroom-eagle/-/pulls/77/commit-statuses :: {\"errcode\":8,\"errmsg\":\"Too many requests. Please try again later.\"}\n",
+      "error": "CNB 429 https://api.cnb.cool/workloom-ai/workroom-eagle/-/pulls/77 :: {\"errcode\":8,\"errmsg\":\"Too many requests. Please try again later.\"}\n",
       "repairRequired": {
         "provider": "codex",
         "headSha": "4344653e32dc3406044977b931790ca3c5599365",
@@ -59,7 +59,7 @@
         "at": 1791432312538
       },
       "recoveryIntent": null,
-      "blockedUntil": 1791434114908,
+      "blockedUntil": 1791434421626,
       "recoveryCount": 0,
       "reviewFailures": null,
       "candidate": null
@@ -14917,6 +14917,31 @@
       },
       "previous": "ef02195a046fac349659d6a3dda59224666e2e68a154110ae0c59eeed2a55b81",
       "digest": "fd584c81a5a65ab20bde1ee7340ed69f1a459e78af55eafc879268cd84c9564f"
+    },
+    {
+      "sequence": 645,
+      "at": "2026-10-08T04:30:21.626Z",
+      "kind": "task",
+      "data": {
+        "number": 77,
+        "patch": {
+          "status": "parked",
+          "error": "CNB 429 https://api.cnb.cool/workloom-ai/workroom-eagle/-/pulls/77 :: {\"errcode\":8,\"errmsg\":\"Too many requests. Please try again later.\"}\n",
+          "blockedUntil": 1791434421626
+        }
+      },
+      "previous": "fd584c81a5a65ab20bde1ee7340ed69f1a459e78af55eafc879268cd84c9564f",
+      "digest": "0c967a3847fab2bb3db670e130561b448db843443ddcc417abd7c5fd3e4f58dc"
+    },
+    {
+      "sequence": 646,
+      "at": "2026-10-08T04:30:24.670Z",
+      "kind": "transaction",
+      "data": {
+        "id": "b3a71cf4-3dd1-48c1-85e2-627e7bc874f4"
+      },
+      "previous": "0c967a3847fab2bb3db670e130561b448db843443ddcc417abd7c5fd3e4f58dc",
+      "digest": "956ac20e52172a18ccba42d71415ba778f8d1b6d3a794d64fc0828fd485572f1"
     }
   ]
 }
