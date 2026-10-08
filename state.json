@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 706,
+  "revision": 708,
   "tasks": {
     "77": {
       "number": 77,
@@ -56,10 +56,10 @@
         "headSha": "4344653e32dc3406044977b931790ca3c5599365",
         "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
         "reason": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
-        "at": 1791446717399
+        "at": 1791447618289
       },
       "recoveryIntent": null,
-      "blockedUntil": 1791447317399,
+      "blockedUntil": 1791448218289,
       "recoveryCount": 0,
       "reviewFailures": null,
       "candidate": null
@@ -16009,6 +16009,39 @@
       },
       "previous": "368a08f26e65818964f5b688ac0cd3e377f0a83b67d2a29f658c46d2606b76cb",
       "digest": "5d1950c63d9884b4c31c82ea6290b6150f1e59ed814c8bfa7d0f702dc55ed832"
+    },
+    {
+      "sequence": 707,
+      "at": "2026-10-08T08:20:18.289Z",
+      "kind": "task",
+      "data": {
+        "number": 77,
+        "patch": {
+          "status": "parked",
+          "error": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
+          "repairRequired": {
+            "provider": "codex",
+            "headSha": "4344653e32dc3406044977b931790ca3c5599365",
+            "mainSha": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
+            "reason": "检查/评审阻断：Developer has not handed off; Required check static-gate missing/failed/ambiguous; Codex review identity differs from the exact repository/source/main/policy",
+            "at": 1791447618289
+          },
+          "recoveryIntent": null,
+          "blockedUntil": 1791448218289
+        }
+      },
+      "previous": "5d1950c63d9884b4c31c82ea6290b6150f1e59ed814c8bfa7d0f702dc55ed832",
+      "digest": "0a67a8b27de274d6393f9db3f1ddc7dba9c42ea8579aed0d700daaa7bbef8dd1"
+    },
+    {
+      "sequence": 708,
+      "at": "2026-10-08T08:20:20.948Z",
+      "kind": "transaction",
+      "data": {
+        "id": "b60fa4a3-f39d-41f5-b526-42e53506f713"
+      },
+      "previous": "0a67a8b27de274d6393f9db3f1ddc7dba9c42ea8579aed0d700daaa7bbef8dd1",
+      "digest": "519ca1ac07914d8df3a3484b0c43c2003a56fda19f6772e3f67e2ed0b07f92be"
     }
   ]
 }
