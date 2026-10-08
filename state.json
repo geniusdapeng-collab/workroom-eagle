@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repo": "workloom-ai/workroom-eagle",
-  "revision": 572,
+  "revision": 574,
   "tasks": {
     "77": {
       "number": 77,
@@ -27,7 +27,7 @@
         "pnpm-lock.yaml"
       ],
       "ciSince": 1791315793111,
-      "updatedAt": 1791418815811,
+      "updatedAt": 1791419113865,
       "alignmentCount": 1,
       "alignmentIntent": null,
       "developerReview": null,
@@ -50,7 +50,7 @@
           "dependencies": 2
         }
       },
-      "error": "CNB 429 https://api.cnb.cool/workloom-ai/workroom-eagle/-/pulls/77 :: {\"errcode\":8,\"errmsg\":\"Too many requests. Please try again later.\"}\n",
+      "error": "CNB 429 https://api.cnb.cool/workloom-ai/workroom-eagle/-/pulls/77/commit-statuses :: {\"errcode\":8,\"errmsg\":\"Too many requests. Please try again later.\"}\n",
       "repairRequired": {
         "provider": "codex",
         "headSha": "4344653e32dc3406044977b931790ca3c5599365",
@@ -59,7 +59,7 @@
         "at": 1791418213930
       },
       "recoveryIntent": null,
-      "blockedUntil": 1791419415811,
+      "blockedUntil": 1791419713865,
       "recoveryCount": 0,
       "reviewFailures": null,
       "candidate": null
@@ -13667,6 +13667,31 @@
       },
       "previous": "63db2b3bd76afc63070510a121cda52a095c0cd5d641b1680bbb9b9ef221b78b",
       "digest": "7a226dfe2037618993e841e5f990a8505b8129e36393e03d76decf65a9af5ff2"
+    },
+    {
+      "sequence": 573,
+      "at": "2026-10-08T00:25:13.865Z",
+      "kind": "task",
+      "data": {
+        "number": 77,
+        "patch": {
+          "status": "parked",
+          "error": "CNB 429 https://api.cnb.cool/workloom-ai/workroom-eagle/-/pulls/77/commit-statuses :: {\"errcode\":8,\"errmsg\":\"Too many requests. Please try again later.\"}\n",
+          "blockedUntil": 1791419713865
+        }
+      },
+      "previous": "7a226dfe2037618993e841e5f990a8505b8129e36393e03d76decf65a9af5ff2",
+      "digest": "d41af3b51d58cb57d900aa7e54f4590d1391975d0893339ec993a84cd6480958"
+    },
+    {
+      "sequence": 574,
+      "at": "2026-10-08T00:25:17.992Z",
+      "kind": "transaction",
+      "data": {
+        "id": "a9ce9410-ab51-4bf3-aea4-98bb08a51078"
+      },
+      "previous": "d41af3b51d58cb57d900aa7e54f4590d1391975d0893339ec993a84cd6480958",
+      "digest": "bfb7fec19dcb7fcb9c003c9dbade8ecf59155459075d90d06ab67aee72b3496f"
     }
   ]
 }
