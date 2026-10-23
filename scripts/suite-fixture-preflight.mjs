@@ -33,15 +33,34 @@ export async function prepareSuiteDemoFixture(env, { runId, clientFactory = (url
   await client.connect();
   try {
     await client.query("BEGIN");
+    // Freeze every identity source while deciding whether this is still a pure
+    // example. A profile conversion or a newly inserted formal install cannot
+    // race between these checks and the first fixture write.
+    await client.query("LOCK TABLE workspaces, profiles, bundle_installs IN SHARE ROW EXCLUSIVE MODE");
     const result = await client.query(
-      `SELECT w.tenant_id,w.slug,w.industry,w.is_example,p.archive
+      `SELECT w.tenant_id,w.slug,w.industry,w.bundle_id,w.is_example,
+              p.tenant_id AS profile_tenant_id,p.industry AS profile_industry,p.archive
        FROM workspaces w JOIN profiles p ON p.workspace_id=w.id
-       WHERE w.id=$1 FOR UPDATE OF w`, ["ws-yunqi"],
+       WHERE w.id=$1 FOR UPDATE OF w,p`, ["ws-yunqi"],
     );
     const row = result.rows[0];
+    const reject = () => { throw new Error("场景套件只接受 tenant-demo/ws-yunqi 的明确 simulated、is_example=true 演示夹具，拒绝修改正式工作区"); };
     if (!row || row.tenant_id !== "tenant-demo" || row.slug !== "yunqi-hotel" || row.industry !== "hotel"
-      || row.is_example !== true || row.archive?.dataMode !== "simulated" || row.archive?.production_install === true) {
-      throw new Error("场景套件只接受 tenant-demo/ws-yunqi 的明确 simulated、is_example=true 演示夹具，拒绝修改正式工作区");
+      || row.bundle_id !== "hotel" || row.profile_tenant_id !== row.tenant_id || row.profile_industry !== row.industry
+      || row.is_example !== true || !row.archive || typeof row.archive !== "object" || Array.isArray(row.archive)
+      || row.archive.dataMode !== "simulated" || row.archive.production_install === true || row.archive.production_install === "true"
+      || Object.hasOwn(row.archive, "realModeActivation")) reject();
+    const business = row.archive.business;
+    if (business && typeof business === "object" && !Array.isArray(business)
+      && (business.source === "user" || Object.hasOwn(business, "configured_at"))) reject();
+    const installs = await client.query(
+      "SELECT bundle_id,assets,status FROM bundle_installs WHERE workspace_id=$1 FOR UPDATE", ["ws-yunqi"],
+    );
+    for (const install of installs.rows) {
+      const assets = install.assets;
+      const structuredAssets = assets !== null && typeof assets === "object" && !Array.isArray(assets);
+      if ((structuredAssets && (assets.production_install === true || assets.production_install === "true"))
+        || (install.status === "active" && (install.bundle_id !== "hotel" || !structuredAssets))) reject();
     }
     await client.query(
       `INSERT INTO workspaces(id,tenant_id,name,slug,industry,stage,is_example)
@@ -50,7 +69,8 @@ export async function prepareSuiteDemoFixture(env, { runId, clientFactory = (url
     );
     await client.query("COMMIT");
   } catch (error) {
-    await client.query("ROLLBACK");
+    try { await client.query("ROLLBACK"); }
+    catch (rollbackError) { throw new AggregateError([error, rollbackError], "场景套件前置检查失败且回滚未完成"); }
     throw error;
   } finally { await client.end(); }
   return {
