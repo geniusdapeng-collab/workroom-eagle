@@ -79,7 +79,7 @@ if (!has("docker", ["ps"])) {
 }
 
 // 4/5 迁移 + 种子（幂等）
-sec("4/5 迁移与演示数据");
+sec("4/5 迁移与正式工作区");
 if (!dbReady) {
   skipIt("数据库未就绪 → 跳过迁移与种子（数据库可用后执行 pnpm db:migrate && pnpm db:seed）");
 } else {
@@ -88,7 +88,7 @@ if (!dbReady) {
   if (existsSync(tsx)) {
     if (run(tsx, ["--env-file=.env", "scripts/migrate.ts"])) ok("数据库迁移完成（幂等）");
     else bad("迁移失败 → 检查 PG 与 .env 的 DATABASE_URL");
-    if (run(tsx, ["--env-file=.env", "scripts/seed.ts"])) ok("演示数据种子完成（幂等）");
+    if (run(tsx, ["--env-file=.env", "scripts/seed-production.ts"])) ok("正式工作区初始化完成（幂等，无模拟业务数据）");
     else bad("种子失败 → 检查迁移是否成功");
   } else {
     bad("tsx 未安装（node_modules/.bin/tsx 缺失）→ 先执行 pnpm install");

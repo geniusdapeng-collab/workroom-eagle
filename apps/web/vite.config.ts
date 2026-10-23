@@ -1,7 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-// vitest/config 复用 Vite 的 defineConfig 并额外接受 test 段；生产构建行为不变。
-import { defineConfig } from "vitest/config";
+import { defineConfig } from "vite";
 import { workloomProductVite } from "../../scripts/vite-product.mjs";
 
 const product = workloomProductVite("B 端工作台");
@@ -24,10 +23,5 @@ export default defineConfig({
   preview: {
     port: Number(process.env.WEB_PORT ?? 5173),
     proxy: { "/trpc": trpcProxy, "/health": trpcProxy, "/api": trpcProxy },
-  },
-  test: {
-    // @workloom/ui 发布包内部用无扩展名相对导入（`./language`）：打包器能解析、Node ESM 不能。
-    // 让 vitest 用 Vite 的解析链内联处理它，前端单测才不会整片挂在 ERR_MODULE_NOT_FOUND。
-    server: { deps: { inline: ["@workloom/ui"] } },
   },
 });

@@ -107,26 +107,6 @@ function listDirs(dir) {
     .sort();
 }
 
-function envFileKeyPresence(name) {
-  const candidates = [process.env.WORKLOOM_KEYS_FILE, join(process.env.HOME ?? "", ".workloom/live.env")]
-    .filter((entry) => typeof entry === "string" && entry.trim());
-  for (const file of candidates) {
-    if (!existsSync(file)) continue;
-    let text = "";
-    try {
-      text = readFileSync(file, "utf8");
-    } catch {
-      continue;
-    }
-    for (const line of text.split("\n")) {
-      const match = line.match(/^([A-Z0-9_]+)=(.*)$/u);
-      if (match && match[1] === name) return { present: Boolean(match[2].trim()), source: file };
-    }
-    return { present: false, source: file };
-  }
-  return { present: false, source: null };
-}
-
 /* ---------------------------------- 能力 ---------------------------------- */
 
 /** 本仓自述：manifest 摘要 + 关键目录计数 */
@@ -205,16 +185,17 @@ export function repoReadiness(input) {
   const base = root();
   const nodeMajor = Number(process.versions.node.split(".")[0]);
   const gatePkg = readJson(join(base, "packages", "runtime", "dsh-gate", "package.json"), "dsh-gate/package.json");
-  const ark = envFileKeyPresence("VOLCENGINE_ARK_API_KEY");
   const items = [
     { id: "node", ok: nodeMajor >= 24, detail: `Node ${process.versions.node}（要求 ≥ 24）` },
     { id: "deps", ok: existsSync(join(base, "node_modules")), detail: "node_modules（缺失先 pnpm install）" },
     { id: "runtime-deps", ok: existsSync(join(base, ".workloom-runtime-deps")), detail: "受控运行时资产清单" },
     { id: "mcp-entry", ok: existsSync(join(base, "scripts", "workloom-agent-mcp.mjs")), detail: "stdio MCP 入口" },
-    { id: "keys-file", ok: ark.present, detail: ark.present ? `密钥文件已配置（${ark.source}）` : "缺 VOLCENGINE_ARK_API_KEY（用到出片/出图时才需要）" },
+    { id: "consulting-connector", ok: existsSync(join(base, "bundles", "consulting", "connectors", "deepseek.mjs")), detail: "咨询 DeepSeek 连接器文件；不代表服务端凭据有效或真实模型调用已验收" },
+    { id: "agent-guide", ok: existsSync(join(base, "docs", "EAGLE-AGENT-GUIDE.md")), detail: "当前授权资料、流程与恢复引导" },
     { id: "dsh-gate", ok: Boolean(gatePkg), detail: `内置 DSH 组件 pin：${gatePkg ? { ...gatePkg.dependencies, ...gatePkg.devDependencies }["@deepseek-ai/dsh"] : "未登记"}` },
   ];
-  return { ready: items.filter((item) => ["node", "deps", "mcp-entry"].includes(item.id)).every((item) => item.ok), items };
+  return { ready: items.filter((item) => ["node", "deps", "mcp-entry", "consulting-connector", "agent-guide"].includes(item.id)).every((item) => item.ok),
+    serverAndModelVerified: false, note: "仅本机文件预检；正式身份、咨询装配和预算需另读 consulting.workforce.catalog，模型有效性需真实任务回执。", items };
 }
 
 /** 平台运营目录概览（andromeda 专用；目录不存在时如实说明） */

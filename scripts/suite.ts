@@ -9,11 +9,12 @@
  *      复用种子，业务数据不依赖种子行、不跨用例污染；失败不中断，末尾汇总报告。
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import pg from "pg";
 import { routeIntent, ruleBasedRoute, LlmIntentClassifier, registerAskKbSearch, runAsk, type IntentClassifier } from "@workloom/runtime";
-import { runQuest } from "@workloom/runtime";
+import { runQuest, type QuestPlanner } from "@workloom/runtime";
+import { assertSuiteFixtureEnvironment, prepareSuiteDemoFixture } from "./suite-fixture-preflight.mjs";
 import {
   gatewayAppend, gatewayAppendIdempotent, checkPermission, isWriteAction,
   maskText, maskDeep, canonicalJson, eventHash, GENESIS_HASH,
@@ -37,13 +38,14 @@ import {
   installSkill, uninstallSkill, createSkillDraft, dryRunSkill, listSkills, listInstalls,
   resolveAgentFenceBindings, isSignedSource, isAssetReusable, detectFenceConflicts, SkillError, teamSkillId,
 } from "@workloom/base/skills";
-import { runInspectionScan, dispatchFromAnomaly, resolveAnomaly } from "@workloom/base/inspection";
+import { runInspectionScan, dispatchFromAnomaly, resolveAnomaly, type InspectionAdapter, type Probe } from "@workloom/base/inspection";
 import { route as modelRoute, currentWindow, classify, projectBill, DEFAULT_POLICY, type EventSink, type ModelProvider } from "@workloom/base/model-router";
 import { signDemoToken, verifyToken } from "@workloom/base/tenancy";
 import { createHash } from "node:crypto";
 
 /* ================= 基础设施 ================= */
 
+assertSuiteFixtureEnvironment(process.env);
 const SFX = `st${Date.now().toString(36)}`;
 const APP_URL = process.env.DATABASE_APP_URL ?? "postgres://workloom_app:workloom_dev_app@localhost:5432/workloom";
 const GW_URL = process.env.DATABASE_GATEWAY_URL ?? "postgres://workloom_gateway:workloom_dev_gateway@localhost:5432/workloom";
@@ -64,11 +66,14 @@ function assert(cond: unknown, msg: string): asserts cond {
 const eq = <T>(a: T, b: T, msg: string) => assert(a === b, `${msg}（期望 ${JSON.stringify(b)}，实际 ${JSON.stringify(a)}）`);
 
 async function qApp<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<pg.QueryResult<T>> {
+  return qInScope<T>(scope, sql, params);
+}
+async function qInScope<T = Record<string, unknown>>(current: { tenantId: string; workspaceId: string }, sql: string, params: unknown[] = []): Promise<pg.QueryResult<T>> {
   const c = await app.connect();
   try {
     await c.query("BEGIN");
-    await c.query("SELECT set_config('app.workspace_id', $1, true)", [scope.workspaceId]);
-    await c.query("SELECT set_config('app.tenant_id', $1, true)", [scope.tenantId]);
+    await c.query("SELECT set_config('app.workspace_id', $1, true)", [current.workspaceId]);
+    await c.query("SELECT set_config('app.tenant_id', $1, true)", [current.tenantId]);
     const r = await c.query<T>(sql, params);
     await c.query("COMMIT");
     return r;
@@ -111,19 +116,49 @@ async function mkEvent(action: string, opts: { sessionId?: string; basis?: strin
   });
   return r.eventId;
 }
-async function mkApproval(opts: { status?: string; highRisk?: boolean; expiresInMs?: number } = {}): Promise<{ approvalId: string; eventId: string }> {
+async function mkApproval(opts: { status?: string; highRisk?: boolean; expiresInMs?: number; snapshot?: Record<string, unknown> } = {}): Promise<{ approvalId: string; eventId: string }> {
   const eventId = await mkEvent("suite.reviewable");
   const approvalId = `apr-suite-${SFX}-${Math.random().toString(36).slice(2, 8)}`;
   await qApp(
     `INSERT INTO approvals (approval_id, tenant_id, workspace_id, event_id, channel, status, snapshot)
      VALUES ($1,$2,$3,$4,'inapp',$5,$6)`,
     [approvalId, scope.tenantId, scope.workspaceId, eventId, opts.status ?? "pending",
-      JSON.stringify({ before: null, after: { v: 1 }, high_risk: opts.highRisk ?? false, expires_at: new Date(Date.now() + (opts.expiresInMs ?? 864e5)).toISOString() })],
+      JSON.stringify({ before: null, after: { v: 1 }, high_risk: opts.highRisk ?? false, expires_at: new Date(Date.now() + (opts.expiresInMs ?? 864e5)).toISOString(), ...opts.snapshot })],
   );
   return { approvalId, eventId };
 }
 const boss = { memberNo: "MEM-001", role: "owner" as const };
 const frontDesk = { memberNo: "MEM-003", role: "readonly" as const };
+
+// Synthetic, caller-owned fixtures exercise the generic contracts. They do not
+// register a hotel adapter or infer industry semantics in production code.
+const suiteProbe: Probe = (check, snapshot) => {
+  const signals = snapshot.signals as Array<{ id: string; state: "ok" | "high" }> | undefined;
+  if (!signals) return [{ checkId: check.id, status: "nodata", summary: "套件信号未提供", objectType: "suite-signal", source: "suite.signal" }];
+  return signals.map((signal) => ({ checkId: check.id, status: signal.state === "ok" ? "ok" : "anomaly",
+    ...(signal.state === "high" ? { severity: "high" as const } : {}), summary: signal.state === "ok" ? "套件信号正常" : "套件信号异常",
+    objectType: "suite-signal", objectId: signal.id, source: "suite.signal" }));
+};
+const suiteInspection: InspectionAdapter = { id: "suite.explicit-signal-v1", presetKey: "inspection-agent",
+  checks: [{ id: "suite-signal", kind: "suite.signal", name: "套件只读信号" }], probes: { "suite.signal": suiteProbe } };
+const priceContext = (price: number) => ({ autonomy_range_key: "price-change-ratio", autonomy_range_value: price / 458 });
+const priceSnapshot = (price: number) => ({ action: "price.adjust", params: { price }, ...priceContext(price) });
+const fixturePricePlanner = (price: number): QuestPlanner => () => [
+  { stepId: "s1", action: "biz.price.read", objectType: "room_price", tool: "pms.price.read", params: { object_id: "OBJ-DLX-01" }, label: "读取明确夹具中的基准价" },
+  { stepId: "s2", action: "price.adjust", objectType: "room_price", tool: "pms.price.write", params: { object_id: "OBJ-DLX-01", price },
+    before: { price: 458 }, after: { price }, context: { ...priceContext(price), channel_new: false }, label: `夹具计划：调整至 ${price}` },
+];
+
+async function isolatedQueueBeat(ids: string[]) {
+  const parked = await qApp<{ approval_id: string }>(
+    `UPDATE approvals SET tier='l3_fleet' WHERE workspace_id=$1 AND status='pending' AND tier='l2_captain'
+     AND NOT (approval_id = ANY($2::text[])) RETURNING approval_id`, [scope.workspaceId, ids]);
+  try { return await runQueueBeat(app, scope); }
+  finally {
+    if (parked.rows.length) await qApp(`UPDATE approvals SET tier='l2_captain' WHERE workspace_id=$1 AND approval_id=ANY($2::text[]) AND tier='l3_fleet'`,
+      [scope.workspaceId, parked.rows.map((row) => row.approval_id)]);
+  }
+}
 
 async function activeRules(): Promise<RuntimeRule[]> {
   const r = await qApp<{ rule_id: string; version: string; name: string; level: RuntimeRule["level"]; is_baseline: boolean; match_spec: { object_types: string[]; actions: string[]; when: string } }>(
@@ -221,8 +256,8 @@ b("高危 Agent 带 approvalRef 放行", async () => {
   // P1-8：approvalRef 必须指向真实审批行——先造行再引用
   await qApp(
     `INSERT INTO approvals (approval_id, tenant_id, workspace_id, event_id, channel, status, tier, snapshot)
-     VALUES ($1,$2,$3,$4,'inapp','approved','l4_chairman','{}') ON CONFLICT (event_id, channel) DO NOTHING`,
-    [`apr-${SFX}`, scope.tenantId, scope.workspaceId, `E-APR-${SFX}`],
+     VALUES ($1,$2,$3,$4,'inapp','approved','l4_chairman',$5) ON CONFLICT (event_id, channel) DO NOTHING`,
+    [`apr-${SFX}`, scope.tenantId, scope.workspaceId, `E-APR-${SFX}`, JSON.stringify({ action: "desktop.gui", object_type: "room_price", object_id: `obj-${SFX}` })],
   );
   const r = await gatewayAppend(gw, { ...scope, actor: { id: "desktop-agent", type: "agent", fenceBindings: ["R2"], highRisk: true }, approvalRef: `apr-${SFX}` }, draftOf("desktop.gui", "desktop-agent"));
   assert(r.eventId, "应落库");
@@ -490,7 +525,7 @@ d("NL 检索：翻译超时降级不伪造结果", async () => {
   eq(r.page, null, "不伪造");
 });
 d("NL 翻译器规则直译 R2", async () => {
-  const f = await new MockNlTranslator().translate("R2 的熔断记录", scope);
+  const f = await new MockNlTranslator({ ruleIds: ["R1", "R2", "R3"] }).translate("R2 的熔断记录", scope);
   eq(f.ruleId, "R2", "R 编号直译");
 });
 d("事件五元 zod 完整（附录 E 回读）", async () => {
@@ -1421,20 +1456,24 @@ i("跨工作区记忆不可见", async () => {
 
 /* ================= J · 巡检（10 条） ================= */
 const j = C("J");
-j("巡检扫描正常快照 → ok", async () => {
-  const r = await runInspectionScan(app, gw, scope, { snapshot: { channels: [], rooms: [], reviews: [] } });
+j("显式只读巡检夹具的正常信号 → ok", async () => {
+  const r = await runInspectionScan(app, gw, scope, { adapter: suiteInspection, snapshot: { signals: [{ id: `normal-${SFX}`, state: "ok" }] } });
   assert(r.ok, "正常巡检通过");
+  eq(r.okCount, 1, "执行了真实声明的探针");
 });
 j("探针失败重试后写 inspect.run.failed（不静默）", async () => {
   const boom = (() => { throw new Error("探针爆炸"); }) as never;
-  const r = await runInspectionScan(app, gw, scope, { snapshot: { channels: [], rooms: [], reviews: [] }, retries: 1, probes: { channel_price: boom, state_sync: boom, review: boom, violation: boom } });
+  const r = await runInspectionScan(app, gw, scope, { snapshot: { signals: [] }, retries: 1, adapter: { ...suiteInspection, probes: { "suite.signal": boom } } });
   eq(r.ok, false, "失败上报");
+  eq(r.attempts, 2, "实际执行一次并重试一次");
   assert(r.failedEventId?.match(/^E-\d+$/), "告警事件");
 });
 j("异常快照产出 anomaly 事件", async () => {
-  const r = await runInspectionScan(app, gw, scope, { snapshot: { channels: [{ channel: "美团", our_price: 458, competitor_price: 300 }], rooms: [], reviews: [] } });
-  const page = await searchEvents(app, scope, { action: "inspect.anomaly" });
-  assert(page.total >= 1 || r.anomalies >= 0, "异常记录");
+  const r = await runInspectionScan(app, gw, scope, { adapter: suiteInspection, snapshot: { signals: [{ id: `anomaly-${SFX}`, state: "high" }] } });
+  eq(r.anomalies.length, 1, "明确检出本用例异常");
+  assert(r.anomalies[0]!.eventId, "异常拥有真实事件回执");
+  const row = await qApp<{ action: string }>(`SELECT payload->'decision'->>'action' AS action FROM biz_events WHERE event_id=$1`, [r.anomalies[0]!.eventId]);
+  eq(row.rows[0]?.action, "inspect.anomaly", "回读本异常事件");
 });
 j("一键派单建线程回链（F9.3）", async () => {
   const ev = await mkEvent("inspect.anomaly", { basis: ["套件异常"] });
@@ -1548,8 +1587,8 @@ l("desktop-agent 高危无逐次授权拒绝", async () => {
 l("desktop-agent 高危带逐次授权放行", async () => {
   await qApp(
     `INSERT INTO approvals (approval_id, tenant_id, workspace_id, event_id, channel, status, tier, snapshot)
-     VALUES ($1,$2,$3,$4,'inapp','approved','l4_chairman','{}') ON CONFLICT (event_id, channel) DO NOTHING`,
-    [`apr-desktop-${SFX}`, scope.tenantId, scope.workspaceId, `E-APRD-${SFX}`],
+     VALUES ($1,$2,$3,$4,'inapp','approved','l4_chairman',$5) ON CONFLICT (event_id, channel) DO NOTHING`,
+    [`apr-desktop-${SFX}`, scope.tenantId, scope.workspaceId, `E-APRD-${SFX}`, JSON.stringify({ action: "desktop.gui", object_type: "room_price", object_id: `obj-${SFX}` })],
   );
   const r = await gatewayAppend(gw, { ...scope, actor: { id: "desktop-agent", type: "agent", fenceBindings: ["R2"], highRisk: true }, approvalRef: `apr-desktop-${SFX}` }, draftOf("desktop.gui", "desktop-agent"));
   assert(r.eventId, "授权放行");
@@ -1693,11 +1732,10 @@ n("对象写锁持锁期间他人超时（E2.5）", async () => {
   const { withObjectLock, ObjectLockTimeout } = await import("@workloom/base/fence-engine");
   let timeoutHit = false;
   await withObjectLock(gw, `suite-lock-${SFX}`, async () => {
-    await expect(
-      withObjectLock(gw, `suite-lock-${SFX}`, async () => undefined, 300),
-    ).rejects.toBeInstanceOf(ObjectLockTimeout).catch(() => { timeoutHit = true; });
-  }).catch(() => undefined);
-  assert(timeoutHit || true, "锁超时路径可达");
+    try { await withObjectLock(gw, `suite-lock-${SFX}`, async () => { throw new Error("竞争者不应获得已持有的锁"); }, 300); }
+    catch (error) { if (!(error instanceof ObjectLockTimeout)) throw error; timeoutHit = true; }
+  });
+  assert(timeoutHit, "实际竞争必须触发 ObjectLockTimeout");
 });
 n("并发写读一致（写后立即读可见）", async () => {
   const r = await gatewayAppend(gw, agentCtx(), draftOf("order.list"));
@@ -1750,7 +1788,7 @@ o("晨间问数：口语化提问路由 ask + NL 检索可达", async () => {
 });
 o("晨会派单：一句话调价任务跑通到 completed", async () => {
   const tid = await mkThread();
-  const r = await runQuest(app, gw, scope, { threadId: tid, goal: "把周五主打款调价 5%", presetKey: "pricing-agent" });
+  const r = await runQuest(app, gw, scope, { threadId: tid, goal: "把周五主打款调价 5%", presetKey: "pricing-agent", fallbackPlanner: fixturePricePlanner(480) });
   eq(r.status, "completed", "调价任务完成");
   const row = await qApp<{ status: string }>(`SELECT status FROM threads WHERE id=$1`, [tid]);
   eq(row.rows[0]!.status, "completed", "线程状态同步");
@@ -1781,7 +1819,7 @@ o("高危桌面操作授权链：无授权拒 → 审批 → 带授权放行", a
     await gatewayAppend(gw, { ...scope, actor: { id: "desktop-agent", type: "agent", fenceBindings: ["R2"], highRisk: true } }, draftOf("desktop.gui", "desktop-agent"));
   } catch { threw = true; }
   assert(threw, "无授权高危必拒");
-  const { approvalId } = await mkApproval({ highRisk: true });
+  const { approvalId } = await mkApproval({ highRisk: true, snapshot: { action: "desktop.gui", object_type: "room_price", object_id: `obj-${SFX}` } });
   await decide(app, gw, scope, boss, approvalId, { type: "approve" });
   const r = await gatewayAppend(gw, { ...scope, actor: { id: "desktop-agent", type: "agent", fenceBindings: ["R2"], highRisk: true }, approvalRef: approvalId }, draftOf("desktop.gui", "desktop-agent"));
   assert(r.eventId, "授权后放行");
@@ -1837,10 +1875,11 @@ o("店长看技能目录：官方可见 + team 仅本工作区", async () => {
   assert(team.every((s) => s.id.startsWith(`skill-t-${scope.workspaceId}-`)), "team 隔离");
 });
 o("店长发起巡检并消解异常：扫描 → 派单 → 标记处理", async () => {
-  const scan = await runInspectionScan(app, gw, scope, { snapshot: { channels: [{ channel: "美团", our_price: 458, competitor_price: 300, parity: false }], rooms: [], reviews: [] } });
+  const scan = await runInspectionScan(app, gw, scope, { adapter: suiteInspection, snapshot: { signals: [{ id: `resolve-${SFX}`, state: "high" }] } });
   assert(scan.anomalies.length >= 1, "巡检发现异常");
   const ev = scan.anomalies[0]!.eventId;
-  if (ev) {
+  assert(ev, "新异常必须含事件回执，不能跳过派单与消解");
+  {
     const d = await dispatchFromAnomaly(app, gw, scope, { anomalyEventId: ev, presetKey: "review-agent", by: "MEM-001" });
     await resolveAnomaly(app, gw, scope, { anomalyEventId: ev, threadId: d.threadId, ok: true, by: "MEM-001" });
     const page = await searchEvents(app, scope, { action: "inspect.resolved" });
@@ -2137,12 +2176,15 @@ q("同审批 20 路并发 decide 仅 1 路生效", async () => {
   const rs = await Promise.all(Array.from({ length: 20 }, () => decide(app, gw, scope, boss, approvalId, { type: "approve" })));
   eq(rs.filter((r) => !r.deduped).length, 1, "串行生效");
 });
-q("巡检并发 5 路：同班次幂等去重（同 runId 不重复出报告）", async () => {
+q("巡检并发 5 路：相同班次标识与每次真实完成事件一致", async () => {
+  const before = Number((await qApp<{ n: string }>(`SELECT count(*)::text AS n FROM biz_events WHERE workspace_id=$1 AND payload->'decision'->>'action'='inspect.run.completed'`, [scope.workspaceId])).rows[0]!.n);
   const rs = await Promise.all(Array.from({ length: 5 }, () =>
-    runInspectionScan(app, gw, scope, { snapshot: { channels: [], rooms: [], reviews: [] } }),
+    runInspectionScan(app, gw, scope, { adapter: suiteInspection, snapshot: { signals: [] } }),
   ));
-  eq(new Set(rs.map((r) => r.runId)).size, 1, "同班次去重");
-  assert(rs.every((r) => typeof r.ok === "boolean"), "结构完整");
+  eq(new Set(rs.map((r) => r.runId)).size, 1, "同一天共享班次标识");
+  assert(rs.every((r) => r.ok), "五次显式探针执行均成功");
+  const after = Number((await qApp<{ n: string }>(`SELECT count(*)::text AS n FROM biz_events WHERE workspace_id=$1 AND payload->'decision'->>'action'='inspect.run.completed'`, [scope.workspaceId])).rows[0]!.n);
+  eq(after, before + 5, "相同runId不是报告去重证明，每次实际执行仍留事件");
 });
 
 /* ================= 执行器 ================= */
@@ -2175,6 +2217,9 @@ const h2 = (name: string, run: Case["run"]) => { const n = e2eCases.length + 1; 
 // 端口支持环境变量（与基座同口径）：并行会话/CI 共用 8787 时会让 HTTP E2E 段连到别人的服务或起不来
 const PORT = Number(process.env.SUITE_SERVER_PORT ?? "8787");
 const BASE = `http://localhost:${PORT}`;
+const SUITE_INSTANCE_ID = `suite-${SFX}-${process.pid}`;
+let serverOutput = "";
+let formalProbeSlug = "";
 
 async function api<T = unknown>(path: string, opts: { method?: string; token?: string; body?: unknown } = {}): Promise<{ status: number; data: T }> {
   const res = await fetch(`${BASE}${path}`, {
@@ -2197,14 +2242,18 @@ async function login(memberNo: string): Promise<string> {
 
 async function waitServer(proc: ChildProcess): Promise<void> {
   for (let i = 0; i < 40; i++) {
+    if (proc.exitCode !== null || proc.signalCode !== null) throw new Error(`套件子服务提前退出：${serverOutput.trim().slice(-1000)}`);
     try {
       const r = await fetch(`${BASE}/health`);
-      if (r.ok) return;
-    } catch { /* not ready */ }
+      const health = await r.json() as { instanceId?: string };
+      if (r.ok && health.instanceId === SUITE_INSTANCE_ID) return;
+      if (r.ok) throw new Error("套件端口属于其他服务，拒绝对其执行HTTP用例");
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("属于其他服务")) throw error;
+    }
     await new Promise((r) => setTimeout(r, 500));
   }
-  proc.kill();
-  throw new Error("server 启动超时");
+  throw new Error(`套件server启动超时：${serverOutput.trim().slice(-1000)}`);
 }
 
 /* ---- Part B 用例定义（在 server 起来后注入执行） ---- */
@@ -2221,13 +2270,19 @@ function defineE2E(): void {
     const { data } = await api<{ result?: { data?: { db?: string } } }>("/trpc/system.health");
     eq(data.result?.data?.db, "up", "db:up");
   });
-  h2("loginAs 三成员签发 JWT", async () => {
+  h2("loginAs 仅对明确标注的演示夹具签发三成员 JWT", async () => {
     assert(tokenOwner && tokenManager && tokenReadonly, "三 token 就位");
     assert(tokenOwner !== tokenManager, "token 各异");
   });
-  h2("loginAs 错误工作区 404", async () => {
+  h2("loginAs 非示例工作区仍403，演示测试不能放松正式认证", async () => {
+    const { data } = await api<{ error?: { data?: { httpStatus?: number } } }>("/trpc/auth.loginAs", {
+      method: "POST", body: { workspaceSlug: formalProbeSlug, memberNo: "MEM-001" },
+    });
+    eq(data.error?.data?.httpStatus, 403, "非示例工作区禁止演示直登");
+  });
+  h2("loginAs 未登记的示例工作区403，避免匿名枚举", async () => {
     const { data } = await api<{ error?: { data?: { httpStatus?: number } } }>("/trpc/auth.loginAs", { method: "POST", body: { workspaceSlug: `none-${SFX}`, memberNo: "MEM-001" } });
-    eq(data.error?.data?.httpStatus, 404, "工作区 404");
+    eq(data.error?.data?.httpStatus, 403, "未登记示例工作区拒绝");
   });
   h2("loginAs 错误成员 404", async () => {
     const { data } = await api<{ error?: { data?: { httpStatus?: number } } }>("/trpc/auth.loginAs", { method: "POST", body: { workspaceSlug: "yunqi-hotel", memberNo: "MEM-999" } });
@@ -2279,11 +2334,17 @@ function defineE2E(): void {
     eq(data.error?.data?.httpStatus, 403, "setPlan owner-only");
   });
   h2("owner setPlan community → manager 调 dispatch 403 越版（H-10）→ 恢复 pro", async () => {
-    await api("/trpc/auth.setPlan", { method: "POST", token: tokenOwner, body: { plan: "community" } });
-    const communityToken = await login("MEM-002"); // 重新签发含 community plan
-    const { data } = await api<{ error?: { data?: { httpStatus?: number } } }>("/trpc/threads.dispatch", { method: "POST", token: communityToken, body: { title: "越版探测" } });
-    eq(data.error?.data?.httpStatus, 403, "community 无 quest 能力");
-    await api("/trpc/auth.setPlan", { method: "POST", token: tokenOwner, body: { plan: "pro" } }); // 恢复
+    const original = (await qApp<{ plan: string }>(`SELECT plan FROM tenants WHERE id=$1`, [scope.tenantId])).rows[0]!.plan;
+    try {
+      const switched = await api("/trpc/auth.setPlan", { method: "POST", token: tokenOwner, body: { plan: "community" } });
+      eq(switched.status, 200, "明确切换社区版夹具");
+      const communityToken = await login("MEM-002");
+      const { data } = await api<{ error?: { data?: { httpStatus?: number } } }>("/trpc/threads.dispatch", { method: "POST", token: communityToken, body: { title: "越版探测" } });
+      eq(data.error?.data?.httpStatus, 403, "community 无 quest 能力");
+    } finally {
+      const restored = await api("/trpc/auth.setPlan", { method: "POST", token: tokenOwner, body: { plan: original } });
+      eq(restored.status, 200, "失败路径也恢复原租户版本");
+    }
   });
   h2("伪造 workspace 的 token 查询返回空（L7.1）", async () => {
     const fake = await signDemoToken({
@@ -2337,7 +2398,7 @@ function defineE2E(): void {
   h2("captain.grant 条款不全被拒（§12.2 逐项确认强制）", async () => {
     const { data } = await api<{ error?: { data?: { httpStatus?: number } } }>("/trpc/captain.grant", {
       method: "POST", token: tokenOwner,
-      body: { clauses: ["自主调价"], autonomy: { price_band: [0.85, 1.15], procurement_cap: 5000, campaign_cap: 2000 }, shadowDays: 3, trialDays: 7, identityConfirmed: true },
+      body: { clauses: ["自主调价"], autonomy: { ranges: { "price-change-ratio": { label: "夹具价格比例", lower: 0.85, upper: 1.15, anchor: 1 } }, caps: { procurement: { label: "夹具采购上限", limit: 5000 } } }, shadowDays: 3, trialDays: 7, identityConfirmed: true },
     });
     eq(data.error?.data?.httpStatus, 400, "缺条款 400");
   });
@@ -2431,22 +2492,37 @@ h2("onboarding 还原 mock 装配（套件环境复位）", async () => {
   const { data: st } = await api<{ result?: { data?: { llm?: { real?: boolean } } } }>("/trpc/onboarding.status", { token: tokenOwner });
   eq(st.result?.data?.llm?.real, false, "status 复位 mock");
 });
-h2("onboarding 经营主体写入 + 启用真实模式（横幅熄灭）→ 复位模拟态", async () => {
-  const { data } = await api<{ result?: { data?: { ok?: boolean } } }>("/trpc/onboarding.setupWorkspace", {
-    method: "POST", token: tokenOwner, body: { displayName: "云栖酒店", industry: "hotel", note: "E2E 向导验收" },
-  });
-  eq(data.result?.data?.ok, true, "主体档案写入");
-  const { data: act } = await api<{ result?: { data?: { dataMode?: string } } }>("/trpc/onboarding.activateRealMode", { method: "POST", token: tokenOwner });
-  eq(act.result?.data?.dataMode, "real", "真实模式激活");
-  const { data: st } = await api<{ result?: { data?: { dataMode?: string } } }>("/trpc/onboarding.status", { token: tokenOwner });
-  eq(st.result?.data?.dataMode, "real", "status 反映 real（横幅熄灭条件达成）");
-  const ev = await qApp<{ n: string }>(
-    `SELECT count(*)::text AS n FROM biz_events WHERE workspace_id=$1 AND payload->'decision'->>'action'='onboarding.real_mode_activated'`,
-    [scope.workspaceId],
-  );
-  assert(Number(ev.rows[0]!.n) >= 1, "切换留痕");
-  // 复位：套件出口保持种子模拟态（事件保留，append-only 纪律）
-  await qApp(`UPDATE profiles SET archive=jsonb_set(archive,'{dataMode}','"simulated"'::jsonb) WHERE workspace_id=$1`, [scope.workspaceId]);
+h2("onboarding 保存主体退出示例，但 mock 与缺失门禁不能激活真实模式", async () => {
+  const before = (await qApp<{ archive: Record<string, unknown>; profile_industry: string; name: string; workspace_industry: string; is_example: boolean }>(
+    `SELECT p.archive,p.industry AS profile_industry,w.name,w.industry AS workspace_industry,w.is_example
+     FROM profiles p JOIN workspaces w ON w.id=p.workspace_id WHERE w.id=$1`, [scope.workspaceId])).rows[0]!;
+  const activationCount = async () => Number((await qApp<{ n: string }>(
+    `SELECT count(*)::text AS n FROM biz_events WHERE workspace_id=$1 AND payload->'decision'->>'action'='onboarding.real_mode_activated'`, [scope.workspaceId])).rows[0]!.n);
+  const eventsBefore = await activationCount();
+  try {
+    const saved = await api<{ result?: { data?: { ok?: boolean } } }>("/trpc/onboarding.setupWorkspace", {
+      method: "POST", token: tokenOwner, body: { displayName: "云栖酒店", industry: "hotel", note: "明确演示夹具的向导验收" },
+    });
+    eq(saved.data.result?.data?.ok, true, "主体档案写入");
+    const afterSetup = await api<{ result?: { data?: { bundle?: { isExample?: boolean } } } }>("/trpc/onboarding.status", { token: tokenOwner });
+    eq(afterSetup.data.result?.data?.bundle?.isExample, false, "显式保存主体退出示例身份");
+    const demoDenied = await api<{ error?: { data?: { httpStatus?: number } } }>("/trpc/auth.loginAs", {
+      method: "POST", body: { workspaceSlug: "yunqi-hotel", memberNo: "MEM-001" },
+    });
+    eq(demoDenied.data.error?.data?.httpStatus, 403, "退出示例后演示登录立即关闭");
+    const activation = await api<{ error?: { data?: { httpStatus?: number } } }>("/trpc/onboarding.activateRealMode", { method: "POST", token: tokenOwner });
+    eq(activation.data.error?.data?.httpStatus, 412, "mock或缺资产门禁不得被纯标签替代");
+    const status = await api<{ result?: { data?: { dataMode?: string; persistedDataMode?: string } } }>("/trpc/onboarding.status", { token: tokenOwner });
+    eq(status.data.result?.data?.dataMode, "simulated", "未通过门禁仍如实显示模拟资格");
+    eq(status.data.result?.data?.persistedDataMode, "simulated", "未提前写入real标签");
+    eq(await activationCount(), eventsBefore, "拒绝激活不制造正式激活回执");
+  } finally {
+    // Restore only this explicit sample projection; its real test events remain.
+    await qApp(`WITH restored_profile AS (
+      UPDATE profiles SET archive=$2::jsonb,industry=$3 WHERE workspace_id=$1 RETURNING workspace_id
+    ) UPDATE workspaces SET name=$4,industry=$5,is_example=$6 WHERE id IN (SELECT workspace_id FROM restored_profile)`,
+      [scope.workspaceId, JSON.stringify(before.archive), before.profile_industry, before.name, before.workspace_industry, before.is_example]);
+  }
 });
 
 /* ---- D26 大版本融合 E2E：LLM 装配×节拍 / 开箱运行态 / 真实模式融合 / P21 互洽 / 降级链 ---- */
@@ -2485,14 +2561,15 @@ h2("融合·开箱运行态（种子即重度使用：卫星/实况/职场/请�
   eq(st.result?.data?.dataMode, "simulated", "模拟横幅数据源成立");
   eq(st.result?.data?.llm?.real, false, "mock 如实标注");
 });
-h2("融合·activateRealMode 后剧场/职场不受影响（模式切换纯标签）", async () => {
+h2("融合·未过门禁的激活请求被拒，剧场数据与资格状态保持一致", async () => {
   const before = await api<{ result?: { data?: { satellites?: unknown[] } } }>("/trpc/captain.theater", { token: tokenOwner });
-  await api("/trpc/onboarding.activateRealMode", { method: "POST", token: tokenOwner });
-  const { data: st } = await api<{ result?: { data?: { dataMode?: string } } }>("/trpc/onboarding.status", { token: tokenOwner });
-  eq(st.result?.data?.dataMode, "real", "切换生效");
+  const activation = await api<{ error?: { data?: { httpStatus?: number } } }>("/trpc/onboarding.activateRealMode", { method: "POST", token: tokenOwner });
+  eq(activation.data.error?.data?.httpStatus, 412, "未过门禁不切换真实模式");
+  const status = await api<{ result?: { data?: { dataMode?: string; activationGate?: { canActivate?: boolean } } } }>("/trpc/onboarding.status", { token: tokenOwner });
+  eq(status.data.result?.data?.dataMode, "simulated", "资格仍为模拟态");
+  eq(status.data.result?.data?.activationGate?.canActivate, false, "门禁事实仍为未通过");
   const after = await api<{ result?: { data?: { satellites?: unknown[] } } }>("/trpc/captain.theater", { token: tokenOwner });
-  eq((after.data.result?.data?.satellites ?? []).length, (before.data.result?.data?.satellites ?? []).length, "剧场数据面稳定");
-  await qApp(`UPDATE profiles SET archive=jsonb_set(archive,'{dataMode}','"simulated"'::jsonb) WHERE workspace_id=$1`, [scope.workspaceId]);
+  eq((after.data.result?.data?.satellites ?? []).length, (before.data.result?.data?.satellites ?? []).length, "拒绝激活不破坏已装团队");
 });
 h2("融合·P21 三端点互洽（state/theater/chairmanQueue/scorecard）", async () => {
   const [state, theater, queue, score] = await Promise.all([
@@ -2513,10 +2590,10 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
   eq(data.error?.data?.httpStatus, 400, "死端实测不过 → 拒绝落盘");
   const { data: st } = await api<{ result?: { data?: { llm?: { real?: boolean } } } }>("/trpc/onboarding.status", { token: tokenOwner });
   eq(st.result?.data?.llm?.real, false, "仍为 mock");
-  const { data: ask } = await api<{ result?: { data?: { mode?: string; answer?: string } } }>("/trpc/threads.dispatch", {
+  const { data: ask } = await api<{ result?: { data?: { mode?: string; answer?: string } }; error?: unknown }>("/trpc/threads.dispatch", {
     method: "POST", token: tokenManager, body: { title: "现在待审批有几项？" },
   });
-  eq(ask.result?.data?.mode, "ask", "ask 路由正常");
+  eq(ask.result?.data?.mode, "ask", `ask 路由正常，失败回执：${JSON.stringify(ask.error ?? null)}`);
   assert((ask.result?.data?.answer ?? "").length > 10, "rule 兜底应答生成（不断链）");
 });
 
@@ -2553,13 +2630,13 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
 
   RC("五级审批路由（生产宪章实战）", async () => {
     const ch = await loadCharter(app, scope);
-    eq(routeTier(ch, { action: "price.adjust", params: {}, priceCtx: { afterPrice: 480, basePrice: 458 } }), "l2_captain", "带内 L2");
-    eq(routeTier(ch, { action: "price.adjust", params: {}, priceCtx: { afterPrice: 600, basePrice: 458 } }), "l4_chairman", "带外 L4");
+    eq(routeTier(ch, { action: "price.adjust", params: {}, rangeCtx: { key: "price-change-ratio", value: 480 / 458 } }), "l2_captain", "带内 L2");
+    eq(routeTier(ch, { action: "price.adjust", params: {}, rangeCtx: { key: "price-change-ratio", value: 600 / 458 } }), "l4_chairman", "带外 L4");
     eq(routeTier(ch, { action: "fence.patch", params: {}, isFenceWiden: true }), "l4_chairman", "围栏放宽一律 L4");
     eq(routeTier(ch, { action: "inventory.transfer", params: {}, crossWorkspace: true }), "l3_fleet", "跨区 L3");
     // 种子为 trial：降档后采购上限 2500
     const eff = effectiveAutonomy(ch);
-    eq(eff.procurement_cap, 2500, "试用降档生效（5000→2500）");
+    eq(eff.caps.procurement!.limit, 2500, "试用降档生效（5000→2500）");
   });
 
   RC("依据链强制：空 basis 请示单拒生成（治理 §九.3）", () => {
@@ -2581,16 +2658,14 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
 
   RC("L2 裁决节拍：带内批准 / 贴边上浮 L4（公司CEO 自主闭环）", async () => {
     const arc = await getArchive();
-    // 种子 pending 审批行状态备份（裁决节拍会消费全量 L2 队列，用例后恢复，不跨用例污染）
-    const seedPending = (await qApp<{ approval_id: string }>(`SELECT approval_id FROM approvals WHERE workspace_id=$1 AND status='pending'`, [scope.workspaceId])).rows.map((r) => r.approval_id);
     try {
       const mk = async (id: string, price: number) => qApp(
         `INSERT INTO approvals (approval_id, tenant_id, workspace_id, event_id, channel, status, snapshot, tier)
          VALUES ($1,$2,$3,$4,'inapp','pending',$5,'l2_captain') ON CONFLICT (event_id, channel) DO NOTHING`,
-        [id, scope.tenantId, scope.workspaceId, `E-${id}`, JSON.stringify({ action: "price.adjust", params: { price }, base_price: 458 })]);
+        [id, scope.tenantId, scope.workspaceId, `E-${id}`, JSON.stringify(priceSnapshot(price))]);
       await mk(`apr-r05a-${SFX}`, 480);
-      await mk(`apr-r05b-${SFX}`, 397); // 0.867 贴边
-      const r = await runQueueBeat(app, scope);
+      await mk(`apr-r05b-${SFX}`, 427); // 0.9323：试用下沿0.925附近，仍在带内。
+      const r = await isolatedQueueBeat([`apr-r05a-${SFX}`, `apr-r05b-${SFX}`]);
       assert(r.decided >= 1 && r.escalated >= 1, `裁决 ${r.decided} 上浮 ${r.escalated}`);
       const a = await qApp<{ status: string }>(`SELECT status FROM approvals WHERE approval_id=$1`, [`apr-r05a-${SFX}`]);
       eq(a.rows[0]!.status, "approved", "带内批准");
@@ -2599,14 +2674,7 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
       assert((await countEvents("ceo.decision")) >= 2, "ceo.decision 留痕");
     } finally {
       await restoreArchive(arc);
-      // 恢复种子审批行（裁决副作用回滚）+ 清理本用例审批行
-      for (const id of seedPending) {
-        await qApp(
-          `UPDATE approvals SET status='pending', tier='l2_captain', gesture=NULL, decided_by=NULL, decided_at=NULL,
-             snapshot = snapshot - 'ceo_escalated' - 'ceo_rationale' WHERE approval_id=$1`,
-          [id],
-        );
-      }
+      // isolatedQueueBeat preserves every non-target row's original L2/L4 tier.
       await qApp(`DELETE FROM approvals WHERE approval_id IN ($1,$2)`, [`apr-r05a-${SFX}`, `apr-r05b-${SFX}`]);
     }
   });
@@ -2631,8 +2699,8 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
       await qApp(
         `INSERT INTO approvals (approval_id, tenant_id, workspace_id, event_id, channel, status, snapshot, tier)
          VALUES ($1,$2,$3,$4,'inapp','pending',$5,'l2_captain') ON CONFLICT (event_id, channel) DO NOTHING`,
-        [`apr-r08-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r08-${SFX}`, JSON.stringify({ action: "price.adjust", params: { price: 480 }, base_price: 458 })]);
-      await runQueueBeat(app, scope);
+        [`apr-r08-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r08-${SFX}`, JSON.stringify(priceSnapshot(480))]);
+      await isolatedQueueBeat([`apr-r08-${SFX}`]);
       const st = await qApp<{ status: string }>(`SELECT status FROM approvals WHERE approval_id=$1`, [`apr-r08-${SFX}`]);
       eq(st.rows[0]!.status, "pending", "影子期审批不落状态");
       const dry = await qApp<{ n: string }>(`SELECT count(*)::text AS n FROM biz_events WHERE workspace_id=$1 AND payload->'decision'->>'action'='ceo.decision' AND payload->'decision'->'params'->>'dry_run'='true'`, [scope.workspaceId]);
@@ -2653,7 +2721,7 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
       const r = await runBreakerBeat(app, scope);
       assert(r.tripped && r.tightened, "熔断触发并收紧");
       const ch = await loadCharter(app, scope);
-      eq(ch.autonomy.procurement_cap, 2500, "上限收紧一档（5000→2500）");
+      eq(ch.autonomy.caps.procurement!.limit, 2500, "上限收紧一档（5000→2500）");
       assert((await countEvents("ceo.circuit_breaker")) >= 1, "熔断事件留痕");
     } finally { await restoreArchive(arc); }
   });
@@ -2669,19 +2737,15 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
       const chActive = transition(transition(ch0, { kind: "expire" }), { kind: "keep_long" });
       await setCharter(chActive);
       await qApp(`INSERT INTO threads (id, tenant_id, workspace_id, title, mode, status, created_by) VALUES ($1,$2,$3,$4,'quest','running','MEM-001') ON CONFLICT (id) DO NOTHING`, [tid, scope.tenantId, scope.workspaceId, "R11 调价 quest"]);
-      const plan510 = async () => JSON.stringify([
-        { action: "biz.price.read", objectType: "room_price", tool: "biz.price.read", params: { object_id: "OBJ-DLX-01" }, label: "读取当前价格" },
-        { action: "price.adjust", objectType: "room_price", tool: "biz.price.write", params: { object_id: "OBJ-DLX-01", price: 510 }, label: "LLM 规划：调价至 ¥510" },
-      ]);
-      const r1 = await runQuest(app, gw, scope, { threadId: tid, goal: "把周五主打款调价到 510", presetKey: "pricing-agent", llmCall: plan510 });
+      const r1 = await runQuest(app, gw, scope, { threadId: tid, goal: "把周五主打款调价到 510", presetKey: "pricing-agent", fallbackPlanner: fixturePricePlanner(510) });
       eq(r1.status, "pending_review", "R1 越线挂起（11.35%>8%）");
       const apr = (await qApp<{ tier: string }>(`SELECT tier FROM approvals WHERE approval_id=$1`, [r1.pendingApprovalId!])).rows[0]!;
       eq(apr.tier, "l2_captain", "带内（11.35%<15%）路由 L2");
-      const q = await runQueueBeat(app, scope);
+      const q = await isolatedQueueBeat([r1.pendingApprovalId!]);
       assert(q.decided >= 1, "CEO 裁决批准");
       const st = (await qApp<{ status: string }>(`SELECT status FROM approvals WHERE approval_id=$1`, [r1.pendingApprovalId!])).rows[0]!;
       eq(st.status, "approved", "审批已批准");
-      const r2 = await runQuest(app, gw, scope, { threadId: tid, goal: "把周五主打款调价到 510", presetKey: "pricing-agent", llmCall: plan510 });
+      const r2 = await runQuest(app, gw, scope, { threadId: tid, goal: "把周五主打款调价到 510", presetKey: "pricing-agent", fallbackPlanner: fixturePricePlanner(510) });
       eq(r2.status, "completed", "批准后续跑 completed（恢复闭环）");
     } finally {
       await restoreArchive(arc);
@@ -2704,7 +2768,7 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
         await qApp(
           `INSERT INTO approvals (approval_id, tenant_id, workspace_id, event_id, channel, status, snapshot, tier)
            VALUES ($1,$2,$3,$4,'inapp','pending',$5,'l2_captain') ON CONFLICT (event_id, channel) DO NOTHING`,
-          [`apr-r12-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r12-${SFX}`, JSON.stringify({ action: "price.adjust", params: { price: 480 }, base_price: 458 })]);
+          [`apr-r12-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r12-${SFX}`, JSON.stringify(priceSnapshot(480))]);
         const r1 = await runQueueBeat(app, scope);
         const evCount = await countEvents("ceo.decision");
         const r2 = await runQueueBeat(app, scope);
@@ -2795,7 +2859,7 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
         `INSERT INTO approvals (approval_id, tenant_id, workspace_id, event_id, channel, status, snapshot, tier)
          VALUES ($1,$2,$3,$4,'inapp','pending',$5,'l2_captain'), ($6,$2,$3,$7,'inapp','pending',$5,'l2_captain')
          ON CONFLICT (event_id, channel) DO NOTHING`,
-        [`apr-r17a-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r17a-${SFX}`, JSON.stringify({ action: "price.adjust", params: { price: 480 }, base_price: 458 }),
+        [`apr-r17a-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r17a-${SFX}`, JSON.stringify(priceSnapshot(480)),
          `apr-r17b-${SFX}`, `E-apr-r17b-${SFX}`]);
       await runQueueBeat(app, scope);
       await runBriefingBeat(app, scope, "daily");
@@ -2849,8 +2913,8 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
       await qApp(
         `INSERT INTO approvals (approval_id, tenant_id, workspace_id, event_id, channel, status, snapshot, tier)
          VALUES ($1,$2,$3,$4,'inapp','pending',$5,'l2_captain') ON CONFLICT (event_id, channel) DO NOTHING`,
-        [`apr-r20-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r20-${SFX}`, JSON.stringify({ action: "price.adjust", params: { price: 470 }, base_price: 458, origin: "night.package" })]);
-      const r = await runQueueBeat(app, scope);
+        [`apr-r20-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r20-${SFX}`, JSON.stringify({ ...priceSnapshot(470), origin: "night.package" })]);
+      const r = await isolatedQueueBeat([`apr-r20-${SFX}`]);
       const st = (await qApp<{ status: string; decided_by: string }>(`SELECT status, decided_by FROM approvals WHERE approval_id=$1`, [`apr-r20-${SFX}`])).rows[0]!;
       eq(st.status, "approved", "夜班挂起项被 CEO 裁决");
       eq(st.decided_by, "company-ceo", "裁决人=公司CEO");
@@ -2870,9 +2934,9 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
         `INSERT INTO approvals (approval_id, tenant_id, workspace_id, event_id, channel, status, snapshot, tier)
          VALUES ($1,$2,$3,$4,'inapp','pending',$5,'l2_captain'), ($6,$2,$3,$7,'inapp','pending',$8,'l2_captain')
          ON CONFLICT (event_id, channel) DO NOTHING`,
-        [`apr-r21a-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r21a-${SFX}`, JSON.stringify({ action: "price.adjust", params: { price: 480 }, base_price: 458 }),
-         `apr-r21b-${SFX}`, `E-apr-r21b-${SFX}`, JSON.stringify({ action: "order.refund", params: { amount: 500 } })]);
-      const r = await runQueueBeat(app, scope);
+        [`apr-r21a-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r21a-${SFX}`, JSON.stringify(priceSnapshot(480)),
+         `apr-r21b-${SFX}`, `E-apr-r21b-${SFX}`, JSON.stringify({ action: "order.refund", params: { amount: 500 }, irreversible: true, autonomy_cap_key: "procurement", autonomy_amount: 500 })]);
+      const r = await isolatedQueueBeat([`apr-r21a-${SFX}`, `apr-r21b-${SFX}`]);
       const a = (await qApp<{ status: string }>(`SELECT status FROM approvals WHERE approval_id=$1`, [`apr-r21a-${SFX}`])).rows[0]!;
       const b = (await qApp<{ tier: string }>(`SELECT tier FROM approvals WHERE approval_id=$1`, [`apr-r21b-${SFX}`])).rows[0]!;
       eq(a.status, "approved", "微决策直批");
@@ -2890,8 +2954,8 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
       await qApp(
         `INSERT INTO approvals (approval_id, tenant_id, workspace_id, event_id, channel, status, snapshot, tier)
          VALUES ($1,$2,$3,$4,'inapp','pending',$5,'l2_captain') ON CONFLICT (event_id, channel) DO NOTHING`,
-        [`apr-r22-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r22-${SFX}`, JSON.stringify({ action: "order.refund", params: { amount: 5000 } })]);
-      await runQueueBeat(app, scope);
+        [`apr-r22-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r22-${SFX}`, JSON.stringify({ action: "order.refund", params: { amount: 5000 }, irreversible: true, autonomy_cap_key: "procurement", autonomy_amount: 5000 })]);
+      await isolatedQueueBeat([`apr-r22-${SFX}`]);
       const ev = await qApp<{ payload: Record<string, unknown> }>(
         `SELECT payload FROM biz_events WHERE workspace_id=$1 AND payload->'decision'->>'action'='ceo.decision' AND payload->'decision'->'params'->>'approval_id'=$2 ORDER BY seq DESC LIMIT 1`,
         [scope.workspaceId, `apr-r22-${SFX}`]);
@@ -2994,55 +3058,41 @@ h2("融合·LLM 降级链：死端配置被拒 → mock 兜底应答不断链", 
     } finally { await restoreArchive(arc); }
   });
 
-  RC("扩编扫描：积压场景 → 招聘提案 L4；健康场景 → 不出提案", async () => {
-    const arc = await getArchive();
-    let parked: string[] = [];
+  RC("扩编扫描：隔离积压场景出 L4 提案，明确健康场景不出提案", async () => {
+    // A fresh workspace prevents this suite's stress events from impersonating
+    // customer workload. Its append-only observations are retained in the test DB.
+    const healthScope = { tenantId: scope.tenantId, workspaceId: `ws-org-health-${SFX}` };
+    const charter = await loadCharter(app, scope);
+    const owner = new pg.Client({ connectionString: process.env.DATABASE_URL });
+    await owner.connect();
     try {
-      // 造积压：12 条 pending L2
-      for (let i = 0; i < 12; i++) {
-        await qApp(
-          `INSERT INTO approvals (approval_id, tenant_id, workspace_id, event_id, channel, status, snapshot, tier)
-           VALUES ($1,$2,$3,$4,'inapp','pending',$5,'l2_captain') ON CONFLICT (event_id, channel) DO NOTHING`,
-          [`apr-r27-${i}-${SFX}`, scope.tenantId, scope.workspaceId, `E-apr-r27-${i}-${SFX}`, JSON.stringify({ action: "misc.op", params: {} })]);
-      }
-      const r = await runOrgScanBeat(app, scope);
-      assert(r.proposal, "积压 ≥10 → 出招聘提案");
-      const l4 = await qApp<{ n: string }>(`SELECT count(*)::text AS n FROM approvals WHERE workspace_id=$1 AND tier='l4_chairman' AND snapshot->>'kind'='org.hiring'`, [scope.workspaceId]);
-      assert(Number(l4.rows[0]!.n) >= 1, "提案进 L4 请示");
-      for (let i = 0; i < 12; i++) await qApp(`DELETE FROM approvals WHERE approval_id=$1`, [`apr-r27-${i}-${SFX}`]);
-      await qApp(`DELETE FROM approvals WHERE workspace_id=$1 AND snapshot->>'kind'='org.hiring'`, [scope.workspaceId]);
-      // 健康态前置②：冻结历史遗留 L2 积压（套件跨用例/跨轮运行泄漏的 pending 行会抬高全局计数，
-      // 与本用例断言无关）——暂存 id 并泊车到 l3_fleet，finally 恢复（隔离环境差，防交叉污染）
-      const parkedRows = (await qApp<{ approval_id: string }>(
-        `SELECT approval_id FROM approvals WHERE workspace_id=$1 AND status='pending' AND tier='l2_captain'`,
-        [scope.workspaceId],
-      )).rows.map((x) => x.approval_id);
-      parked = parkedRows;
-      if (parked.length > 0) {
-        await qApp(
-          `UPDATE approvals SET tier='l3_fleet' WHERE workspace_id=$1 AND status='pending' AND tier='l2_captain'`,
-          [scope.workspaceId],
-        );
-      }
-      // 健康态前置：临时补齐六域覆盖员工（隔离用例环境差，防交叉污染）
-      for (const pk of ["pricing-agent", "customer-service", "ota-operations", "inventory-procurement", "night-shift", "content-marketing"]) {
-        await qApp(`INSERT INTO agents (id, workspace_id, preset_key, name, version, kind, readonly, fence_bindings, skills, status) VALUES ($1,$2,$3,$4,'v1','specialist',false,'[]','[]','ready') ON CONFLICT (id) DO NOTHING`, [`agt-cov-${pk}-${SFX}`, scope.workspaceId, pk, pk]);
-      }
-      const r2 = await runOrgScanBeat(app, scope);
-      eq(r2.proposal, false, "健康态不出提案");
-      for (const pk of ["pricing-agent", "customer-service", "ota-operations", "inventory-procurement", "night-shift", "content-marketing"]) {
-        await qApp(`DELETE FROM agents WHERE id=$1`, [`agt-cov-${pk}-${SFX}`]);
-      }
-    } finally {
-      // 恢复泊车的历史积压行 + 清理覆盖员工（无论断言成败都还原现场——失败残留曾污染 H-33 哨兵口径）
-      for (const id of parked) {
-        await qApp(`UPDATE approvals SET tier='l2_captain' WHERE approval_id=$1`, [id]).catch(() => undefined);
-      }
-      for (const pk of ["pricing-agent", "customer-service", "ota-operations", "inventory-procurement", "night-shift", "content-marketing"]) {
-        await qApp(`DELETE FROM agents WHERE id=$1`, [`agt-cov-${pk}-${SFX}`]).catch(() => undefined);
-      }
-      await restoreArchive(arc);
-    }
+      await owner.query("BEGIN");
+      await owner.query(`INSERT INTO workspaces(id,tenant_id,name,slug,industry,stage,is_example) VALUES ($1,$2,'套件编制健康度隔离夹具',$1,'general','test',true)`, [healthScope.workspaceId, healthScope.tenantId]);
+      await owner.query(`INSERT INTO profiles(workspace_id,tenant_id,industry,archive) VALUES ($1,$2,'general',$3)`,
+        [healthScope.workspaceId, healthScope.tenantId, JSON.stringify({ dataMode: "simulated", charter })]);
+      await owner.query(`INSERT INTO agents(id,workspace_id,preset_key,name,version,kind,readonly,fence_bindings,skills,status,meta)
+        VALUES ($1,$2,'suite-health-owner','套件组织信号员工','v1','specialist',true,'[]','[]','ready',$3)`,
+        [`agt-health-${SFX}`, healthScope.workspaceId, JSON.stringify({ coverage: [{ eventPrefix: "suite.org.signal", label: "套件组织信号" }] })]);
+      await owner.query("COMMIT");
+    } catch (error) { await owner.query("ROLLBACK"); throw error; }
+    finally { await owner.end(); }
+    for (let index = 0; index < 12; index++) await qInScope(healthScope,
+      `INSERT INTO approvals(approval_id,tenant_id,workspace_id,event_id,channel,status,snapshot,tier)
+       VALUES ($1,$2,$3,$4,'inapp','pending',$5,'l2_captain')`,
+      [`apr-health-${SFX}-${index}`, healthScope.tenantId, healthScope.workspaceId, `E-health-${SFX}-${index}`, JSON.stringify({ action: "suite.org.signal", params: {} })]);
+    const busy = await runOrgScanBeat(app, healthScope);
+    assert(busy.proposal, "独立工作区的12条积压必须触发招聘提案");
+    const proposal = await qInScope<{ n: string }>(healthScope,
+      `SELECT count(*)::text AS n FROM approvals WHERE workspace_id=$1 AND tier='l4_chairman' AND snapshot->>'kind'='org.hiring'`, [healthScope.workspaceId]);
+    eq(Number(proposal.rows[0]!.n), 1, "招聘提案明确进L4");
+    await qInScope(healthScope, `DELETE FROM approvals WHERE workspace_id=$1 AND (approval_id LIKE $2 OR snapshot->>'kind'='org.hiring')`,
+      [healthScope.workspaceId, `apr-health-${SFX}-%`]);
+    const { scanOrgHealth } = await import("@workloom/base/captain");
+    const health = await scanOrgHealth(app, healthScope);
+    eq(health.backlog, 0, "健康夹具没有积压");
+    eq(health.uncovered.length, 0, "健康夹具没有缺失覆盖");
+    eq(health.overworked.length, 0, "健康夹具没有压力测试造成的虚假过载");
+    eq((await runOrgScanBeat(app, healthScope)).proposal, false, "真实健康态不出提案");
   });
 
   RC("到期自动降级：trial 过期 → suspended + mode_change 事件", async () => {
@@ -3769,41 +3819,71 @@ z("高危批量守卫：l4_chairman 审批（快照无 high_risk）也必须逐�
   eq(batch2.approved.length, 1, "普通项照批");
 });
 
-const svcPassed = await runCases(cases, "服务层用例");
-
-console.log("▸ 启动 HTTP E2E 段（spawn server）……");
-const server = spawn("pnpm", ["-C", "apps/server", "start"], {
-  cwd: new URL("..", import.meta.url).pathname,
-  // 必须显式传 SERVER_PORT：否则 server 会读本仓 .env 的 SERVER_PORT（8799 等），
-  // 与并行会话/本机其它服务抢端口 → EADDRINUSE → 套件报「server 启动超时」（2026-09-29 实测）
-  env: { ...process.env, SERVER_PORT: String(PORT) },
-  stdio: "ignore",
-});
-try {
-  await waitServer(server);
-  // E2E dispatch 用例前清出 L3.1 并发位：历史测试残留的 queued/running 线程全部
-  // 标 completed（保留种子演示线程 T-101/102/103 的剧本状态），上限 10/工作区
-  await qApp(
-    `UPDATE threads SET status='completed', closed_at=now(), updated_at=now()
-     WHERE workspace_id=$1 AND status IN ('queued','running') AND id NOT IN ('T-101','T-102','T-103')`,
-    [scope.workspaceId],
-  );
-  tokenOwner = await login("MEM-001");
-  tokenManager = await login("MEM-002");
-  tokenReadonly = await login("MEM-003");
-  defineE2E();
-  await runCases(e2eCases, "HTTP E2E 用例");
-} finally {
-  server.kill();
+async function main(): Promise<number> {
+  // The suite is explicitly a sample-data exercise. This preflight never enables
+  // demo auth in production or reclassifies a real customer workspace.
+  const fixture = await prepareSuiteDemoFixture(process.env, { runId: SFX });
+  formalProbeSlug = fixture.formalProbe.slug;
+  const envPath = new URL("../.env", import.meta.url);
+  const hadEnv = existsSync(envPath);
+  const envBefore = hadEnv ? readFileSync(envPath) : null;
+  const envMode = hadEnv ? statSync(envPath).mode & 0o777 : 0o600;
+  let server: ChildProcess | null = null;
+  try {
+    await runCases(cases, "服务层用例");
+    console.log("▸ 启动独立实例 HTTP E2E 段（仅本地夹具）……");
+    // Launch the same server entry with this suite's actual Node, removing extra
+    // package-manager/tsx CLI processes from readiness. The env-file and the
+    // existing 20-second health/instance check remain the same.
+    server = spawn(process.execPath, ["--import", "tsx", "--env-file=../../.env", "src/index.ts"], {
+      cwd: new URL("../apps/server", import.meta.url).pathname,
+      env: { ...process.env, SERVER_PORT: String(PORT), SERVER_INSTANCE_ID: SUITE_INSTANCE_ID },
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const collect = (chunk: Buffer) => { serverOutput = (serverOutput + chunk.toString()).slice(-10000); };
+    server.stdout?.on("data", collect); server.stderr?.on("data", collect);
+    server.on("error", (error) => { serverOutput += `子服务启动失败：${error.message}`; });
+    await waitServer(server);
+    // Only sample-fixture tasks are released for the HTTP permission matrix.
+    await qApp(
+      `UPDATE threads SET status='completed', closed_at=now(), updated_at=now()
+       WHERE workspace_id=$1 AND status IN ('queued','running') AND id NOT IN ('T-101','T-102','T-103')`,
+      [scope.workspaceId],
+    );
+    tokenOwner = await login("MEM-001");
+    tokenManager = await login("MEM-002");
+    tokenReadonly = await login("MEM-003");
+    defineE2E();
+    await runCases(e2eCases, "HTTP E2E 用例");
+    const total = cases.length + e2eCases.length;
+    console.log(`\n════════════════════════════════════════`);
+    console.log(`套件总报告：${total - failures.length}/${total} 通过，${failures.length} 失败`);
+    if (failures.length) {
+      console.log("失败清单：");
+      for (const failure of failures) console.log(`  ✗ ${failure.id} ${failure.name}\n    ${failure.error}`);
+    }
+    return failures.length ? 1 : 0;
+  } finally {
+    const cleanupErrors: unknown[] = [];
+    const clean = async (body: () => void | Promise<void>) => { try { await body(); } catch (error) { cleanupErrors.push(error); } };
+    await clean(() => {
+      if (!server?.pid) return;
+      try { process.kill(-server.pid, "SIGTERM"); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error; }
+    });
+    await clean(async () => {
+      if (llmStub) { await new Promise<void>((done, reject) => llmStub!.close((error) => error ? reject(error) : done())); llmStub = null; }
+    });
+    // Legacy demo model setup writes .env. Restore the exact original bytes and
+    // permissions even after a failed assertion; never leave dummy keys behind.
+    await clean(() => {
+      if (envBefore) { writeFileSync(envPath, envBefore); chmodSync(envPath, envMode); }
+      else if (!hadEnv && existsSync(envPath)) unlinkSync(envPath);
+    });
+    await clean(() => fixture.restore());
+    await Promise.all([clean(() => app.end()), clean(() => gw.end())]);
+    if (cleanupErrors.length) throw new AggregateError(cleanupErrors, "场景套件清理未全部完成");
+  }
 }
-
-const total = cases.length + e2eCases.length;
-console.log(`\n════════════════════════════════════════`);
-console.log(`套件总报告：${total - failures.length}/${total} 通过，${failures.length} 失败`);
-if (failures.length > 0) {
-  console.log("失败清单：");
-  for (const f of failures) console.log(`  ✗ ${f.id} ${f.name}\n    ${f.error}`);
-}
-await app.end();
-await gw.end();
-process.exit(failures.length > 0 ? 1 : 0);
+process.exit(await main());

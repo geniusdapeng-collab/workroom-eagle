@@ -92,19 +92,17 @@ else
 fi
 
 # ---------- 4. 迁移 + 种子 ----------
-sec "4/6 数据库迁移与演示种子"
+sec "4/6 数据库迁移与正式工作区"
 if pnpm db:migrate >/tmp/bootstrap-migrate.log 2>&1; then
   ok "db:migrate 迁移完成"
 else
   bad "db:migrate 失败 → tail /tmp/bootstrap-migrate.log"
 fi
-for SEED in $(node -e "console.log(Object.keys(require('./package.json').scripts||{}).filter(s=>/^db:seed/.test(s)).join(' '))" 2>/dev/null); do
-  if pnpm "$SEED" >>/tmp/bootstrap-seed.log 2>&1; then
-    ok "pnpm $SEED 种子就位"
-  else
-    bad "pnpm $SEED 失败 → tail /tmp/bootstrap-seed.log"
-  fi
-done
+if pnpm db:seed >>/tmp/bootstrap-seed.log 2>&1; then
+  ok "正式工作区元数据已安装（无模拟客户和任务）"
+else
+  bad "正式工作区初始化失败 → tail /tmp/bootstrap-seed.log"
+fi
 
 # ---------- 5. computer-use 桌面栈（操作电脑能力） ----------
 sec "5/6 computer-use 桌面栈（操作电脑能力，可选但强烈建议）"
@@ -151,7 +149,7 @@ if [ "$FAIL" = "0" ]; then
 
   🎉 安装完成！下一步（照抄即可）：
 
-    pnpm preview:all        # 一键拉起三端全貌（PC:3000 / B移动:3001 / C移动:3002，Mock 已固化）
+    pnpm app                # 打开正式本机客户端（默认真实模型、正式工作区）
     pnpm computer:smoke     # 操作电脑能力 12 项端到端自检（已装桌面栈时）
     pnpm agent:tour         # Agent 能力巡游（全量能力可执行自检）
 

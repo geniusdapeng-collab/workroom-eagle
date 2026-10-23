@@ -16,9 +16,10 @@ import type { OnboardingStatus } from "../../components/SimBanner";
 import { UrlQrCode } from "../../components/UrlQrCode";
 import { Icon, clientChineseText } from "@workloom/ui";
 import { modelTestReplyText, onboardingStatusSystemText, publicationSystemText } from "./systemText";
+import { ModelVerificationConfigurationChanged, ModelVerificationPersistenceError, verifyCurrentModelPersistently, type ChangedConfigurationPermit } from "../../extensions/consulting/current-model-verification";
 
 const PROVIDERS: Array<{ key: string; label: string; baseUrl: string; model: string }> = [
-  { key: "deepseek", label: "DeepSeek（深度求索）", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat" },
+  { key: "deepseek", label: "DeepSeek（深度求索）", baseUrl: "https://api.deepseek.com", model: "deepseek-flash" },
   { key: "moonshot", label: "Moonshot Kimi", baseUrl: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k" },
   { key: "zhipu", label: "智谱 GLM", baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-flash" },
   { key: "openai", label: "OpenAI", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
@@ -69,6 +70,7 @@ const CHANNEL_STATUS: Record<ServiceFrontPublication["channels"][number]["status
 
 export default function Onboarding() {
   const [st, setSt] = useState<OnboardingStatus | null>(null);
+  const productionInstallation = st?.installation?.mode === "production";
   const [step, setStep] = useState(0);
   const [err, setErr] = useState("");
   // V4：?mode=customize → 定制向导（行业段：隔离编制→上岗考→原子切换）
@@ -94,6 +96,7 @@ export default function Onboarding() {
   const [testResult, setTestResult] = useState<{ ok: boolean; reply?: string; latencyMs?: number; error?: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [llmDone, setLlmDone] = useState(false);
+  const [changedModelConfiguration, setChangedModelConfiguration] = useState<ChangedConfigurationPermit | null>(null);
 
   // 步骤③表单
   const [bizName, setBizName] = useState("");
@@ -136,9 +139,9 @@ export default function Onboarding() {
         trpc.onboarding.serviceFrontPublication.query() as Promise<ServiceFrontPublication>,
       ]);
       const payload = draft?.payload ?? {};
-      setProv(payload.provider ?? "deepseek");
-      setBaseUrl(payload.baseUrl ?? PROVIDERS.find((item) => item.key === (payload.provider ?? "deepseek"))?.baseUrl ?? PROVIDERS[0]!.baseUrl);
-      setModel(payload.model ?? PROVIDERS.find((item) => item.key === (payload.provider ?? "deepseek"))?.model ?? PROVIDERS[0]!.model);
+      setProv(payload.provider ?? s.llm.provider ?? "deepseek");
+      setBaseUrl(payload.baseUrl ?? s.llm.baseUrl ?? PROVIDERS[0]!.baseUrl);
+      setModel(payload.model ?? s.llm.model ?? PROVIDERS[0]!.model);
       setBizName(payload.businessName ?? s.business?.name ?? s.workspace.name);
       setIndustry(payload.industry ?? s.business?.industry ?? "");
       setNote(payload.note ?? s.business?.note ?? "");
@@ -163,10 +166,10 @@ export default function Onboarding() {
     if (!st) return [];
     return [
       { label: "数据库连接", ok: true, detail: "事件库在线" },
-      { label: "事件库规模", ok: st.workspace.events > 0, detail: `${st.workspace.events} 条五元事件（哈希链可验）` },
+      { label: "审计事件", ok: st.workspace.events >= 0, detail: `${st.workspace.events} 条事件；新装工作区允许为空，配置事件不计作业务产物` },
       { label: "数字团队", ok: st.workspace.agents > 0, detail: `${st.workspace.agents} 名员工 · ${st.workspace.members} 名人类成员 · ${st.workspace.memories} 条组织经验` },
-      { label: "大模型", ok: st.llm.real, detail: st.llm.real ? `${st.llm.provider} · ${st.llm.model}（真实推理且试调凭据有效）` : "内置模拟模型，或当前模型配置没有有效试调凭据" },
-      { label: "数据模式", ok: st.dataMode === "real", detail: st.dataMode === "real" ? "真实经营模式" : "模拟演示数据" },
+      { label: "大模型", ok: st.llm.real, detail: st.llm.real ? `${st.llm.provider} · ${st.llm.model}（连接测试记录有效）` : st.installation?.modelConfigured ? `${st.llm.provider} · ${st.llm.model} 已配置，尚待连接测试留痕` : "模型尚未完成配置或尚无有效连接测试记录" },
+      { label: "安装状态", ok: st.installation?.mode === "production" || st.dataMode === "real", detail: st.installation?.mode === "production" ? "正式安装；客户资料接入与经营门禁另行核验" : st.dataMode === "real" ? "真实经营模式" : "示例或模拟资料，尚待正式接入" },
     ];
   }, [st]);
 
@@ -270,6 +273,37 @@ export default function Onboarding() {
       setStep(2);
     } catch (e) { setErr(safeOnboardingError(e)); }
     finally { setSaving(false); }
+  };
+
+  const verifyCurrentLlm = async (changedConfiguration?: ChangedConfigurationPermit) => {
+    setTesting(true); setTestResult(null); setErr("");
+    try {
+      await verifyCurrentModelPersistently({
+        storage: () => window.localStorage,
+        resolveScope: async () => {
+          const access = await trpc.access.me.query();
+          if (access.subject.kind !== "member") throw new Error("当前身份不能验证正式模型配置");
+          return access.scope;
+        },
+        invoke: (input) => trpc.onboarding.verifyCurrentLlm.mutate(input),
+        readback: reload,
+        ...(changedConfiguration ? { changedConfiguration } : {}),
+      });
+      setChangedModelConfiguration(null);
+      setTestResult({ ok: true, reply: "当前受保护模型已通过真实连接验证，已保存本次配置的验证记录。" });
+      setLlmDone(true);
+    } catch (error) {
+      if (error instanceof ModelVerificationConfigurationChanged) {
+        setChangedModelConfiguration(error.permit);
+        setTestResult({ ok: false, error: "受保护模型配置已变更。原验证请求未调用新配置，请确认后再验证新配置。" });
+      } else {
+        setChangedModelConfiguration(null);
+        setTestResult({ ok: false, error: error instanceof ModelVerificationPersistenceError
+          ? "无法保存或核对本次验证请求，尚未发起模型调用；请恢复浏览器本机存储后重试。"
+          : safeOnboardingError(error, "当前模型验证未完成；已保留原验证请求，重试不会重新发起未知调用。") });
+      }
+    }
+    finally { setTesting(false); }
   };
 
   const saveBiz = async () => {
@@ -421,7 +455,16 @@ export default function Onboarding() {
         {/* ② 真实大模型 */}
         {step === 1 && (
           <div className="space-y-4 rounded-xl border border-line bg-panel/70 p-5">
-            <div className="break-words text-sm font-bold">接入真实大模型 <span className="text-body font-normal text-ink3">真实试调通过才会保存；保存即全链生效，无需重启</span></div>
+            <div className="break-words text-sm font-bold">接入真实大模型 <span className="text-body font-normal text-ink3">{productionInstallation ? "使用本机安全导入的配置；连接测试成功才记录验证事实" : "真实试调通过才会保存；保存即全链生效，无需重启"}</span></div>
+            {productionInstallation ? <div className="space-y-3 rounded-lg border border-line bg-card p-3 text-body leading-relaxed text-ink2">
+              <p>当前模型：{st?.llm.provider} · {st?.llm.model}</p>
+              <p>模型密钥由本机系统凭据保护。页面不读取或保存密钥；需要变更时，请使用「模型与成本」中的本机安装引导完成安全导入。</p>
+              <p>首次验证会使用当前配置发起一次真实模型请求并产生费用。失败重试或重新打开页面沿用原请求，成功后回读原验证记录；其他经营门禁仍须分别完成。</p>
+              <button className={btnCls} disabled={testing || !st?.installation?.modelConfigured} onClick={() => void verifyCurrentLlm()}>{testing ? "正在验证……" : "验证当前模型（真实调用）"}</button>
+              {changedModelConfiguration && <button className={btnCls} disabled={testing || !st?.installation?.modelConfigured} onClick={() => void verifyCurrentLlm(changedModelConfiguration)}>确认验证已变更的配置（产生新调用费用）</button>}
+              {!st?.installation?.modelConfigured && <p className="text-warn">当前安全配置尚未完成，请先完成模型密钥导入。</p>}
+              <a className="inline-block text-holo underline" href="/models">查看本机模型配置与引导</a>
+            </div> : <>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {PROVIDERS.map((p) => (
                 <button key={p.key} onClick={() => pickProvider(p.key)}
@@ -431,31 +474,32 @@ export default function Onboarding() {
               ))}
             </div>
             <label className="block text-body text-ink3">模型接口地址
-              <input className={`${inputCls} mt-1`} value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); setTestResult(null); }} placeholder="https://api.deepseek.com/v1" />
+              <input className={`${inputCls} mt-1`} value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); setTestResult(null); }} placeholder="https://api.deepseek.com" />
             </label>
             <label className="block text-body text-ink3">接口密钥 <span className="text-ink3/70">（只落盘到本机环境配置，事件留痕仅记掩码后 4 位）</span>
               <input className={`${inputCls} mt-1`} type="password" value={apiKey} onChange={(e) => { setApiKey(e.target.value); setTestResult(null); }} placeholder="sk-……" />
             </label>
             <label className="block text-body text-ink3">模型
-              <input className={`${inputCls} mt-1`} value={model} onChange={(e) => { setModel(e.target.value); setTestResult(null); }} placeholder="deepseek-chat" />
+              <input className={`${inputCls} mt-1`} value={model} onChange={(e) => { setModel(e.target.value); setTestResult(null); }} placeholder="填写当前模型名称" />
             </label>
+            </>}
             {testResult && (
               <div className={`break-words rounded-lg border px-3 py-2 text-body ${testResult.ok ? "border-go/50 bg-go/10 text-go" : "border-warn/50 bg-warn/10 text-warn"}`}>
                 {testResult.ok
-                  ? <><Icon name="check" size={15} className="inline" /> 真实试调通过（{testResult.latencyMs} 毫秒）——模型回复：「{clientChineseText(testResult.reply, "模型已返回可验证结果。")}」</>
+                  ? <><Icon name="check" size={15} className="inline" /> 真实试调通过{typeof testResult.latencyMs === "number" ? `（${testResult.latencyMs} 毫秒）` : "（实际请求回执已保存）"}——{clientChineseText(testResult.reply, "模型已返回可验证结果。")}</>
                   : <><Icon name="error" size={15} className="inline" /> 试调失败：{testResult.error}</>}
               </div>
             )}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-              <button className="max-w-full break-words text-left text-body text-ink3 underline" onClick={() => void continueAt(2)}>暂用内置模拟模型（只能体验，不能启用正式模式）</button>
-              <div className="flex flex-wrap gap-2">
+              <button className="max-w-full break-words text-left text-body text-ink3 underline" onClick={() => void continueAt(2)}>{productionInstallation ? "继续核对经营主体；模型验证状态仍如实保留" : "暂用内置模拟模型（只能体验，不能启用正式模式）"}</button>
+              {!productionInstallation && <div className="flex flex-wrap gap-2">
                 <button className={btnCls} disabled={testing || !baseUrl || !model} onClick={() => void test()}>
                   {testing ? "试调中……" : "测试连接（真实调用）"}
                 </button>
                 <button className={btnCls} disabled={saving || !testResult?.ok} onClick={() => void saveLlm()}>
                   {saving ? "保存中……" : "保存并启用 →"}
                 </button>
-              </div>
+              </div>}
             </div>
           </div>
         )}
@@ -607,7 +651,7 @@ export default function Onboarding() {
             <Icon name="celebrate" size={28} className="mx-auto text-go" />
             <div className="text-sm font-bold text-go">{st?.dataMode === "real" ? "真实经营模式已启用" : "向导进度已保存"}</div>
             <div className="text-body leading-relaxed text-ink3">
-              {st?.dataMode === "real" ? "服务端正式模式激活事件已留痕，数字团队将按正式配置继续工作。" : "正式运行门禁尚未全绿，系统仍保持模拟状态；您可以稍后继续补齐。"}
+              {st?.dataMode === "real" ? "服务端正式模式激活事件已留痕，数字团队将按正式配置继续工作。" : productionInstallation ? "正式安装已就绪，经营门禁尚未全绿；客户资料与连接验证可稍后继续补齐。" : "正式运行门禁尚未全绿，示例或模拟模式继续保持明示；您可以稍后继续补齐。"}
             </div>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <a href="/" className="inline-block rounded-lg border border-gline bg-gold/10 px-5 py-2 text-sm text-gold no-underline hover:bg-gold/20">回到经营主页 →</a>

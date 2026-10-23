@@ -26,5 +26,10 @@
     "assetName": "workloom-ui-0.1.19.tgz",
     "url": "https://cnb.cool/workloom-ai/workloom-im/-/releases/download/ui-v0.1.19/workloom-ui-0.1.19.tgz",
     "sha512": "sha512-kplOLAtovega6BLpBwtFM1DfBS3q4ZjLp9yA942o+v9QlbREm/VsYNK/Jz7f/9ytDWSFXCvmh10C3ZHrPHkcSA=="
+  },
+  "offlineMirror": {
+    "path": "vendor/workloom-ui-0.1.19.tgz",
+    "canonicalUrl": "https://cnb.cool/workloom-ai/workloom-im/-/releases/download/ui-v0.1.19/workloom-ui-0.1.19.tgz",
+    "sha512": "sha512-kplOLAtovega6BLpBwtFM1DfBS3q4ZjLp9yA942o+v9QlbREm/VsYNK/Jz7f/9ytDWSFXCvmh10C3ZHrPHkcSA=="
   }
 }

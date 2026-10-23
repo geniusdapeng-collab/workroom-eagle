@@ -7,6 +7,8 @@
  */
 import { initTRPC, TRPCError } from "@trpc/server";
 import { createHash } from "node:crypto";
+import { demoAuthenticationAllowed } from "../service/local-desktop-auth.js";
+import { getOwnerPool } from "@workloom/db";
 import {
   capabilityDisplayName,
   hasCapability,
@@ -93,7 +95,19 @@ function capabilityForbiddenMessage(plan: Identity["plan"], capability: Capabili
 }
 
 export const router = t.router;
-export const publicProcedure = t.procedure;
+export const publicProcedure = t.procedure.use(async ({ path, getRawInput, next }) => {
+  if ((path === "auth.loginAs" || path === "accounts.auth.guestEnter") && !demoAuthenticationAllowed()) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "正式安装已关闭游客和演示身份入口，请使用本机客户端或正式账号。" });
+  }
+  if (path === "auth.loginAs") {
+    const input = await getRawInput() as { workspaceSlug?: unknown } | undefined;
+    const example = typeof input?.workspaceSlug === "string"
+      ? await getOwnerPool().query("SELECT 1 FROM workspaces WHERE slug=$1 AND is_example=true", [input.workspaceSlug])
+      : null;
+    if (!example?.rows[0]) throw new TRPCError({ code: "FORBIDDEN", message: "演示身份只允许进入明确标注的示例工作区。" });
+  }
+  return next();
+});
 
 /** 401 守卫 */
 export const sessionProcedure = t.procedure.use(({ ctx, next }) => {

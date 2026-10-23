@@ -23,8 +23,6 @@ const industryItems = existsSync(industryCatalogFile)
   : [];
 const expectedTotal = coreCatalog.capabilities.length + industryItems.length;
 const expectedEnabled = [...coreCatalog.capabilities, ...industryItems].filter((item) => item.enabled !== false).length;
-const demoWorkspaceSlug = productManifest.demoWorkspaceSlug;
-const demoMemberNo = productManifest.demoMemberNo;
 
 async function testServer(handler) {
   const server = createServer(handler);
@@ -66,16 +64,16 @@ test("input validation rejects missing and unexpected fields", async () => {
   assert.deepEqual(validateInput(descriptor, { threadId: "T-1" }), { threadId: "T-1" });
 });
 
-test("loopback dev identity invokes the same tRPC procedure and returns structured result", async () => {
+test("loopback installed identity requires the process secret and invokes the same tRPC procedure", async () => {
   const requests = [];
   const localTestToken = "test-only-local-token";
   const mock = await testServer(async (req, res) => {
     let body = "";
     for await (const chunk of req) body += chunk;
-    requests.push({ path: req.url, method: req.method, auth: req.headers.authorization, body });
+    requests.push({ path: req.url, method: req.method, auth: req.headers.authorization, desktopSecret: req.headers["x-workloom-desktop-secret"], origin: req.headers.origin, body });
     res.setHeader("content-type", "application/json");
-    if (req.url === "/trpc/auth.loginAs") {
-      res.end(JSON.stringify({ result: { data: { token: localTestToken } } }));
+    if (req.url === "/api/desktop/session") {
+      res.end(JSON.stringify({ token: localTestToken, dataMode: "real" }));
     } else if (req.url === "/trpc/workspace.profile") {
       res.end(JSON.stringify({ result: { data: { workspace: "demo" } } }));
     } else {
@@ -86,15 +84,15 @@ test("loopback dev identity invokes the same tRPC procedure and returns structur
   try {
     const catalog = await loadCatalog(root);
     const output = await invokeCapability(catalog, "core.workspace.profile", {}, {
-      baseUrl: mock.url, env: {},
+      baseUrl: mock.url, env: { WORKLOOM_DESKTOP_SESSION_SECRET: "a".repeat(64), WORKLOOM_KEYCHAIN_ACCESS: "0" },
     });
     assert.equal(output.status, "succeeded");
     assert.equal(output.dataMode, "unverified");
     assert.deepEqual(output.result, { workspace: "demo" });
     assert.equal(requests[0].method, "POST");
-    assert.deepEqual(JSON.parse(requests[0].body), {
-      workspaceSlug: demoWorkspaceSlug, memberNo: demoMemberNo,
-    });
+    assert.deepEqual(JSON.parse(requests[0].body), {});
+    assert.equal(requests[0].desktopSecret, "a".repeat(64));
+    assert.equal(requests[0].origin, undefined);
     assert.equal(requests[1].method, "GET");
     assert.equal(requests[1].auth, `Bearer ${localTestToken}`);
   } finally {
@@ -187,6 +185,7 @@ test("MCP stdio lists only enabled tools and keeps stdout as JSON-RPC", async ()
     jsonrpc: "2.0", id: 1, method: "initialize",
     params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "test", version: "1" } },
   }) + "\n");
+  child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
   child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }) + "\n");
   child.stdin.end();
   const [exitCode] = await once(child, "exit");
@@ -196,4 +195,73 @@ test("MCP stdio lists only enabled tools and keeps stdout as JSON-RPC", async ()
   assert.equal(lines[0].result.protocolVersion, "2025-11-25");
   assert.equal(lines[1].result.tools.length, expectedEnabled);
   assert.equal(lines[1].result.tools[0].annotations.readOnlyHint, true);
+  assert.match(lines[0].result.instructions, /禁止.*跳步/u);
+});
+
+test("missing real credentials never fall back to anonymous demo login", async () => {
+  const catalog = await loadCatalog(root);
+  let requests = 0;
+  await assert.rejects(invokeCapability(catalog, "core.workspace.profile", {}, {
+    baseUrl: "http://127.0.0.1:8897", env: { WORKLOOM_KEYCHAIN_ACCESS: "0", WORKLOOM_DEV_AUTO_LOGIN: "1" },
+    fetcher: async () => { requests += 1; throw new Error("must not call anonymous login"); },
+  }), (error) => error.code === "UNAUTHORIZED");
+  assert.equal(requests, 0);
+});
+
+test("HTTPS remote endpoints do not receive the local desktop secret or keychain token", async () => {
+  const catalog = await loadCatalog(root);
+  let requests = 0;
+  await assert.rejects(invokeCapability(catalog, "core.workspace.profile", {}, {
+    baseUrl: "https://example.invalid", env: { WORKLOOM_DESKTOP_SESSION_SECRET: "a".repeat(64) },
+    fetcher: async () => { requests += 1; throw new Error("must not request local identity for a remote host"); },
+  }), (error) => error.code === "UNAUTHORIZED");
+  assert.equal(requests, 0);
+});
+
+test("consulting execution contracts reject client stage overrides, fabricated completion and missing idempotency", async () => {
+  const catalog = await loadCatalog(root);
+  const descriptor = catalog.entries.get("consulting.workflow.advance");
+  assert.equal(descriptor.transport.timeoutMs, 120000);
+  assert.throws(() => validateInput(descriptor, { runId: "CR-" + "a".repeat(24) }), /idempotencyKey 缺失/u);
+  for (const patch of [{ stepId: "s6" }, { status: "completed" }, { artifact: {} }, { employeeKey: "chief-of-staff" }]) {
+    assert.throws(() => validateInput(descriptor, { runId: "CR-" + "a".repeat(24), idempotencyKey: "unit-idempotency", ...patch }), /不允许/u);
+    assert.throws(() => validateInput(catalog.entries.get("consulting.workflow.revalidate"), { runId: "CR-" + "a".repeat(24), idempotencyKey: "unit-idempotency", ...patch }), /不允许/u);
+  }
+});
+
+test("execute success without a synchronized event receipt is rejected", async () => {
+  const catalog = await loadCatalog(root);
+  await assert.rejects(invokeCapability(catalog, "consulting.workflow.submit", {
+    enterpriseId: "unit", goal: "请完成一项真实材料分析任务", idempotencyKey: "unit-completion-claim",
+  }, { env: { WORKLOOM_ACCESS_TOKEN: "test-only-member-token" }, fetcher: async () => new Response(JSON.stringify({ result: { data: {
+    schemaVersion: "workloom.capability-result/v1", capabilityId: "consulting.workflow.submit", operation: "execute", status: "succeeded", dataMode: "real", result: {},
+  } } }), { headers: { "content-type": "application/json" } }) }), (error) => error.code === "REMOTE_INVALID");
+});
+
+test("MCP rejects operations before initialization and malformed/unknown tool calls as protocol errors", async () => {
+  const child = spawn(process.execPath, [resolve(root, "scripts/workloom-agent-mcp.mjs")], { cwd: root, stdio: ["pipe", "pipe", "pipe"] });
+  let stdout = ""; child.stdout.on("data", (chunk) => { stdout += chunk; }); child.stderr.resume();
+  const messages = [
+    { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} },
+    { jsonrpc: "2.0", id: 2, method: "initialize", params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "unit", version: "1" } } },
+    { jsonrpc: "2.0", id: 3, method: "tools/list", params: {} },
+    { jsonrpc: "2.0", method: "notifications/initialized" },
+    { jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "missing-tool" } },
+    { jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "workloom_consulting_repo_status", arguments: [] } },
+    { jsonrpc: "2.0", id: 6, method: "initialize", params: {} },
+  ];
+  child.stdin.end(messages.map((message) => JSON.stringify(message)).join("\n") + "\n");
+  const [exitCode] = await once(child, "exit"); assert.equal(exitCode, 0);
+  const outputs = new Map(stdout.trim().split("\n").map((line) => { const msg = JSON.parse(line); return [msg.id, msg]; }));
+  assert.equal(outputs.get(1).error.code, -32002); assert.equal(outputs.get(3).error.code, -32002);
+  assert.equal(outputs.get(4).error.code, -32602); assert.equal(outputs.get(5).error.code, -32602); assert.equal(outputs.get(6).error.code, -32600);
+});
+
+test("MCP measures the original frame bytes before trimming whitespace", async () => {
+  const child = spawn(process.execPath, [resolve(root, "scripts/workloom-agent-mcp.mjs")], { cwd: root, stdio: ["pipe", "pipe", "pipe"] });
+  let stdout = ""; child.stdout.on("data", (chunk) => { stdout += chunk; }); child.stderr.resume();
+  child.stdin.on("error", (error) => assert.ok(["EPIPE", "ECONNRESET"].includes(error.code), `unexpected stdin failure: ${error.code}`));
+  child.stdin.end(" ".repeat(9 * 1024 * 1024 + 1) + "\n");
+  const [exitCode] = await once(child, "exit"); assert.equal(exitCode, 2);
+  assert.match(stdout, /input frame too large/u);
 });

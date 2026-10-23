@@ -83,6 +83,369 @@
         "properties": {},
         "additionalProperties": false
       }
+    },
+    {
+      "id": "consulting.workforce.catalog",
+      "version": "1.0.0",
+      "title": "读取咨询员工与实装能力",
+      "description": "读取当前咨询装配、22岗位与绑定技能、已实现/未接通工具边界和本轮模型预算；不得把资产数量等同于已验收能力。",
+      "operation": "read",
+      "risk": "low",
+      "dataMode": "real",
+      "transport": {
+        "kind": "trpc",
+        "path": "consulting.catalog",
+        "method": "query"
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.dossier.put",
+      "version": "1.0.0",
+      "title": "建立企业授权资料档案",
+      "description": "将客户已授权的文字资料经PII脱敏后记入本工作区一企一档；原文不独立背书，资料合计最多4000 UTF-8字节，重复幂等键不能改内容。",
+      "operation": "execute",
+      "risk": "moderate",
+      "dataMode": "real",
+      "transport": {
+        "kind": "trpc",
+        "path": "consulting.dossierPut",
+        "method": "mutation",
+        "timeoutMs": 120000
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "enterpriseId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9_\\-\\u3400-\\u9fff]+$"
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 8,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,48}$"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "content": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "content"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "enterpriseId",
+          "sources",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.dossier.get",
+      "version": "1.0.0",
+      "title": "读取企业资料档案",
+      "description": "只读取当前正式成员工作区的一企一档资料版本及事件回执，跨租户/工作区不可见。",
+      "operation": "read",
+      "risk": "low",
+      "dataMode": "real",
+      "transport": {
+        "kind": "trpc",
+        "path": "consulting.dossierGet",
+        "method": "query"
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "enterpriseId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9_\\-\\u3400-\\u9fff]+$"
+          }
+        },
+        "required": [
+          "enterpriseId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.workflow.submit",
+      "version": "1.0.0",
+      "title": "提交咨询材料分析任务",
+      "description": "先建档再提交；指定employeeKey运行单员工；省略时真实模型拆成六步，服务端强制诊断证据→三专业员工→报告草稿→独立红队质检。只交内部草稿，不能代替人类定调或外发。",
+      "operation": "execute",
+      "risk": "moderate",
+      "dataMode": "real",
+      "transport": {
+        "kind": "trpc",
+        "path": "consulting.submit",
+        "method": "mutation",
+        "timeoutMs": 120000
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "enterpriseId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9_\\-\\u3400-\\u9fff]+$"
+          },
+          "goal": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 500
+          },
+          "employeeKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "skillId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "enterpriseId",
+          "goal",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.workflow.advance",
+      "version": "1.0.0",
+      "title": "推进下一个受控步骤",
+      "description": "只由服务端选择下一步；须有前序产物散列与事件回执。客户端不能指定跳步、代写完成或篡改员工/技能。每步最多一次真实模型调用，无自动重试。",
+      "operation": "execute",
+      "risk": "moderate",
+      "dataMode": "real",
+      "transport": {
+        "kind": "trpc",
+        "path": "consulting.advance",
+        "method": "mutation",
+        "timeoutMs": 120000
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "pattern": "^CR-[a-f0-9]{24}$"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "runId",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.workflow.revalidate",
+      "version": "1.0.0",
+      "title": "重验已保存的原始模型响应",
+      "description": "仅在产物校验失败且保留原始文件/散列/供应商回执时，从服务端原文件重验；不接受客户端产物，不调用模型，不重复计费。保留原失败与独立重验事件，继续检查原文引用、当前围栏和前序散列。",
+      "operation": "execute",
+      "risk": "moderate",
+      "dataMode": "real",
+      "transport": {
+        "kind": "trpc",
+        "path": "consulting.revalidate",
+        "method": "mutation",
+        "timeoutMs": 120000
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "pattern": "^CR-[a-f0-9]{24}$"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "runId",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.workflow.pause",
+      "version": "1.0.0",
+      "title": "在步骤间暂停任务",
+      "description": "仅已落盘步骤之间可暂停；进行中或结果未知的付费调用不会被重复执行。",
+      "operation": "execute",
+      "risk": "moderate",
+      "dataMode": "real",
+      "transport": {
+        "kind": "trpc",
+        "path": "consulting.pause",
+        "method": "mutation",
+        "timeoutMs": 120000
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "pattern": "^CR-[a-f0-9]{24}$"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "runId",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.workflow.resume",
+      "version": "1.0.0",
+      "title": "恢复已暂停的任务",
+      "description": "从服务端持久化的下一步骤恢复，保留原计划、档案版本、已完成产物与散列，不重新规划或重新计费。",
+      "operation": "execute",
+      "risk": "moderate",
+      "dataMode": "real",
+      "transport": {
+        "kind": "trpc",
+        "path": "consulting.resume",
+        "method": "mutation",
+        "timeoutMs": 120000
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "pattern": "^CR-[a-f0-9]{24}$"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "runId",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.workflow.get",
+      "version": "1.0.0",
+      "title": "读取咨询流程与完整回执",
+      "description": "读取计划、模型规划回执、每步员工/技能、前序依赖、产物散列和状态。draft_ready仅表示内部草稿已生成并待人类顾问审阅。",
+      "operation": "receipt",
+      "risk": "low",
+      "dataMode": "real",
+      "transport": {
+        "kind": "trpc",
+        "path": "consulting.get",
+        "method": "query"
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "pattern": "^CR-[a-f0-9]{24}$"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.artifact.read",
+      "version": "1.0.0",
+      "title": "回读本地咨询草稿",
+      "description": "回读已写盘Markdown并验证sha256/字节数/工作区路径与事件回执；缺失或被修改即失败，不能声称已交付。",
+      "operation": "receipt",
+      "risk": "low",
+      "dataMode": "real",
+      "transport": {
+        "kind": "trpc",
+        "path": "consulting.artifact",
+        "method": "query"
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "pattern": "^CR-[a-f0-9]{24}$"
+          },
+          "stepId": {
+            "type": "string",
+            "pattern": "^s[1-6]$"
+          }
+        },
+        "required": [
+          "runId",
+          "stepId"
+        ],
+        "additionalProperties": false
+      }
     }
   ]
 }

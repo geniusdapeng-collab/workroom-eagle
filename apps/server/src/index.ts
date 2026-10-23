@@ -23,8 +23,10 @@ import { startThreadScheduler } from "./runtime/scheduler.js";
 import { gatewayAppend } from "@workloom/base/workdata";
 import { registerBundleAskFacts } from "./runtime/ask-facts-loader.js";
 import { readVoiceFile, synthesizeVoice, voiceStationConfig } from "./voice/station.js";
+import { createLocalDesktopAuth } from "./service/local-desktop-auth.js";
 
 const app = new Hono();
+app.route("/api/desktop", createLocalDesktopAuth());
 
 app.use(
   "*",

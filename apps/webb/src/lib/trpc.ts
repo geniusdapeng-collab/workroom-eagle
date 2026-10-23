@@ -73,12 +73,8 @@ export async function restoreSession(): Promise<boolean> {
     try { await hydrateIndustryTerms(await trpc.access.me.query() as AccessBundlePayload); return true; } catch { sessionStorage.removeItem(ACCESS_KEY); }
   }
   if (localStorage.getItem(GUEST_KEY) === "1") {
-    try {
-      const result = await trpc.accounts.auth.guestEnter.mutate({ device: "B 端移动客户端" });
-      setSession({ accessToken: result.token, workspaceSlug: result.workspace.slug, guest: true });
-      await hydrateIndustryTerms();
-      return true;
-    } catch { clearSession(); return false; }
+    clearSession();
+    return false;
   }
   const refreshToken = sessionStorage.getItem(REFRESH_KEY);
   if (!refreshToken) return false;
@@ -93,9 +89,6 @@ export async function restoreSession(): Promise<boolean> {
   }
 }
 
-export async function enterGuest() {
-  const result = await trpc.accounts.auth.guestEnter.mutate({ device: "B 端移动客户端" });
-  setSession({ accessToken: result.token, workspaceSlug: result.workspace.slug, guest: true });
-  await hydrateIndustryTerms();
-  return result;
+export async function enterGuest(): Promise<never> {
+  throw new Error("正式安装已关闭游客入口，请使用正式账号登录。");
 }

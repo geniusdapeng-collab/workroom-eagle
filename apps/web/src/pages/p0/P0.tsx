@@ -10,7 +10,7 @@ import { ensureDemoLogin, trpc } from "../../lib/trpc";
 import { RejectDialog } from "../../components/RejectDialog";
 import { CommandCard } from "../../components/CommandCard";
 import { actionText, actorText, floorStatusText, payloadText } from "../../lib/display";
-import { SimBanner } from "../../components/SimBanner";
+import { SimBanner, type OnboardingStatus } from "../../components/SimBanner";
 import { SkillDistBanner } from "../../components/SkillDistBanner";
 import { FloorView, type FloorPayload, type FloorAgent } from "./Floor";
 import { Stage3D } from "../../components/Stage3D";
@@ -71,7 +71,7 @@ const MODE_TEXT: Record<string, string> = {
 
 /** 未安装行业投影时只展示中性的基座动作，不猜测任何行业。 */
 const BASE_TASK_CARDS = ["查看今日待办", "查看任务进度", "处理待审批事项", "查看运行报告"];
-const BRIEFING_FALLBACK = "昨夜班组运行正常，今日请指示。";
+const BRIEFING_FALLBACK = "暂无经过核验的运行简报，请先接入资料与任务。";
 
 /* ================= 星野画布 ================= */
 function Starfield({ density = 110 }: { density?: number }) {
@@ -204,6 +204,7 @@ export default function P0() {
   const [wsName, setWsName] = useState("WorkLoom");
   const [showWelcome, setShowWelcome] = useState(false);
   const [welcome, setWelcome] = useState<WelcomeState | null>(null);
+  const [installation, setInstallation] = useState<OnboardingStatus["installation"]>();
   const bundleId = bundle?.bundleId ?? null;
   const setWelcomeVisible = (visible: boolean) => {
     window.dispatchEvent(new CustomEvent<boolean>("workloom:welcome", { detail: visible }));
@@ -225,17 +226,18 @@ export default function P0() {
     void ensureDemoLogin().then(async () => {
       await Promise.all([
         trpc.onboarding.status.query().then((r) => {
-          const rr = r as { workspace?: { name?: string }; bundle?: { id?: string | null; isExample?: boolean }; workspaceId?: string };
+          const rr = r as OnboardingStatus;
           const n = rr.workspace?.name;
           if (n) setWsName(n);
-        }).catch(() => undefined),
+          setInstallation(rr.installation);
+        }).catch(() => setMsg("安装状态暂不可核验，请稍后刷新。")),
         trpc.onboarding.welcomeStatus.query().then((result) => {
           const progress = result as WelcomeState;
           setWelcome(progress);
           if (progress.shouldShow) setWelcomeVisible(true);
-        }).catch(() => undefined),
+        }).catch(() => setMsg("欢迎进度暂不可读取，请稍后刷新或使用重播入口。")),
       ]);
-    });
+    }).catch(() => setMsg("正式会话尚未就绪，请等待服务恢复后刷新。"));
   }, []);
   const [data, setData] = useState<Theater | null>(null);
   const [queue, setQueue] = useState<ChairmanItem[]>([]);
@@ -243,6 +245,8 @@ export default function P0() {
   const [input, setInput] = useState("");
   const [chat, setChat] = useState<Array<{ from: "me" | "ceo"; text: string }>>([]);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [ceremony, setCeremony] = useState(0); // 0=未演 1-4=晨间播报阶段 5=完成
   const [msg, setMsg] = useState("");
   // D25 视图：floor=数字办公区（默认） / stage=剧场舞台（D23）
@@ -301,6 +305,8 @@ export default function P0() {
   }, [ceremony, data, showWelcome]);
 
   const load = async () => {
+    setRefreshing(true);
+    try {
     await ensureDemoLogin();
     const [t, q] = await Promise.all([
       trpc.captain.theater.query() as Promise<Theater>,
@@ -326,6 +332,12 @@ export default function P0() {
       },
     })));
     hydrateAliases(t.satellites.map((a) => ({ presetKey: a.presetKey, alias: a.alias })));
+    setLoadError(false);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setRefreshing(false);
+    }
   };
   const saveWelcome = async (
     status: "in_progress" | "paused" | "completed",
@@ -465,6 +477,7 @@ export default function P0() {
         <span className="break-words text-body text-ink3">经营主页 · {clientChineseText(data?.ceoName, "公司负责人")}</span>
         <span className="flex-1" />
         {msg && <span className="break-words text-body text-go">{msg}</span>}
+        {loadError && <span role="status" className="flex flex-wrap items-center gap-2 text-body text-warn">实况暂不可更新，当前画面可能滞后<button type="button" disabled={refreshing} onClick={() => void load()} className="rounded border border-line px-2 py-1 hover:border-gline disabled:opacity-50">{refreshing ? "刷新中…" : "重试实况"}</button></span>}
         {/* D25 视图切换：职场=等距办公区 / 舞台=全息员工状态 */}
         <div className="flex overflow-hidden rounded border border-line text-body">
           <button onClick={() => switchView("floor")} className={`px-2 py-0.5 ${view === "floor" ? "bg-gold/15 text-gold" : "text-ink3 hover:text-ink2"}`}>职场</button>
@@ -678,11 +691,9 @@ export default function P0() {
       {/* 首次启动欢迎仪式（V4 §0：is_example 工作区 + 仅一次；团队编制驱动布阵） */}
       {showWelcome && data && (
         <WelcomeCeremony
-          actors={[
-            { presetKey: "company-ceo", name: displayNameOf({ presetKey: "company-ceo", roleName: data.ceoName }) } satisfies CeremonyActor,
-            ...data.satellites.map((a): CeremonyActor => ({ presetKey: a.presetKey, name: displayNameOf({ presetKey: a.presetKey, roleName: a.name }) })),
-          ]}
-          bundleName={wsName}
+          actors={data.satellites.map((a): CeremonyActor => ({ presetKey: a.presetKey, name: displayNameOf({ presetKey: a.presetKey, roleName: a.name }) }))}
+          bundleName={bundle?.bundleName ?? wsName}
+          installation={installation}
           welcome={bundle?.ui.welcome}
           initialStep={welcome?.currentStep ?? "start"}
           role={welcome?.role ?? "staff"}

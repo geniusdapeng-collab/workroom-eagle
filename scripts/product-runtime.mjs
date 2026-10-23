@@ -110,6 +110,7 @@ export function loadProductRuntime(start = SCRIPT_PRODUCT_ROOT) {
   const repository = manifest?.repository;
   const demoWorkspaceSlug = manifest?.demoWorkspaceSlug;
   const demoMemberNo = manifest?.demoMemberNo;
+  const defaultWorkspaceSlug = manifest?.production?.workspaceSlug ?? demoWorkspaceSlug;
   const portOffset = manifest?.desktop?.portOffset;
   if (schemaVersion !== "workloom.product/v1") {
     throw new Error("product.manifest.json 缺少受支持的 schemaVersion");
@@ -138,6 +139,9 @@ export function loadProductRuntime(start = SCRIPT_PRODUCT_ROOT) {
   if (typeof demoMemberNo !== "string" || !/^[A-Z][A-Z0-9-]{1,31}$/.test(demoMemberNo)) {
     throw new Error("product.manifest.json 缺少有效演示成员编号");
   }
+  if (typeof defaultWorkspaceSlug !== "string" || !/^[a-z0-9][a-z0-9-]{1,63}$/.test(defaultWorkspaceSlug)) {
+    throw new Error("product.manifest.json 缺少有效正式工作区标识");
+  }
   if (!Number.isInteger(portOffset) || portOffset < 0 || portOffset > 900) {
     throw new Error("product.manifest.json 的桌面端口偏移必须是 0 到 900 的整数");
   }
@@ -151,6 +155,7 @@ export function loadProductRuntime(start = SCRIPT_PRODUCT_ROOT) {
     repository,
     demoWorkspaceSlug,
     demoMemberNo,
+    defaultWorkspaceSlug,
     portOffset,
     serverPort: 8787 + portOffset,
     webPort: 5173 + portOffset,

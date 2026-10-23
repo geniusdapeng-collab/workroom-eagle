@@ -3,7 +3,8 @@
  *
  * 场景化路由：每个调用点带 scene（model-policy.yml 场景表 key）与 plan（租户套餐）；
  * 计量真实化：每次调用经 GatewayEventSink 写 model.call 事件（账单=事件投影 L6.3）；
- * mock / 缺配置 → undefined，链路走确定性兜底并标注 mock:true（D4 离线可跑）。
+ * 非咨询 mock 可明确走规则兜底；待解析行业的 mock 在调用时拒绝进入共享模型池。
+ * 咨询真实任务遇到 mock 明确拒绝，不以 undefined 静默替代真实模型。
  */
 import type pg from "pg";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@workloom/base/model-router";
 import { bundlesRoot } from "@workloom/base/bundles";
 import { join } from "node:path";
+import { createConsultingUiLlmCall } from "../industry/consulting/llm.js";
 
 export type LlmCall = (prompt: string, signal?: AbortSignal) => Promise<string>;
 
@@ -47,7 +49,8 @@ export function modelPolicyFor(industry: string | null | undefined): ModelPolicy
 
 /**
  * 场景化 LLM 调用面（生产装配入口）。
- * mock 模式 → undefined（via=rule 兜底语义不变）；真实模式 → 经 routeSmart 全链路：
+ * 已知非咨询 mock → undefined；待解析 mock 在调用时明确拒绝，调用方可标明规则降级。
+ * 咨询行业的真实配置使用受控单模型；其他真实配置经 routeSmart 全链路：
  * 场景表 × 套餐映射 × 复杂度信号 × 降级链 × 真实计量 × 事件留痕。
  */
 export function routedLlmCall(deps: {
@@ -59,11 +62,26 @@ export function routedLlmCall(deps: {
   /** 行业异步解析（工作区 industry 列查询有 IO；惰性求值并缓存） */
   industryResolver?: () => Promise<string | null>;
 }): LlmCall | undefined {
-  if ((process.env.LLM_PROVIDER ?? "mock") === "mock") return undefined;
+  // Keep the ordinary synchronous mock fallback, while preserving Eagle's explicit
+  // real-model refusal when its industry is known or must first be resolved.
+  if ((process.env.LLM_PROVIDER ?? "mock") === "mock" && deps.industry !== "consulting" && !deps.industryResolver) return undefined;
   try {
-    const sink = new GatewayEventSink(deps.gateway, deps.scope);
+    let sink: GatewayEventSink | undefined;
+    let consultingCall: LlmCall | undefined;
     return async (prompt: string, signal?: AbortSignal) => {
       const industry = deps.industryResolver ? await deps.industryResolver() : deps.industry;
+      if ((process.env.LLM_PROVIDER ?? "mock") === "mock") {
+        // A deferred mock must never reach MockProvider and be mislabeled via=llm.
+        // Callers can visibly mark a rule fallback; consulting cannot silently claim a real task.
+        throw new Error(industry === "consulting" ? "CONSULTING_REAL_MODEL_REQUIRED" : "LLM_MOCK_MODE");
+      }
+      if (industry === "consulting") {
+        // Eagle owns this deployment adapter. Its UI and agent workflow use the
+        // same bounded Flash provider, rather than treating one DeepSeek key as
+        // authorization for every model in the shared multi-vendor catalog.
+        consultingCall ??= createConsultingUiLlmCall({ gateway: deps.gateway, scope: deps.scope, scene: deps.scene });
+        return consultingCall(prompt, signal);
+      }
       const policy = modelPolicyFor(industry);
       const r = await routeSmart(
         {
@@ -72,7 +90,7 @@ export function routedLlmCall(deps: {
           // GR-04：signal 下传 + 场景化超时（intent-classify 3s / quest-plan 120s / ask 45s…）
           ...(signal ? { signal } : {}),
         },
-        pool(), sink, { policy },
+        pool(), sink ??= new GatewayEventSink(deps.gateway, deps.scope), { policy },
       );
       if ((r.kind === "answered" || r.kind === "circuit_broken") && r.text !== undefined) return r.text;
       if (r.kind === "reused" && r.text !== undefined) return r.text;

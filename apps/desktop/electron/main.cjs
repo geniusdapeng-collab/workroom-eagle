@@ -24,9 +24,10 @@
  *   WORKLOOM_NATS_PORT   NATS 端口（默认 4222）
  *   WORKLOOM_PORT_OFFSET 产品端口偏移（行业包/构建配置提供，默认 0）
  */
-const { app, BrowserWindow, Tray, Menu, Notification, nativeImage, shell, dialog } = require("electron");
+const { app, BrowserWindow, Tray, Menu, Notification, nativeImage, shell, dialog, ipcMain, safeStorage } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
+const { readModelKey, writeModelKey, credentialFile, writeAgentToken } = require("./credential-store.cjs");
 
 // 测试/多产品实例的浏览器存储必须与运行时支持目录一致，避免 Local Storage 串包。
 if (process.env.WORKLOOM_SUPPORT_DIR) {
@@ -57,6 +58,7 @@ process.env.WORKLOOM_NATS_PORT ??= String(4222 + PRODUCT_PORT_OFFSET);
 const { bootstrap } = require("./bootstrap.cjs");
 
 const TITLE = process.env.WORKLOOM_APP_TITLE ?? app.getName();
+const IMPORT_MODEL_KEY = process.argv.includes("--import-model-key");
 const APP_SMOKE = process.env.WORKLOOM_APP_SMOKE === "1";
 const RENDER_SMOKE = process.env.WORKLOOM_RENDER_SMOKE === "1";
 const SOURCE_MODE = process.env.WORKLOOM_SOURCE_MODE === "1";
@@ -94,6 +96,7 @@ let bootstrapStartedAt = 0;
 let retryBootstrap = null;
 let lastBootstrapError = null;
 let lastBootstrapReference = null;
+let agentCredentialReady = false;
 
 /* ---------- 单实例锁：重复启动唤出已有窗口 ---------- */
 const gotLock = app.requestSingleInstanceLock();
@@ -260,13 +263,16 @@ function createWindow() {
     autoHideMenuBar: true,
     backgroundColor: "#F8FAFC",
     show: false,
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, "preload.cjs") },
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost")) return { action: "allow" };
-    void shell.openExternal(url);
+    try { if (["https:", "http:"].includes(new URL(url).protocol)) void shell.openExternal(url); } catch { /* 非 URL 不打开 */ }
     return { action: "deny" };
+  });
+  win.webContents.on("will-navigate", (event, url) => {
+    try { if (new URL(url).origin === new URL(WEB_URL).origin) return; } catch { /* 非法 URL 拒绝 */ }
+    event.preventDefault();
   });
 
   // 去浏览器化（客户端即产品），但保留系统缩放与无障碍能力。
@@ -543,6 +549,68 @@ app.whenReady().then(async () => {
     ? path.resolve(process.env.WORKLOOM_SUPPORT_DIR)
     : app.getPath("userData");
   supportDirResolved = supportDir;
+  if (IMPORT_MODEL_KEY) {
+    try {
+      let input = "";
+      for await (const chunk of process.stdin) {
+        input += chunk.toString("utf8");
+        if (input.length > 1024) throw new Error("密钥输入超长");
+      }
+      writeModelKey(supportDir, input.trim(), safeStorage);
+      console.log("本机模型凭据已使用系统加密保存。");
+      app.exit(0);
+    } catch {
+      console.error("模型凭据安全导入失败，未保存明文；请检查系统钥匙串与输入格式。");
+      app.exit(1);
+    }
+    return;
+  }
+
+  const trustedSender = (event) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame
+      || new URL(event.senderFrame.url).origin !== new URL(WEB_URL).origin) throw new Error("拒绝非产品主窗口调用");
+  };
+  ipcMain.handle("workloom:production-session", async (event) => {
+    trustedSender(event);
+    const secret = handle?.desktopSessionSecret;
+    if (!secret) throw new Error("正式本机会话尚未就绪");
+    const response = await fetch(`http://127.0.0.1:${process.env.WORKLOOM_SERVER_PORT}/api/desktop/session`, {
+      method: "POST", headers: { "x-workloom-desktop-secret": secret }, signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) throw new Error("正式本机会话创建失败，请检查工作区初始化状态");
+    return response.json();
+  });
+  ipcMain.handle("workloom:production-configuration", async (event) => {
+    trustedSender(event);
+    const response = await fetch(`http://127.0.0.1:${process.env.WORKLOOM_SERVER_PORT}/api/desktop/session`, {
+      method: "POST", headers: { "x-workloom-desktop-secret": handle?.desktopSessionSecret || "" }, signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) throw new Error("无法核验当前正式工作区配置");
+    const session = await response.json();
+    const runtimeRoot = SOURCE_MODE ? process.env.WORKLOOM_SOURCE_ROOT : path.join(supportDir, "runtime");
+    const envText = fs.readFileSync(path.join(runtimeRoot, ".env"), "utf8");
+    const value = (name) => process.env[name] || envText.match(new RegExp(`^${name}=(.*)$`, "m"))?.[1]?.trim() || "";
+    const provider = value("LLM_PROVIDER");
+    const model = value("LLM_MODEL");
+    return {
+      dataMode: session.dataMode, guestEnabled: session.identity?.memberNo === "GUEST",
+      provider, model, modelLabel: model === "deepseek-flash" ? "DeepSeek V4.1 Flash（供应商别名，当前映射1017）" : model,
+      credentialConfigured: fs.existsSync(credentialFile(supportDir)) || Boolean(value("LLM_API_KEY")),
+      credentialStorage: "系统加密凭据存储",
+      agentGuide: "docs/EAGLE-AGENT-GUIDE.md",
+      agentCredentialReady,
+      agentFiles: handle?.agentConfig ?? null,
+    };
+  });
+  ipcMain.handle("workloom:open-agent-guide", async (event) => {
+    trustedSender(event);
+    const root = SOURCE_MODE ? process.env.WORKLOOM_SOURCE_ROOT : path.join(supportDir, "runtime");
+    const file = path.join(root, "docs", "EAGLE-AGENT-GUIDE.md");
+    if (!fs.existsSync(file)) throw new Error("安装包缺少 Agent 引导文档");
+    const error = await shell.openPath(file);
+    if (error) throw new Error("无法打开 Agent 引导文档");
+    return { opened: true };
+  });
 
   retryBootstrap = async () => {
     if (bootstrapRunning) return;
@@ -574,12 +642,17 @@ app.whenReady().then(async () => {
         }
         // 源码 server/web 由 desktop-app.mts 编排并在拉起 Electron 前完成健康检查。
         // 这里仍保留 handle 契约，让托盘退出/重试与正式安装包走相同生命周期。
-        handle = { stop: async () => {}, webUrl: WEB_URL };
+        const { writeAgentClientConfig } = await import(require("node:url").pathToFileURL(path.join(sourceRoot, "scripts", "agent-client-config.mjs")).href);
+        const agentConfig = await writeAgentClientConfig(path.join(supportDir, "agent-config"), {
+          productRoot: sourceRoot, nodeExecutable: sourceNode, baseUrl: `http://127.0.0.1:${process.env.WORKLOOM_SERVER_PORT}`,
+        });
+        handle = { stop: async () => {}, webUrl: WEB_URL, desktopSessionSecret: process.env.WORKLOOM_DESKTOP_SESSION_SECRET, agentConfig };
       } else {
         handle = await bootstrap({
           resourcesDir,
           supportDir,
           smoke: APP_SMOKE,
+          llmApiKey: readModelKey(supportDir, safeStorage) || process.env.LLM_API_KEY,
           onStatus: (msg, progress) => { if (splash) showSplash(msg, "", "", progress); },
         });
       }
@@ -596,6 +669,20 @@ app.whenReady().then(async () => {
       return;
     } finally {
       bootstrapRunning = false;
+    }
+    if (!APP_SMOKE && process.platform === "darwin" && handle?.desktopSessionSecret) {
+      try {
+        const response = await fetch(`http://127.0.0.1:${process.env.WORKLOOM_SERVER_PORT}/api/desktop/session`, {
+          method: "POST", headers: { "x-workloom-desktop-secret": handle.desktopSessionSecret }, signal: AbortSignal.timeout(10000),
+        });
+        if (!response.ok) throw new Error("正式工作区会话尚未就绪");
+        const session = await response.json();
+        writeAgentToken(session.token);
+        agentCredentialReady = true;
+      } catch {
+        console.warn("Agent 钥匙串接入未完成；客户端仍可使用，CLI/MCP 需要显式正式访问令牌。");
+        agentCredentialReady = false;
+      }
     }
     if (APP_SMOKE) {
       await handle.stop();

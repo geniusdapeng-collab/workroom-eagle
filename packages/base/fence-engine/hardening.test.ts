@@ -137,7 +137,8 @@ describe.skipIf(!hasHotelPack)("HP-02 ④ DSL 装载器与出厂包一致", () =
     // 按包存在性守卫，缺包即跳过该包断言，避免子仓出现"文件不存在"的假红灯。
     if (existsSync(aipmPackPath)) {
       const aipm = loadFencePack(readFileSync(aipmPackPath, "utf-8"));
-      expect(aipm.rules.length).toBe(14);
+      // Eagle retains the v1 compatibility bundle, whose declared baseline has 7 rules.
+      expect(aipm.rules.length).toBe(7);
       expect(aipm.defaultLevel).toBe("review");
     }
     if (existsSync(platformPackPath)) {

@@ -58,6 +58,7 @@ import { overlayRouter } from "./overlay-router.js";
 import { accountsRouter } from "./accounts-router.js";
 import { searchKB } from "../service/kb.js";
 import { acquisitionQuestPlanner } from "../industry/hotel/acquisition-planner.js";
+import { consultingRouter } from "../industry/consulting/router.js";
 import { runRouterReviewBeat } from "@workloom/base/model-router";
 import {
   loadCharter, parseCharter, transition, defaultCharter,
@@ -152,6 +153,9 @@ import {
   recheckBundle,
 } from "@workloom/base/bundles";
 import { serviceRouter } from "../service/router.js";
+import { imDriverPolicy } from "../service/im-driver-policy.js";
+import { configuredDeepSeek, currentDeepSeekConfiguration, installationFacts, VERIFIED_CONSULTING_ARTIFACT_COUNT_SQL } from "../service/onboarding-installation.js";
+import { currentModelVerifier, CurrentModelVerificationError, modelCredentialFingerprint } from "../service/onboarding-model-verification.js";
 import { appendEventOn } from "../service/events.js";
 import {
   advanceWizardDraftOn,
@@ -209,9 +213,9 @@ const systemRouter = router({
 });
 
 /* ================= 落地向导（D24：模拟运行态 → 真实经营 切换面） =================
- * 契约：首次安装开箱即为「全模拟运行态」（种子数据 + mock 模型），P0/工作台横幅常显提示；
- * 向导四步（自检 → 真实大模型 → 经营主体 → 启用真实模式）尽量自动化：
- *  - saveLlmConfig 真实试调通过才落盘（.env 四变量 + process.env + 清缓存，全链即时真实化）
+ * 正式安装事实与向导资格分开：空白正式工作区、受保护模型配置均不能冒充经营资格或已完成作业。
+ * 向导四步（自检 → 验证当前模型 → 经营主体 → 启用真实模式）：
+ *  - production 只允许受保护凭据导入后 verifyCurrentLlm；saveLlmConfig/testLlm 仅保留开发兼容。
  *  - activateRealMode 在服务端重新核验模型、主体、装配资产与考试绑定，通过才写入正式激活凭据
  * 全程五元事件留痕；API Key 只记掩码后 4 位（L6.2 同纪律）。
  */
@@ -250,9 +254,13 @@ function persistLlmEnv(cfg: { provider: string; baseUrl: string; apiKey: string;
   resetLlmAssembly(); // v3.0：模型池与行业策略缓存同步复位（写盘即全链生效免重启）
 }
 
-/** LLM 装配状态（真实=非 mock 且 baseUrl 齐备；apiKey 可空=免 key 网关） */
+/** 当前装配事实；DeepSeek 与受控连接器取同一有效配置，但正式验证仍必须有匹配的真实调用证明。 */
 function llmAssembly(): { provider: string; model: string; baseUrl: string; real: boolean } {
   const provider = process.env.LLM_PROVIDER ?? "mock";
+  if (provider === "deepseek") {
+    const { apiKey: _key, ...current } = currentDeepSeekConfiguration();
+    return { ...current, real: configuredDeepSeek() };
+  }
   const baseUrl = process.env.LLM_BASE_URL ?? "";
   return {
     provider,
@@ -264,7 +272,7 @@ function llmAssembly(): { provider: string; model: string; baseUrl: string; real
 
 /** 仅用于判断当前凭据是否仍是已实测版本；不回传、不进事件明文。 */
 function llmCredentialFingerprint(apiKey: string): string {
-  return createHash("sha256").update(`workloom-llm-credential/v1:${apiKey}`, "utf8").digest("hex");
+  return modelCredentialFingerprint(apiKey);
 }
 
 /** 真实试调探针（落地向导「测试连接」：真实 round-trip 通过才允许保存） */
@@ -285,6 +293,7 @@ interface OnboardingGateSnapshot {
   formalActivationRecorded: boolean;
   business: { name: string; industry: string; note: string; configuredAt: string; source: string } | null;
   workspace: { name: string; bundleId: string | null; isExample: boolean };
+  installation: ReturnType<typeof installationFacts>;
   runtimeGate: ActivationGateResult;
   gate: ActivationGateResult;
 }
@@ -322,7 +331,8 @@ async function loadOnboardingGate(
     && llmVerification.provider === currentLlm.provider
     && llmVerification.baseUrl === currentLlm.baseUrl
     && llmVerification.model === currentLlm.model
-    && llmVerification.credentialFingerprint === llmCredentialFingerprint(process.env.LLM_API_KEY ?? ""),
+    && llmVerification.credentialFingerprint === llmCredentialFingerprint(currentLlm.provider === "deepseek"
+      ? currentDeepSeekConfiguration().apiKey : process.env.LLM_API_KEY ?? ""),
   );
   const rawFormalActivation = archive.realModeActivation;
   const formalActivationRecorded = Boolean(
@@ -486,6 +496,7 @@ async function loadOnboardingGate(
       bundleId: workspace?.bundle_id ?? null,
       isExample: Boolean(workspace?.is_example),
     },
+    installation: installationFacts(archive, Boolean(workspace?.is_example)),
     // runtimeGate 判定工作区是否仍可被称为“正式”；不因只读/经理查看而降级。
     runtimeGate: evaluateRealModeReadiness({ ...readinessFacts, activationOwner: true }),
     // gate 是当前操作者的激活资格，非 owner 会看到明确阻断项。
@@ -579,11 +590,12 @@ const onboardingRouter = router({
       await client.query("SELECT set_config('app.tenant_id', $1, true)", [scope.tenantId]);
       const gateSnapshot = await loadOnboardingGate(client, scope.workspaceId, ctx.identity.role === "owner");
       const n = async (sql: string) => Number((await client.query<{ n: string }>(sql, [scope.workspaceId])).rows[0]?.n ?? 0);
-      const [events, members, agents, memories] = await Promise.all([
+      const [events, members, agents, memories, artifactCount] = await Promise.all([
         n(`SELECT count(*)::text AS n FROM biz_events WHERE workspace_id=$1`),
         n(`SELECT count(*)::text AS n FROM members WHERE workspace_id=$1`),
         n(`SELECT count(*)::text AS n FROM agents WHERE workspace_id=$1`),
         n(`SELECT count(*)::text AS n FROM org_memory WHERE workspace_id=$1`),
+        client.query<{ n: string }>(VERIFIED_CONSULTING_ARTIFACT_COUNT_SQL, [scope.tenantId, scope.workspaceId]),
       ]);
       await client.query("COMMIT");
       return {
@@ -594,9 +606,10 @@ const onboardingRouter = router({
         persistedDataMode: gateSnapshot.persistedDataMode,
         formalActivationRecorded: gateSnapshot.formalActivationRecorded,
         activationGate: gateSnapshot.gate,
+        installation: gateSnapshot.installation,
         business: gateSnapshot.business,
         llm: { ...llmAssembly(), real: gateSnapshot.llmVerified },
-        workspace: { name: gateSnapshot.workspace.name, events, members, agents, memories },
+        workspace: { name: gateSnapshot.workspace.name, events, members, agents, memories, verifiedArtifacts: Number(artifactCount.rows[0]?.n ?? 0) },
         workspaceId: scope.workspaceId,
         // V4 §2 示例明示：示例包装配标记（SimBanner 银带语义事实源）
         bundle: { id: gateSnapshot.workspace.bundleId, isExample: gateSnapshot.workspace.isExample },
@@ -609,7 +622,18 @@ const onboardingRouter = router({
     }
   }),
 
-  /** 第①步：真实大模型「测试连接」（真实 round-trip；不落盘、不留痕 key） */
+  /** 第①步：验证服务器当前受保护配置；调用方不能传密钥、地址或模型。 */
+  verifyCurrentLlm: actionProcedure("workspace.configure")
+    .input(z.object({ idempotencyKey: z.string().min(8).max(160) }).strict())
+    .mutation(async ({ ctx, input }) => {
+      try { return await currentModelVerifier.verify(scopeOf(ctx.identity), ctx.identity.memberNo, input.idempotencyKey); }
+      catch (error) {
+        if (!(error instanceof CurrentModelVerificationError)) throw error;
+        throw new TRPCError({ code: error.code === "IDEMPOTENCY_CONFLICT" ? "CONFLICT" : "PRECONDITION_FAILED", message: `[${error.code}] ${error.message}` });
+      }
+    }),
+
+  /** 开发兼容探针；正式安装由 verifyCurrentLlm 验证服务器受保护凭据。 */
   testLlm: actionProcedure("workspace.configure")
     .input(z.object({
       baseUrl: z.string().url().min(1),
@@ -617,6 +641,7 @@ const onboardingRouter = router({
       model: z.string().min(1).max(80),
     }))
     .mutation(async ({ input }) => {
+      if (process.env.NODE_ENV === "production") throw new TRPCError({ code: "FORBIDDEN", message: "正式安装只允许验证服务端当前受保护模型配置，请使用当前配置验证入口。" });
       try {
         const r = await probeLlm(input);
         return { ok: true as const, ...r };
@@ -625,7 +650,7 @@ const onboardingRouter = router({
       }
     }),
 
-  /** 第①步保存：真实试调通过 → 写 .env 四变量 + 即时生效 + 事件留痕（key 只记掩码；provider=mock 为还原操作，免实测） */
+  /** 仅开发兼容保存：生产在任何网络或明文写盘前拒绝。 */
   saveLlmConfig: actionProcedure("workspace.configure")
     .input(z.object({
       provider: z.string().min(1).max(40),
@@ -634,6 +659,9 @@ const onboardingRouter = router({
       model: z.string().max(80).default(""),
     }))
     .mutation(async ({ ctx, input }) => {
+      if (process.env.NODE_ENV === "production") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "正式安装的模型密钥须通过客户端受保护凭据导入；禁止从网页写入明文模型配置。" });
+      }
       const scope = scopeOf(ctx.identity);
       if (input.provider !== "mock") {
         if (!z.string().url().safeParse(input.baseUrl).success || !input.model) {
@@ -2615,9 +2643,13 @@ const rosterRouter = router({
 /** im router（B11/D14：IM 通道域 tRPC 薄壳——通道注册表/入站/审批卡片出站/手势回调）
  *  Mock 驱动默认（D4 同纪律：无真实凭据全流程可跑）；真实通道凭据在 dsh 设置页配置（dsh-im，D14），
  *  凭据永不经事件明文（L7.3）。server 层只做装配与错误映射，纪律全部内聚在 packages/base/im-channels。 */
-const imDriverKind = process.env.IM_DRIVER ?? "mock";
+const imDeliveryPolicy = imDriverPolicy();
+const imDriverKind = imDeliveryPolicy.mode;
 const imDrivers = new Map<ApprovalChannel, MockChannelDriver>();
 function mockDriverFor(channel: ApprovalChannel): MockChannelDriver {
+  if (imDriverKind !== "mock") {
+    throw new TRPCError({ code: "PRECONDITION_FAILED", message: imDeliveryPolicy.reason });
+  }
   let d = imDrivers.get(channel);
   if (!d) {
     d = new MockChannelDriver(channel);
@@ -2644,6 +2676,9 @@ function imRethrow(err: unknown): never {
 function assertBridgeKey(headers: Headers): void {
   const key = process.env.IM_BRIDGE_KEY;
   if (!key) {
+    if (process.env.NODE_ENV === "production") {
+      throw new TRPCError({ code: "PRECONDITION_FAILED", message: "未配置 IM_BRIDGE_KEY，正式通道入站已关闭" });
+    }
     console.warn("[im] IM_BRIDGE_KEY 未配置：im.inbound 服务间密钥校验占位放行（开发态；生产必须配置）");
     return;
   }
@@ -2655,6 +2690,8 @@ const imRouter = router({
   /** 通道注册表 + 驱动状态（P 设置页/联调用） */
   channels: protectedProcedure.query(() => ({
     driver: imDriverKind,
+    dataMode: imDeliveryPolicy.dataMode,
+    reason: imDeliveryPolicy.reason,
     channels: listChannels(),
   })),
   /** 入站 webhook（dsh-im 归一化后注入；幂等+PII 脱敏+openid 映射内聚在服务层） */
@@ -2719,7 +2756,7 @@ const imRouter = router({
           card,
           ctx.identity.memberNo,
         );
-        return { ...sent, card };
+        return { ...sent, card, dataMode: "simulated" as const };
       } catch (err) {
         await client.query("ROLLBACK").catch(() => undefined);
         imRethrow(err);
@@ -2780,6 +2817,7 @@ const imRouter = router({
     .input(z.object({ channel: z.enum(["dingtalk", "wecom", "feishu"]) }))
     .query(({ input }) => ({
       driver: imDriverKind,
+      dataMode: imDeliveryPolicy.dataMode,
       outbox: imDrivers.get(input.channel)?.outbox ?? [],
     })),
 });
@@ -3170,6 +3208,9 @@ const captainRouter = router({
           // IM 通道推送（方案双通道；charter.briefing.channel=im|both 时推送，mock 驱动留痕）
           let imPushed = false;
           if (r.eventId && !r.skipped && charter.briefing.channel !== "app") {
+            if (imDriverKind !== "mock") {
+              return { ...r, name: wsName ?? charter.identity.name, imPushed: false, imWarning: imDeliveryPolicy.reason };
+            }
             const textRow = await app.connect().then(async (c) => {
               try {
                 await c.query("BEGIN");
@@ -3181,7 +3222,7 @@ const captainRouter = router({
             });
             const text = String(((textRow?.decision as Record<string, unknown>)?.after as Record<string, unknown>)?.text ?? "");
             if (text) {
-              const driver = new MockChannelDriver("wecom");
+              const driver = mockDriverFor("wecom");
               const sent = await driver.sendText({ conversationId: `chairman-${scope.workspaceId}` }, text);
               // 外发口径（D16 例外，先发后写，同 sendApprovalCard）：外发不可撤回，先发送后写事件；
               // 事件写失败补写补偿事件（im.outbound.unrecorded，best-effort 一次），再失败抛错人工对账
@@ -3217,7 +3258,7 @@ const captainRouter = router({
               imPushed = true;
             }
           }
-          return { ...r, name: wsName ?? charter.identity.name, imPushed };
+          return { ...r, name: wsName ?? charter.identity.name, imPushed, imDataMode: imPushed ? "simulated" as const : "unconfigured" as const };
         }
       }
     }),
@@ -3540,6 +3581,7 @@ export const appRouter = router({
   evolution: evolutionRouter,
   overlay: overlayRouter,
   accounts: accountsRouter,
+  consulting: consultingRouter,
 });
 
 export type AppRouter = typeof appRouter;

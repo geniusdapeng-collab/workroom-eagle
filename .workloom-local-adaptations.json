@@ -1,0 +1,483 @@
+{
+  "schemaVersion": "workloom.local-adaptations/v1",
+  "baselineConsumerCommit": "2771ffeab0250c88ae25185c4f2eed923a773e6a",
+  "originalStates": {
+    ".workloom-client-foundation.json": "f8fabf8e1df1f9c693b3c233fa8762ce9ea2835280e2fee759ff6709ffc3a77b",
+    ".workloom-ui-governance.json": "6163db35ba9974670b71141de0431526d6705b5c304f7afd9364ac0dd43f8c4d"
+  },
+  "task": {
+    "id": "T-2026-1023-0001",
+    "issue": "https://github.com/geniusdapeng-collab/workroom-eagle/issues/21",
+    "reason": "本次正式空白安装、受保护身份和真实结果展示修复涉及客户端受管壳；保留原基座与共享UI来源，以逐文件任务记录和原字节镜像保证可审查、可复算的必要本地适配。"
+  },
+  "files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "kind": "modified",
+      "before": {
+        "sha256": "263db3ad470dd523653acc1f560d5cec55c7b956c23e294e7add6b4664a52c04",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "2637b45dfb5147a87880af84873f92375544a4698a06e5642145c4dd706e244f",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "d57d19131a81c7115e82ffc55a1407e1c99d4769e23e96305130caa0d5c8b0f5",
+      "reason": "CI完整拉取Git基线并运行实际来源、安装与正式默认门禁，使适配补丁可复算。"
+    },
+    {
+      "path": ".github/workflows/workloom-ui-contract.yml",
+      "kind": "modified",
+      "before": {
+        "sha256": "f60bc305d4a5511c5e8f9b3503c6b5f2d577f9b043e9b4e7bea38ca432a2c753",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "bf86fd5311de3f257cd61f6f3664bfb02085642a4df49718d0c4211673d81bd2",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "ab3d8eff05ea0eb51905229ee72dbd8cd1d59ac75a5ce365d0e93c327612fbbd",
+      "reason": "三端UI门禁完整拉取历史，使原消费者基线及本仓明确补丁在CI中可复算。"
+    },
+    {
+      "path": ".workloom-ui.json",
+      "kind": "modified",
+      "before": {
+        "sha256": "5392320dd031b3cc9bbed352e51cac3e871db2f0d8ae80915458ca5c34f54ea8",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "c0d881eeb046cc5fcb3bafbd4ec63ee4d256396d0edf0466251185db21010dbf",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "f0043e24c8e8e19bb77b34a5f8f89132a349d7998fb287c237dd2332f27098d4",
+      "reason": "保留原共享UI制品身份和完整性，显式追加同版本同SHA512离线镜像传输记录。"
+    },
+    {
+      "path": "apps/web/src/components/runtimeBanner.test.ts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "64fe9c6f19dd6bb818580db84414e9b1098a52b4617ce4b5b3ada1d577b5cfd7",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "57bf1c6f43f86e10dce574462fec4db68b25708ac32412d31a5307664832bdee",
+      "reason": "新增安装、客户档案、模型配置与经营资格组合状态的横幅回归。"
+    },
+    {
+      "path": "apps/web/src/components/runtimeBanner.ts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "2d3f72f0a38e5e1bfb9de1c62a37009e9a4cf77b86166c33048a3775e6865f5d",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "aa3a5d25055e838ee2088a69d99a1c216665855b75114e481d7565a443dd9259",
+      "reason": "用独立安装事实生成准确横幅文案，避免旧向导资格误报模型为模拟。"
+    },
+    {
+      "path": "apps/web/src/components/SimBanner.tsx",
+      "kind": "modified",
+      "before": {
+        "sha256": "068d845c135ee2f7cfd83fdc68d90b2940422559f09285a3eeddb57be477ede7",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "351943d9a0064ef5c13495f55e1587a75d77ff8ae02cee6d19ad7180c941d725",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "bce568d6a1caa33a5a759a2bca38ca534c4b3fb271a7417ee912866a8386ee57",
+      "reason": "正式安装事实、示例标记与经营资格分别展示，避免把空白正式客户安装误称模拟模型。"
+    },
+    {
+      "path": "apps/web/src/components/ValueCounters.test.tsx",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "4a5a4a851f79fbef58a9e142fadf4da310455c31b1651b149cf626ed5a611587",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "5c061b8cb6e9ed3f48adad9ad594c3fb5fa7f7ac413f75825da3e506f9d14071",
+      "reason": "新增回归覆盖欢迎事件不计作业、真实草稿计数与统计失败重试。"
+    },
+    {
+      "path": "apps/web/src/components/ValueCounters.tsx",
+      "kind": "modified",
+      "before": {
+        "sha256": "f44949f948429ea6ecf5efc0ac4b6164bfb02f3670b3c00fa288c7b338a5b9a9",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "6cc722d833a808763d83d5476c8329e88b96a654812929c8a0ffa504d37e218f",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "b8decc14fdebe220923dfaf41e3165549a959e4a5998607fc3a60830b8669fde",
+      "reason": "以真实同步咨询草稿回执计数替代欢迎事件总数，并呈现加载、错误与重试状态。"
+    },
+    {
+      "path": "apps/web/src/components/WelcomeCeremony.test.tsx",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "13f814b44f5547b6bf75b593a80ee3881c991776e78026bdc83016bbe0c58aba",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "2c61868c2289df3f1afffc0ad3488b0bec9daf2d689baa3e45c98caa24b6bec3",
+      "reason": "新增正式欢迎流程回归，验证引导不制造游客身份或虚构成果。"
+    },
+    {
+      "path": "apps/web/src/components/WelcomeCeremony.tsx",
+      "kind": "modified",
+      "before": {
+        "sha256": "3cb229eba5c1f959075e7759fce9ec21504e8c731c93bd36840b0bd1e2368a3f",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "1e5a0d4311938ad29db3f10413b8595cee53e23683872813d9ce6eb6d4165b50",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "d327276b6929e04a1dc8b96984f4d4b7f987af15d6427eabb4419a0e3c82feab",
+      "reason": "正式安装欢迎使用正式所有者与受保护凭据引导，不注入游客或虚构经营成果。"
+    },
+    {
+      "path": "apps/web/src/components/welcomeScripts.ts",
+      "kind": "modified",
+      "before": {
+        "sha256": "f69e8884e29234bc3a7017f9c0966a96ff83cfcb5a9b4b021283be24764d8d8f",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "d25b28501efb73a60afda0b734a7c761f3b383a9963989935b858aaee6fbbad4",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "da336e49712b25ad4807da483c192467766bed99171e6661fed4aa1c7256567e",
+      "reason": "欢迎文案与正式空白客户档案和人类顾问审阅边界一致，不虚报模拟业务记录。"
+    },
+    {
+      "path": "apps/web/src/extensions/consulting/current-model-verification.test.ts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "6d9dba1a7c0312db0fe6e8c4bd9125f0de306e98825750517056811a70e6603f",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "f8ceec41c8675ac46c63b53350a6b84a74bf51ce4ed7b70dd7471d9a36399fcc",
+      "reason": "回归验证请求跨失败和重载保持同键，配置冲突须显式新调用且存储异常失败关闭。"
+    },
+    {
+      "path": "apps/web/src/extensions/consulting/current-model-verification.ts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "18c5296ed9f791d6af21482c360c6733206067e003a3dc8437acb4f3f0167c29",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "42f08f7492ae1283283b7d4ed052d13abaa6a98d155d3ad3594e99f5089f49b8",
+      "reason": "工作区隔离持久模型验证请求，防止失败、未知、刷新或多页面重试产生重复付费调用。"
+    },
+    {
+      "path": "apps/web/src/lib/product.ts",
+      "kind": "modified",
+      "before": {
+        "sha256": "ae02364359cae62af8ba8fb94d46aaaabcb0ffee29d6b59a0d2ba22d3b1ef879",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "d0cb97d207c3c553a107ec1ef89ec00499561e8380933a96fc66cbee948b5001",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "acb3150500250b7c69a48adac6103a4dadfa59e4dc237327cc1e90208c25cffc",
+      "reason": "向客户端暴露正式工作区事实与产品配置，保持默认安装来源可追溯。"
+    },
+    {
+      "path": "apps/web/src/lib/trpc.test.ts",
+      "kind": "modified",
+      "before": {
+        "sha256": "10aadf8037c0864e9cfc9cad65ef5a56056ab96ffe3d9e0f161fd2ff6e6c167d",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "f62f378046a9df991514ecd5ac46ee78013e9418ce6d9834908b21700f741940",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "a9061ee94c82cfbf4cade366f1880aca3f6971b67e5167a2f7207ca1f1ed9355",
+      "reason": "锁定正式客户端会话失败关闭与无游客回落，测试契约随真实身份适配一起更新。"
+    },
+    {
+      "path": "apps/web/src/lib/trpc.ts",
+      "kind": "modified",
+      "before": {
+        "sha256": "292cd48a997b79e71cccabc03ef002837aba21b432b261ec49c3b640cbee5812",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "2c05c068b9db10dd9e819335d993d2ede07d5656064466b57d1f9607b409e1f5",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "639e9c9d4b409f80c786c0722284871c89be099618743351c2495d421695b0b2",
+      "reason": "使用可信桌面会话签发正式成员身份，鉴权失败不匿名登录或回退演示成员。"
+    },
+    {
+      "path": "apps/web/src/pages/accounts/Login.tsx",
+      "kind": "modified",
+      "before": {
+        "sha256": "89cd50eb82af91a4cfb5969c4a77f0e6c5e7bcb994c49f0eed417dede360f8ac",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "235bb545c189d8082ce416ba0cd832ddf42febf81f164ea85012bc1b4381caed",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "dcaec2c9a4d0a0ee9764828a9301b3d1dfc37b4e45ee6d8c383765720c7ca3f9",
+      "reason": "正式安装关闭游客体验入口，按真实身份接入路径提供登录反馈。"
+    },
+    {
+      "path": "apps/web/src/pages/observability/Observability.tsx",
+      "kind": "modified",
+      "before": {
+        "sha256": "c7e8401230bc890514e81763947d14392e88bb4f73a353b8cd8e5056c039e3ed",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "b9540ac3887cc94a0b5e5703bbd7fa4dced850fdd8bbcb4737378f15665a06f2",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "58d66e185aba43f80a2ab0818ac3cdfbb05ac88d3c3a3efd501102419bd156b3",
+      "reason": "可观测页面区分实际运行和待验证事实，不沿用模拟默认展示。"
+    },
+    {
+      "path": "apps/web/src/pages/onboarding/Onboarding.tsx",
+      "kind": "modified",
+      "before": {
+        "sha256": "b546b370419f42db8e014f3def1703e876ae91d7fec644d96e7383340ec638bd",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "64d0afb6191108cd5e721a3e1c7944599a79f367506912031e57f6ee6acc9b33",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "085ac647f7387d3b9d76331b88d6f1af185b453d894daafc98ce0710cd50bbc9",
+      "reason": "生产模型配置只读当前受保护配置，显式受控验证后才写资格证明，不从网页保存明文密钥。"
+    },
+    {
+      "path": "apps/web/src/pages/p0/P0.tsx",
+      "kind": "modified",
+      "before": {
+        "sha256": "4a961ba39f6c210aa0c18a8e4e6f8099e2d62f0e357014c5a9237b6d45282e3c",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "6824a9ba9c3bd4cf689a4e0f9047508344096c1b87f8ad6bdd96ca354a83bc24",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "9c2d70f02a91cb812594aae3c0632b63c9fd4df14624341dbcf66b7ddb8a64bb",
+      "reason": "首页使用独立安装事实和可复核产物计数，保持正式资格检查与客户数据状态如实展示。"
+    },
+    {
+      "path": "apps/web/tsconfig.json",
+      "kind": "modified",
+      "before": {
+        "sha256": "b10d871fcdc0061dde770a1f473a06213c6c7cd1df966c31b680ef90c1deab1a",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "9c078de77591ad07691341f39777a9c2318b425d11b8836aab1142d1cb08cbb3",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "b7a1ac5247b8947ace2a26d1def7c1d86f30734da52241f6cc425d1b35f3e0d4",
+      "reason": "测试专用配置与运行时Vite配置分离，保持正式自包含载荷无需开发测试包。"
+    },
+    {
+      "path": "apps/web/vite.config.ts",
+      "kind": "modified",
+      "before": {
+        "sha256": "df78fa7098772cb1e10d344a14461290c8005676e545491962a93f0e87e98307",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "94f6f0a701eae53f7423f1d60337f58c60aa0977848cca74d67cbb8231873434",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "0d3d5695eb0e82b93edaf4ee7cc40a4b6baddf770dd136d97d0e26463a960489",
+      "reason": "生产预览仅依赖运行时Vite，移出vitest/config避免首次安装首页无法启动。"
+    },
+    {
+      "path": "apps/web/vitest.config.ts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "199c4d671a8d5df902933e648d4290dec3ebae79be0a3c6ff88289ee62469625",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "8b6eb84ad67ce51137344ae8d49c43bcc19380cd05f34fc101cb0cb76952c41c",
+      "reason": "新增开发测试专用配置，使运行载荷与开发测试依赖保持明确边界。"
+    },
+    {
+      "path": "apps/webb/src/Auth.tsx",
+      "kind": "modified",
+      "before": {
+        "sha256": "6181ae59a519396a6db3e2275714611acccb3aa63b5b2a8e88d2da27e3543d26",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "043ce16a2c545394856f9efa1f4bc8824e7532759e8614df101ad5713c5429cb",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "442e69b548d8ee27d51366c37c8146ba5f58a1c291f15ac7ac33143599c54220",
+      "reason": "移动端正式安装关闭游客和演示身份回落，使用当前正式成员授权。"
+    },
+    {
+      "path": "apps/webb/src/lib/product.ts",
+      "kind": "modified",
+      "before": {
+        "sha256": "00a4575f88b89312bdd457c1230eb1e8d75bb15d7653968f149f420c4957f7b5",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "2a6959a419e9c11d631bd76b3fa323193fdd421dbfbec277ae2fe7d4c4417ef7",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "bf274bf9b1ddf5fdb53a581373d860c8abce5201abf48db9fe302951d16d0789",
+      "reason": "移动端读取同一正式产品配置与安装事实，避免前后端模式口径分叉。"
+    },
+    {
+      "path": "apps/webb/src/lib/trpc.ts",
+      "kind": "modified",
+      "before": {
+        "sha256": "ee70aa78957dbea9fdab207064d495cf990f1d235b319d2c25f8eb2b5a3ffdf6",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "ad8d3d5ea923ad573462dedd92ea8d200478e031a97c197f2723721468d76469",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "3573fe636587dbecc5f288b3db1b54df2d4aee317cc251d67cfbcc04ee1f7bea",
+      "reason": "移动端鉴权使用正式会话并对缺失或失效会话失败关闭。"
+    },
+    {
+      "path": "package.json",
+      "kind": "modified",
+      "before": {
+        "sha256": "6542ad59d0725eae7532d625d6644b77578467f7dcce9df214b4fbf6a4da76f2",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "0ddc8bd979a75addeae65e66b596ed3cbf882aa55b8f8ed89fb52eeb9d35dce0",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "fb001d5ac9a752fe795473e934e0a169d707493abc0bc06ba67e86a0b2441f29",
+      "reason": "精确共享UI版本以原字节镜像安装；正式与演示种子分开；根脚本显式声明已锁定的PostgreSQL类型定义，使新增种子测试可在干净安装中严格检查。"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "kind": "modified",
+      "before": {
+        "sha256": "3b4aec3a48e6b319ff739395dee81fc91d7180b67d501e452507f7c26e4f8f00",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "4fef1894cd7896e0e6f5980c0f60b81f3df053f43aa854fe36d096af02025671",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "3c29f92e67ae3a0a7059e88aaf067fa511d61c7549eb7611f05b8079a5c06eda",
+      "reason": "锁定同字节共享UI镜像及根脚本的精确PostgreSQL类型定义，保留原UI SHA512、稳定版本和现有包解析。"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "kind": "modified",
+      "before": {
+        "sha256": "cde5bfcec2b7365fc7c1918d185798b4aa80000847c119daf61f22b134a34a27",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "4d7fb6a35de03c611bc71f34d63dc441f648dde71401f7d8bbe906a5cc89902c",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "7d04da62eb3f96430260682aa49760823371f6db96347cd8bceb1e60ecab12c0",
+      "reason": "精确共享UI版本的工作区覆盖改为同字节原制品镜像，避免不可用canonical下载阻断冷安装。"
+    },
+    {
+      "path": "scripts/ui-offline-mirror.mjs",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "4688932039dc067ab38cf3e8d3dbd7ff4aa20906229bed246d735ca9f680aeae",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "38112e13fcf94ed3143acffcd01c636e7a08cd1fd4a78c4becf40ca8cecc3fae",
+      "reason": "新增原共享UI同字节镜像核验，绑定原canonical URL、SHA512和归档内包名版本。"
+    },
+    {
+      "path": "scripts/ui-offline-mirror.test.mjs",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "1c181b57eb829cbdfbdaec1d79879ea394a84cf01056cc31afc8061b1ccafb4c",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "525f71104e7ae28249ead3a4869bb83c126269f080d3562bafa502483df89237",
+      "reason": "新增离线镜像伪造版本、内容、路径与归档校验回归，保证原UI制品字节不变。"
+    },
+    {
+      "path": "scripts/verify-client-foundation-consumer.mjs",
+      "kind": "modified",
+      "before": {
+        "sha256": "503335ce4e62297e76273f763663635d11d6c3adb7533e080b2264cffaa2b98d",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "85aac01baebe22fd8728ee67f644a7a70712fbfcbbf30d7a2d968fc7971054b3",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "76ad022bfeeb784e02507023d8f3bee52ae6021ec7d328c97e9e360b0c74fcf6",
+      "reason": "原基座指纹保持不变，仅识别逐文件完整核验的任务本地适配及明确新增文件。"
+    },
+    {
+      "path": "scripts/verify-local-adaptations.mjs",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "b0b33f4e135805733726748805b9ad85b871fffc5c24d44adad57925c1216501",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "9adf38243266a9b1c745c3e730f466f009a59b62c9244219cb824988727cb4c0",
+      "reason": "新增受控本地适配记录校验，复算原state、旧新文件、模式与canonical Git补丁指纹。"
+    },
+    {
+      "path": "scripts/verify-local-adaptations.test.mjs",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "a44c195fb1d4f6e3dd61784fd2d80ae207cb3313f52dc6f6b977ebd1947e248a",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "6f5563a16b1ab930ca8a1bda801d53b2391ce3c9340db0ea7eea82edf6b9ca1d",
+      "reason": "新增本地适配失败关闭回归，覆盖无清单严格性、漂移、路径、符号链接、伪造指纹与模式。"
+    },
+    {
+      "path": "scripts/verify-ui-consumer.mjs",
+      "kind": "modified",
+      "before": {
+        "sha256": "36ee95f17dd02be258e24be46c99e945551531f6908de2bd7d99d637b2dc3dd4",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "0e2568fcc7f7f130dec8370d50faf82d88d79cc2aff6a6a3d74465bcac8ffff2",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "8672eb0a7318405b217cfa120bf7600b5a951ad51548b9dea5651fb617ba8072",
+      "reason": "保留原治理状态与UI规则，识别同字节离线传输和逐文件核验的治理适配。"
+    },
+    {
+      "path": "vendor/workloom-ui-0.1.19.tgz",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "42bf2e483cbd2665fda74f0e64cff7266184db7844801b27b5078f0082a3b262",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "2c7e01c40a13b6c7c8f7efb52a807421350e7572060098185b9b4a88b44b3b3c",
+      "reason": "保留按原SHA512核验的共享UI稳定原制品，作为确定性离线传输副本。"
+    }
+  ]
+}
