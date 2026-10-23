@@ -182,6 +182,7 @@ fi
 # ---------- 6. 启动器 ----------
 copy apps/desktop/windows/WorkLoom.bat "$PKG/WorkLoom.bat"
 copy apps/desktop/electron/bootstrap.cjs "$PKG/bootstrap.cjs"
+copy apps/desktop/electron/runtime-copy.cjs "$PKG/runtime-copy.cjs"
 
 for f in node_modules/tsx/package.json node_modules/hono/package.json scripts/migrate.ts \
          scripts/product-runtime.mjs scripts/vite-product.mjs product.manifest.json apps/web/vite.config.ts; do

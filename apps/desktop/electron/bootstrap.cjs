@@ -25,6 +25,7 @@ const { spawn, spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const { copyRuntimeTree, verifyPortableRuntimeTree } = require("./runtime-copy.cjs");
 
 const IS_WIN = process.platform === "win32";
 
@@ -701,8 +702,10 @@ function installPayloadAtomically({ sourceRoot, supportDir, payloadVer, previous
     fs.mkdirSync(stagingRoot, { recursive: true });
     onPhase("staging");
     for (const part of parts) {
-      fs.cpSync(path.join(sourceRoot, part), path.join(stagingRoot, part), { recursive: true, dereference: true });
+      copyRuntimeTree(path.join(sourceRoot, part), path.join(stagingRoot, part));
     }
+    // Validate before swapping any installed part or touching persistent data.
+    verifyPortableRuntimeTree(stagingRoot);
     if (previousEnv && previousEnv.length > 0) {
       fs.writeFileSync(path.join(stagingRoot, "runtime", ".env"), previousEnv, { mode: 0o600 });
     }

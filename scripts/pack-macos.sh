@@ -61,6 +61,7 @@ copy apps/desktop/WorkLoom.app "$APP"
 chmod +x "$APP/Contents/MacOS/WorkLoom"
 mkdir -p "$APP/Contents/Resources"
 cp apps/desktop/electron/bootstrap.cjs "$APP/Contents/Resources/bootstrap.cjs"
+cp apps/desktop/electron/runtime-copy.cjs "$APP/Contents/Resources/runtime-copy.cjs"
 
 # 2. 产品载荷 runtime/
 echo "→ 装配产品载荷…"
