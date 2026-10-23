@@ -38,6 +38,10 @@ function conflict(): never {
   throw new Error("演示种子目标与现有工作区身份冲突；保留现有数据，禁止把正式或未知工作区改为示例");
 }
 
+function isProductionInstallFlag(value: unknown): boolean {
+  return value === true || value === "true";
+}
+
 async function readAndLock(client: QueryClient, target: DemoWorkspaceDefinition, allowMissing: boolean): Promise<boolean> {
   const found = await client.query(
     `SELECT id, tenant_id, slug, industry, bundle_id, is_example FROM workspaces
@@ -66,15 +70,19 @@ async function readAndLock(client: QueryClient, target: DemoWorkspaceDefinition,
     const business = (archive as Record<string, unknown>).business;
     if (business && typeof business === "object" && !Array.isArray(business)
       && ((business as Record<string, unknown>).source === "user" || (business as Record<string, unknown>).configured_at)) conflict();
-    if ((archive as Record<string, unknown>).realModeActivation || (archive as Record<string, unknown>).production_install === true) conflict();
+    if ((archive as Record<string, unknown>).realModeActivation || isProductionInstallFlag((archive as Record<string, unknown>).production_install)) conflict();
   }
   const installs = await client.query(
-    `SELECT bundle_id, assets FROM bundle_installs WHERE workspace_id=$1 AND status='active' FOR NO KEY UPDATE`,
+    `SELECT bundle_id, assets, status FROM bundle_installs WHERE workspace_id=$1 FOR NO KEY UPDATE`,
     [target.id],
   );
   for (const install of installs.rows) {
-    if (install.bundle_id !== target.bundleId || !install.assets || typeof install.assets !== "object" || Array.isArray(install.assets)
-      || (install.assets as Record<string, unknown>).production_install === true) conflict();
+    const assets = install.assets;
+    const structuredAssets = assets !== null && typeof assets === "object" && !Array.isArray(assets);
+    // A previous formal install remains evidence even after uninstall or a legacy
+    // status change. Only ordinary active metadata belongs to the current bundle.
+    if (structuredAssets && isProductionInstallFlag((assets as Record<string, unknown>).production_install)) conflict();
+    if (install.status === "active" && (install.bundle_id !== target.bundleId || !structuredAssets)) conflict();
   }
   return true;
 }

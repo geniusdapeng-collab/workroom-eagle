@@ -70,7 +70,7 @@ test("existing formal, unknown, foreign ID/slug/tenant/industry/bundle collision
 test("even a marked example cannot overwrite a real, unknown or user-configured profile", async () => {
   for (const archive of [{ dataMode: "real" }, {}, { dataMode: "simulated", business: { source: "user" } },
     { dataMode: "simulated", business: { configured_at: "2026-10-24" } }, { dataMode: "simulated", realModeActivation: { at: "2026-10-24" } },
-    { dataMode: "simulated", production_install: true }]) {
+    { dataMode: "simulated", production_install: true }, { dataMode: "simulated", production_install: "true" }]) {
     const f = fixture(workspace(), { tenant_id: target.tenantId, industry: target.industry, archive });
     await assert.rejects(beginDemoWorkspacePhase(f.client, target, true), /身份冲突/);
     assert.deepEqual(writes(f.calls), []); assert.equal(f.calls.at(-1), "ROLLBACK");
@@ -127,6 +127,10 @@ test("actual SQL creates an explicit example and repeat initialization preserves
   await withDatabase(async (owner) => {
     await beginDemoWorkspacePhase(owner, target, true);
     await owner.query("INSERT INTO profiles VALUES ($1,$2,$3,$4)", [target.id, target.tenantId, target.industry, { dataMode: "simulated", userNote: "preserve fixture" }]);
+    // Ordinary removed metadata does not constrain today's bundle. It carries no
+    // formal-install flag, unlike the historical production cases below.
+    await owner.query("INSERT INTO bundle_installs VALUES ('unit-retired-other-bundle',$1,'retired-bundle',NULL,'uninstalled')", [target.id]);
+    await owner.query("INSERT INTO bundle_installs VALUES ('unit-legacy-inactive',$1,'retired-bundle','[]','inactive')", [target.id]);
     await owner.query("COMMIT");
     await beginDemoWorkspacePhase(owner, { ...target, name: "a changed seed label" }, true); await owner.query("COMMIT");
     const found = await owner.query("SELECT w.name,w.is_example,w.bundle_id,p.archive FROM workspaces w JOIN profiles p ON p.workspace_id=w.id");
@@ -175,8 +179,31 @@ test("actual SQL refuses an active production install even when legacy workspace
     await assert.rejects(beginDemoWorkspacePhase(owner, target, true), /身份冲突/);
     assert.equal((await owner.query("SELECT assets->>'production_install' AS formal FROM bundle_installs")).rows[0].formal, "true");
     assert.equal((await owner.query("SELECT archive->>'sentinel' AS sentinel FROM profiles")).rows[0].sentinel, "preserve contradictory fixture");
+    for (const mutation of [
+      "UPDATE bundle_installs SET bundle_id='another-bundle',assets='{}'",
+      "UPDATE bundle_installs SET bundle_id='hotel',assets=NULL",
+    ]) {
+      await owner.query(mutation);
+      await assert.rejects(beginDemoWorkspacePhase(owner, target, true), /身份冲突/);
+    }
   });
 });
+
+for (const status of ["inactive", "uninstalled"] as const) {
+  for (const formal of [true, "true"] as const) {
+    test(`actual SQL rejects historical ${status} production_install=${JSON.stringify(formal)} despite example labels`, async () => {
+      await withDatabase(async (owner) => {
+        await beginDemoWorkspacePhase(owner, target, true);
+        await owner.query("INSERT INTO profiles VALUES ($1,$2,$3,$4)", [target.id, target.tenantId, target.industry, { dataMode: "simulated", sentinel: "preserve historical formal fixture" }]);
+        await owner.query("INSERT INTO bundle_installs VALUES ('unit-historical-install',$1,$2,$3,$4)", [target.id, target.bundleId, { production_install: formal }, status]);
+        await owner.query("COMMIT");
+        await assert.rejects(beginDemoWorkspacePhase(owner, target, true), /身份冲突/);
+        assert.equal((await owner.query("SELECT assets->>'production_install' AS formal FROM bundle_installs")).rows[0].formal, "true");
+        assert.equal((await owner.query("SELECT archive->>'sentinel' AS sentinel FROM profiles")).rows[0].sentinel, "preserve historical formal fixture");
+      });
+    });
+  }
+}
 
 test("actual gateway-phase lock permits foreign-key writes but blocks conversion until the owner commits", async () => {
   await withDatabase(async (owner, other) => {

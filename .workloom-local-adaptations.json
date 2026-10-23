@@ -54,6 +54,20 @@
       "reason": "保留原共享UI制品身份和完整性，显式追加同版本同SHA512离线镜像传输记录。"
     },
     {
+      "path": "apps/web/consumer-e2e/clients.playwright.ts",
+      "kind": "modified",
+      "before": {
+        "sha256": "91fa35369fdad9280a15e647ffad72961b41a5d478d3c50d69e1df408a423e8f",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "8639122104b6313587f1773acd3e2ce4930b0bb76d5ceabc876504438d588530",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "44019a9fac5ba7b716b3faf5d9d0b14c8422ec578b3b42cd45dacac4b3ccd9e3",
+      "reason": "消费测试按产品清单精确匹配PC登录标题，保留三端首帧/表单/导航/200%长文案断言；正常截图等待有限入场动画自然结束，并核验C端主内容透明度和正文对比度。"
+    },
+    {
       "path": "apps/web/src/components/runtimeBanner.test.ts",
       "kind": "added",
       "before": null,
