@@ -601,6 +601,8 @@ describe("应急浏览器壳与正式 Electron 共用安全引导", () => {
     const windowsPack = fs.readFileSync(path.join(__dirname, "../../../scripts/pack-windows.sh"), "utf8");
     assert.match(macPack, /electron\/bootstrap\.cjs[^\n]+Resources\/bootstrap\.cjs/u);
     assert.match(windowsPack, /electron\/bootstrap\.cjs[^\n]+PKG\/bootstrap\.cjs/u);
+    assert.match(macPack, /electron\/runtime-copy\.cjs[^\n]+Resources\/runtime-copy\.cjs/u);
+    assert.match(windowsPack, /electron\/runtime-copy\.cjs[^\n]+PKG\/runtime-copy\.cjs/u);
     assert.match(macPack, /Resources\/pg\/bin/u);
     assert.doesNotMatch(macPack, /Resources\/pg\/Postgres\.app/u);
   });
