@@ -54,6 +54,7 @@ test("产品清单派生仓库、品牌与隔离端口", () => {
       repository: "example/example-industry",
       demoWorkspaceSlug: "example-demo",
       demoMemberNo: "MEM-X01",
+      defaultWorkspaceSlug: "example-demo",
       portOffset: 321,
       serverPort: 9108,
       webPort: 5494,
@@ -63,6 +64,18 @@ test("产品清单派生仓库、品牌与隔离端口", () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("正式默认工作区来自产品清单，且不覆盖保留的隔离演示身份", () => {
+  const root = fixture(manifest({ production: { workspaceSlug: "customer-production" } }));
+  try {
+    const product = loadProductRuntime(root);
+    assert.equal(product.defaultWorkspaceSlug, "customer-production");
+    assert.equal(product.demoWorkspaceSlug, "example-demo");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+  const invalid = fixture(manifest({ production: { workspaceSlug: "../other-tenant" } }));
+  try { assert.throws(() => loadProductRuntime(invalid), /正式工作区/); }
+  finally { rmSync(invalid, { recursive: true, force: true }); }
 });
 
 test("非法仓库、产品名与端口偏移失败关闭", () => {

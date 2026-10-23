@@ -24,6 +24,7 @@ export function workloomProductVite(clientLabel) {
       __WORKLOOM_PRODUCT_ID__: JSON.stringify(product.productId),
       __WORKLOOM_DEMO_WORKSPACE__: JSON.stringify(product.demoWorkspaceSlug),
       __WORKLOOM_DEMO_MEMBER__: JSON.stringify(product.demoMemberNo),
+      __WORKLOOM_DEFAULT_WORKSPACE__: JSON.stringify(product.defaultWorkspaceSlug),
     },
     plugin: {
       name: "workloom-product-identity",

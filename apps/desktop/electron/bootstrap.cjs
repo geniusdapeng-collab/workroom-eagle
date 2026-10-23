@@ -923,6 +923,7 @@ async function bootstrap(opts) {
   const defaultsText = fs.readFileSync(defaultsFile, "utf8");
   const envExisted = fs.existsSync(envFile);
   let envText = envExisted ? fs.readFileSync(envFile, "utf8") : defaultsText;
+  const originalEnvText = envText;
   const clusterExisted = fs.existsSync(path.join(PGDATA, "PG_VERSION"));
   const legacyOwnerPasswords = [...new Set([
     existingUrlPassword(envText, "DATABASE_URL"),
@@ -957,6 +958,12 @@ async function bootstrap(opts) {
   // MC-207：桌面自包含运行时按生产档（NODE_ENV=production）拉起 server，演示直登开关必须落盘为 false；
   // 历史安装里遗留的 true 由服务端生产档强制忽略并自检告警，这里同时把配置纠正到位。
   envText = upsertEnvValue(envText, "SERVICE_C_DEMO_AUTH", "false");
+  envText = upsertEnvValue(envText, "WORKLOOM_ALLOW_DEMO_AUTH", "0");
+  if (!readEnvValue(envText, "LLM_PROVIDER") || readEnvValue(envText, "LLM_PROVIDER") === "mock") {
+    envText = upsertEnvValue(envText, "LLM_PROVIDER", "deepseek");
+    envText = upsertEnvValue(envText, "LLM_BASE_URL", "https://api.deepseek.com");
+    envText = upsertEnvValue(envText, "LLM_MODEL", "deepseek-flash");
+  }
   const adminPassword = databaseState.credentials.owner;
   const appPassword = databaseState.credentials.app;
   const gatewayPassword = databaseState.credentials.gateway;
@@ -969,7 +976,7 @@ async function bootstrap(opts) {
     appPassword,
     gatewayPassword,
   });
-  if (!envExisted || desktopConfig.text !== envText) atomicWrite(envFile, desktopConfig.text, 0o600);
+  if (!envExisted || desktopConfig.text !== originalEnvText) atomicWrite(envFile, desktopConfig.text, 0o600);
   else {
     try { fs.chmodSync(envFile, 0o600); } catch { /* Windows 不保证 POSIX mode */ }
   }
@@ -982,7 +989,14 @@ async function bootstrap(opts) {
     WORKLOOM_WEB_PORT: String(WEB_PORT),
     WORKLOOM_NATS_PORT: String(NATS_PORT),
   };
-  const serverEnv = { ...desktopEnv, NODE_ENV: "production" };
+  const desktopSessionSecret = crypto.randomBytes(32).toString("hex");
+  const serverEnv = {
+    ...desktopEnv,
+    NODE_ENV: "production",
+    WORKLOOM_ALLOW_DEMO_AUTH: "0",
+    WORKLOOM_DESKTOP_SESSION_SECRET: desktopSessionSecret,
+    ...(opts.llmApiKey ? { LLM_API_KEY: opts.llmApiKey } : {}),
+  };
   const runDatabaseHelper = (mode, legacyPasswords = []) => run(NODE_BIN, [DB_HELPER], {
     env: {
       ...desktopEnv,
@@ -1116,7 +1130,7 @@ async function bootstrap(opts) {
   /* ---------- 3. 首启引导：迁移 + 种子（幂等） ---------- */
   if (!fs.existsSync(bootFlag)) {
     throwIfAborted();
-    checkpoint("database", "正在执行数据库迁移与示例装配", { targetVersion: payloadVer, percent: 70, etaSeconds: 38 });
+    checkpoint("database", "正在执行数据库迁移与正式工作区装配", { targetVersion: payloadVer, percent: 70, etaSeconds: 38 });
     status("→ 正在升级数据结构…", { phase: "database-migrate", percent: 70, etaSeconds: 38 });
     const mig = run(NODE_BIN, [TSX_CLI, "--env-file=.env", "scripts/migrate.ts"], {
       cwd: RUNTIME, env: serverEnv,
@@ -1125,31 +1139,31 @@ async function bootstrap(opts) {
     throwIfAborted();
     // 种子脚本按仓配置（.env.defaults DESKTOP_SEED_SCRIPT；不在 base-sync 同步范围）——
     // 基座出厂 AI 产品经理包；行业版子仓配自己行业种子（672cf7b 硬编码 hotel 根因）
-    let seedScriptSpec = "scripts/seed-aipm.ts";
+    let seedScriptSpec = "scripts/seed-production.ts";
     try {
       const m = fs.readFileSync(path.join(RUNTIME, ".env.defaults"), "utf-8").match(/^DESKTOP_SEED_SCRIPT=(.+)$/m);
       if (m) seedScriptSpec = m[1].trim();
     } catch { /* 缺省即可 */ }
     const seedScripts = seedScriptSpec.split(",").map((s) => s.trim()).filter(Boolean);
-    if (seedScripts.length === 0) throw new Error("演示数据种子配置为空");
+    if (seedScripts.length === 0) throw new Error("正式初始化配置为空");
     for (const [seedIndex, seedScript] of seedScripts.entries()) {
       throwIfAborted();
-      status("→ 正在装配示例团队与起步数据…", {
+      status("→ 正在装配正式团队与空白工作区…", {
         phase: "example-seed",
         percent: 78 + Math.floor((seedIndex / seedScripts.length) * 6),
         etaSeconds: Math.max(18, 30 - seedIndex * 5),
       });
       if (!fs.existsSync(path.join(RUNTIME, seedScript))) {
-        throw new Error(`演示数据种子缺失（${seedScript}）`);
+        throw new Error(`正式初始化脚本缺失（${seedScript}）`);
       }
       const seed = run(NODE_BIN, [TSX_CLI, "--env-file=.env", seedScript], {
         cwd: RUNTIME, env: serverEnv,
       });
-      if (seed.code !== 0) throw new Error(`演示数据种子失败（${seedScript}）：${(seed.err || seed.out).slice(-400)}`);
+      if (seed.code !== 0) throw new Error(`正式初始化失败（${seedScript}）：${(seed.err || seed.out).slice(-400)}`);
       throwIfAborted();
     }
     fs.writeFileSync(bootFlag, "done");
-    status("示例团队已装配", { phase: "example-ready", percent: 85, etaSeconds: 15 });
+    status("正式团队与工作区已装配", { phase: "example-ready", percent: 85, etaSeconds: 15 });
   }
 
   /* ---------- 4. 起服务：server(8787) + web preview(5173) ---------- */
@@ -1177,6 +1191,12 @@ async function bootstrap(opts) {
     if (!ok) await sleep(1000);
   }
   if (!ok) throw new Error(`服务 90s 内未就绪（server:${SERVER_PORT} / web:${WEB_PORT}，详见 logs/）`);
+  const configModule = path.join(RUNTIME, "scripts", "agent-client-config.mjs");
+  if (!fs.existsSync(configModule)) throw new Error("安装包缺少 AI Agent 配置生成器");
+  const { writeAgentClientConfig } = await import(require("node:url").pathToFileURL(configModule).href);
+  const agentConfig = await writeAgentClientConfig(path.join(supportDir, "agent-config"), {
+    productRoot: RUNTIME, nodeExecutable: NODE_BIN, baseUrl: `http://127.0.0.1:${SERVER_PORT}`,
+  });
   status("启动检查已全部通过", { phase: "ready", percent: 100, etaSeconds: 0 });
   writeInstallCheckpoint(supportDir, { status: "complete", phase: "ready", detail: "安装与启动检查已完成", recoverable: true, targetVersion: payloadVer, percent: 100, etaSeconds: 0 });
 
@@ -1191,7 +1211,7 @@ async function bootstrap(opts) {
     releaseBootstrapLock();
     say("== 已停止 ==");
   };
-  return { stop, webUrl };
+  return { stop, webUrl, desktopSessionSecret, agentConfig };
   } catch (error) {
     const rolledBack = Boolean(payloadTransaction);
     try {

@@ -4,6 +4,8 @@ import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml-governance";
+import { resolveUiTransport } from "./ui-offline-mirror.mjs";
+import { loadLocalAdaptations, resolveLocalAdaptation } from "./verify-local-adaptations.mjs";
 import {
   findBundleDisplayLanguageRisks,
   findClientWebManifestRisks,
@@ -220,6 +222,9 @@ function importerPath(packagePath) {
 export function uiLockfileIntegrityErrors(repoPath, state) {
   const repo = resolve(repoPath);
   if (!validUiStateLockContract(state)) return [".workloom-ui.json 缺少可用于锁文件验真的稳定 UI 制品契约"];
+  let transport;
+  try { transport = resolveUiTransport(repo, state); }
+  catch (error) { return [error.message]; }
   const parsed = parseUiLockfile(repo);
   if (parsed.error) return [parsed.error];
   const { lock } = parsed;
@@ -233,7 +238,7 @@ export function uiLockfileIntegrityErrors(repoPath, state) {
   if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) {
     errors.push(`${LOCKFILE_NAME} 缺少共享 UI overrides`);
   } else {
-    if (overrides[selector] !== state.artifact.url) {
+    if (overrides[selector] !== transport) {
       errors.push(`${LOCKFILE_NAME} overrides 必须精确设置 ${selector} → canonical Release URL`);
     }
     for (const key of Object.keys(overrides)) {
@@ -249,7 +254,7 @@ export function uiLockfileIntegrityErrors(repoPath, state) {
   if (entry) {
     const [key, value] = entry;
     if (value?.version !== state.version) errors.push(`${LOCKFILE_NAME} 的 ${key} 版本必须为 ${state.version}`);
-    if (value?.resolution?.tarball !== state.artifact.url) {
+    if (value?.resolution?.tarball !== transport) {
       errors.push(`${LOCKFILE_NAME} 的 ${state.package} resolution.tarball 必须为 canonical Release URL`);
     }
     const integrity = value?.resolution?.integrity;
@@ -261,15 +266,16 @@ export function uiLockfileIntegrityErrors(repoPath, state) {
   const importers = lock.importers;
   for (const packagePath of state.requiredClientPackages) {
     const path = importerPath(packagePath);
+    const specifier = state.offlineMirror ? `file:${relative(join(repo, path), join(repo, state.offlineMirror.path)).replaceAll("\\", "/")}` : transport;
     const dependency = importers?.[path]?.dependencies?.[state.package];
     if (!dependency || typeof dependency !== "object") {
       errors.push(`${LOCKFILE_NAME} importer ${path} 未锁定 ${state.package}`);
       continue;
     }
-    if (dependency.specifier !== state.artifact.url) {
+    if (dependency.specifier !== specifier) {
       errors.push(`${LOCKFILE_NAME} importer ${path} specifier 必须为 canonical Release URL`);
     }
-    if (dependency.version !== state.artifact.url && !String(dependency.version ?? "").startsWith(`${state.artifact.url}(`)) {
+    if (dependency.version !== transport && !String(dependency.version ?? "").startsWith(`${transport}(`)) {
       errors.push(`${LOCKFILE_NAME} importer ${path} version 必须解析到 canonical Release URL`);
     }
   }
@@ -278,6 +284,8 @@ export function uiLockfileIntegrityErrors(repoPath, state) {
 
 function governanceStateErrors(repo) {
   const errors = [];
+  const adaptations = loadLocalAdaptations(repo);
+  errors.push(...adaptations.errors);
   const statePath = join(repo, GOVERNANCE_STATE);
   if (!existsSync(statePath)) return [`缺少 ${GOVERNANCE_STATE}，无法证明行业仓治理脚本来自稳定升级 PR`];
   const stateStat = lstatSync(statePath);
@@ -307,7 +315,10 @@ function governanceStateErrors(repo) {
     errors.push(`${GOVERNANCE_STATE} yamlDependency 必须为 ${GOVERNANCE_YAML}`);
   }
   for (const path of GOVERNANCE_FILES) {
-    const expected = state.files?.[path]?.sha256;
+    const original = state.files?.[path]?.sha256;
+    let expected = original;
+    try { expected = resolveLocalAdaptation(adaptations, path, { sha256: original }).sha256; }
+    catch (error) { errors.push(error.message); }
     if (!/^[0-9a-f]{64}$/u.test(expected ?? "")) {
       errors.push(`${GOVERNANCE_STATE} 缺少 ${path} 的有效 SHA-256 指纹`);
       continue;
@@ -735,10 +746,15 @@ export function verifyUiConsumerRepo(repoPath, { allowMissingClients = false, re
     errors.push("缺少或无法读取根 package.json，不能执行行业扩展 AST 治理");
   }
   const overrides = rootPackage.pnpm?.overrides;
+  let transport = expectedArtifact?.url;
+  if (expectedArtifact && state.artifact) {
+    try { transport = resolveUiTransport(repo, state); }
+    catch (error) { errors.push(error.message); }
+  }
   if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) {
     errors.push("根 package.json 必须通过 pnpm.overrides 锁定共享 UI GitHub Release 制品");
   } else if (expectedArtifact) {
-    if (overrides[expectedArtifact.overrideSelector] !== expectedArtifact.url) {
+    if (overrides[expectedArtifact.overrideSelector] !== transport) {
       errors.push(`根 package.json pnpm.overrides 必须精确设置 ${expectedArtifact.overrideSelector} → ${expectedArtifact.url}`);
     }
     for (const selector of Object.keys(overrides)) {

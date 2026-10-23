@@ -1,6 +1,6 @@
 /**
  * A5 · eagle 鹰眼咨询演示种子数据（鹰眼咨询所：一个主理咨询师 + 12 数字员工的咨询所运行态）
- * 用法：pnpm db:seed（在 hotel 演示集之后执行；幂等，可重复执行）
+ * 用法：pnpm db:seed:demo（独立旧演示入口，在 hotel 演示集之后执行；正式 db:seed 不调用本文件）
  *
  * 内容：demo 租户 / 鹰眼咨询所工作区 / 3 人类成员 / 12 Agent preset 实例 /
  *      一企一档（3 家企业客户七大分区档案 + forbidden 硬约束）/ 基线围栏 C-R1~C-R9 装载 /
@@ -23,6 +23,7 @@ import pg from "pg";
 import YAML from "yaml";
 import { eventHash, safeParseReplayAwareEvent } from "@workloom/base/workdata";
 import { alignReadableIdSequences } from "@workloom/base/workdata";
+import { assertDemoDatabaseTargets, beginDemoWorkspacePhase, type DemoWorkspaceDefinition } from "./demo-seed-workspace.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -41,6 +42,11 @@ const WS_ID = "ws-eagle";
 const WS_NAME = "鹰眼咨询所";
 const WS_SLUG = "eagle-consulting";
 const FENCE_VERSION = "consulting-baseline/v1";
+const DEMO_WORKSPACE: DemoWorkspaceDefinition = {
+  id: WS_ID, tenantId: TENANT_ID, tenantName: "演示租户（Demo）", name: WS_NAME, slug: WS_SLUG,
+  industry: "consulting", bundleId: "consulting", stage: "retainer",
+  nightConfig: { enabled: true, candidateTime: "18:00", startTime: "22:00", packageTime: "08:30", timezone: "Asia/Shanghai" },
+};
 
 const MEMBERS = [
   { id: "MEM-E01", name: "陈鹰", role: "owner" },      // 主理咨询师：唯一的信任载体与判断中枢
@@ -554,6 +560,7 @@ function makeEvent(i: number, time: Date, presets: Preset[]): SeedEvent {
 /* ================= 主流程 ================= */
 
 async function main(): Promise<void> {
+  assertDemoDatabaseTargets(DATABASE_URL, GATEWAY_URL);
   const presets = loadPresets();
   const fences = loadFences();
   const skillsDocs = loadSkills();
@@ -563,20 +570,8 @@ async function main(): Promise<void> {
   await owner.connect();
   const q = (text: string, params: unknown[]) => owner.query(text, params);
 
-  // 工作区（租户 tenant-demo 已由 hotel 种子创建；此处幂等兜底）
-  await q(
-    `INSERT INTO tenants (id, name, plan) VALUES ($1,$2,'pro') ON CONFLICT (id) DO NOTHING`,
-    [TENANT_ID, "演示租户（Demo）"],
-  );
-  await q(
-    `INSERT INTO workspaces (id, tenant_id, name, slug, industry, stage, night_config, bundle_id, is_example)
-     VALUES ($1,$2,$3,$4,'consulting','retainer',$5,'consulting',true)
-     ON CONFLICT (id) DO UPDATE SET bundle_id='consulting', is_example=true`,
-    [
-      WS_ID, TENANT_ID, WS_NAME, WS_SLUG,
-      JSON.stringify({ enabled: true, candidateTime: "18:00", startTime: "22:00", packageTime: "08:30", timezone: "Asia/Shanghai" }),
-    ],
-  );
+  // 正式或未知同 ID/slug 必须在任何成员/客户档案写入前拒绝，禁止冲突时改标为示例。
+  await beginDemoWorkspacePhase(owner, DEMO_WORKSPACE, true);
   console.log("✓ 租户与工作区：demo / 鹰眼咨询所（consulting · 常年顾问期）");
 
   for (const m of MEMBERS) {
@@ -756,7 +751,8 @@ async function main(): Promise<void> {
   // "序列落后于手写 id"的问题必须在**写入方**解决——只抬不降、幂等，可重复执行。
   const seqFloor = await alignReadableIdSequences(owner);
   console.log(`✓ 可读号源对齐：threads→${seqFloor.threads}`);
-  await owner.end();
+  await owner.query("COMMIT");
+  await beginDemoWorkspacePhase(owner, DEMO_WORKSPACE, false);
   const gw = new pg.Client({ connectionString: GATEWAY_URL });
   await gw.connect();
   await gw.query("BEGIN");
@@ -1178,6 +1174,8 @@ async function main(): Promise<void> {
   // L2 收口：显式 COMMIT
   await gw.query("COMMIT");
   await gw.end();
+  await owner.query("COMMIT");
+  await owner.end();
   console.log("eagle 鹰眼咨询种子数据完成 ✅（鹰眼咨询所演示数据集就绪）");
 }
 

@@ -19,8 +19,23 @@
     "portOffset": 110
   },
   "clients": {
-    "bPc": { "enabled": true, "entry": "apps/web" },
-    "bMobile": { "enabled": true, "entry": "apps/webb" },
-    "cMobile": { "enabled": true, "entry": "apps/webc" }
+    "bPc": {
+      "enabled": true,
+      "entry": "apps/web"
+    },
+    "bMobile": {
+      "enabled": true,
+      "entry": "apps/webb"
+    },
+    "cMobile": {
+      "enabled": true,
+      "entry": "apps/webc"
+    }
+  },
+  "production": {
+    "workspaceSlug": "eagle-production",
+    "memberNo": "OWNER",
+    "dataMode": "real",
+    "guestEnabled": false
   }
 }

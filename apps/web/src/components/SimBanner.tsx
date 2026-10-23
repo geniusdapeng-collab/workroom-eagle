@@ -1,21 +1,22 @@
 /**
  * 模拟数据横幅（D24 落地向导入口）
  *
- * 事实源 = onboarding.status（数据模式 + LLM 装配）：
- *  - 数据为模拟种子 或 模型为内置 mock → 常显（宁可多提示，不可漏提示）
- *  - 两者均真实 → 自动熄灭
+ * 事实源 = onboarding.status：安装身份、客户资料、模型配置与经营门禁分别呈现。
+ * 缺少向导激活凭据不能把已配置的真实模型描述成模拟模型。
  * 挂载点：P0 经营主页顶栏下方 + Bridge 工作台顶栏下方（全覆盖所有页面）。
  */
 import { useEffect, useState } from "react";
 import { ensureDemoLogin, trpc } from "../lib/trpc";
 import { Icon } from "@workloom/ui";
+import { runtimeBanner } from "./runtimeBanner";
 
 export interface OnboardingStatus {
   dataMode: "simulated" | "real";
   persistedDataMode?: "simulated" | "real";
   formalActivationRecorded?: boolean;
+  installation?: { mode: "production" | "example" | "simulated"; customerDataReady: boolean; modelConfigured: boolean };
   llm: { provider: string; model: string; baseUrl: string; real: boolean };
-  workspace: { name: string; events: number; members: number; agents: number; memories: number };
+  workspace: { name: string; events: number; members: number; agents: number; memories: number; verifiedArtifacts?: number };
   business?: { name: string; industry: string; note: string; configuredAt: string; source: string } | null;
   bundle?: { id: string | null; isExample: boolean };
   activationGate?: {
@@ -27,15 +28,21 @@ export interface OnboardingStatus {
 
 export function SimBanner() {
   const [st, setSt] = useState<OnboardingStatus | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [busy, setBusy] = useState(true);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
     let stop = false;
     const load = async () => {
+      if (!stop) setBusy(true);
       try {
         await ensureDemoLogin();
         const s = (await trpc.onboarding.status.query()) as OnboardingStatus;
-        if (!stop) setSt(s);
+        if (!stop) { setSt(s); setFailed(false); }
       } catch {
-        /* 服务未就绪时静默（横幅不阻塞任何页面） */
+        if (!stop) setFailed(true);
+      } finally {
+        if (!stop) setBusy(false);
       }
     };
     void load();
@@ -44,52 +51,25 @@ export function SimBanner() {
       stop = true;
       clearInterval(id);
     };
-  }, []);
-  if (!st) return null;
-  // V4 §2：示例版银带（深空银辉语义——不是警告，是身份说明；与黄色模拟态警示分色）
-  if (st.bundle?.isExample) {
-    return (
-      <div className="relative z-30 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-bg800/90 px-4 py-1.5 text-body text-ink2 backdrop-blur">
-        <Icon name="star" size={15} className="text-gold" />
-        <span className="min-w-0 flex-1 break-words">
-          当前运行：<b className="text-ink">行业示例版</b>（{st.workspace.name}）——这是基座的示例装配，数据与团队可真实操作；
-          也可一键清空后按引导定制您的专属行业版。
-        </span>
-        <a
-          href="/onboarding?mode=customize"
-          className="shrink-0 rounded border border-gline bg-bg700 px-3 py-1 font-bold text-ink no-underline transition-colors hover:bg-bg700"
-        >
-          定制我的行业版 →
-        </a>
-      </div>
-    );
-  }
-  const simData = st.dataMode === "simulated";
-  const mockLlm = !st.llm.real;
-  if (!simData && !mockLlm) return null;
+  }, [retry]);
+  const retryButton = <button type="button" disabled={busy} onClick={() => setRetry((value) => value + 1)} className="rounded border border-line px-2 py-1 text-body text-holo hover:border-gline disabled:opacity-50">{busy ? "核对中…" : "重新核对"}</button>;
+  if (!st) return <div role="status" className="flex flex-wrap items-center gap-2 border-b border-line bg-bg800 px-4 py-2 text-body text-ink3">{failed ? <>运行配置暂不可核验{retryButton}</> : "正在核对运行配置…"}</div>;
+  const banner = runtimeBanner(st);
+  if (!banner) return failed ? <div role="status" className="flex flex-wrap items-center gap-2 border-b border-line bg-bg800 px-4 py-2 text-body text-warn">运行配置暂不可核验{retryButton}</div> : null;
+  const pending = banner.tone === "pending";
   return (
-    <div className="relative z-30 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-500/50 bg-amber-100/80 px-4 py-2 text-body text-amber-800 backdrop-blur">
-      <Icon name="warning" size={16} />
+    <div className={`relative z-30 flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-body backdrop-blur ${pending ? "border-amber-500/50 bg-amber-100/80 text-amber-800" : "border-line bg-bg800/90 text-ink2"}`}>
+      <Icon name={pending ? "warning" : "star"} size={16} />
       <span className="min-w-0 flex-1 break-words">
-        {st.persistedDataMode === "real" && (!st.formalActivationRecorded || (st.activationGate && !st.activationGate.canActivate)) && (
-          <>原“正式”标记缺少当前服务端门禁凭据或已不满足门禁，已按<b>模拟运行态</b>展示。</>
-        )}
-        {simData && mockLlm && (
-          <> 当前为<b>全模拟运行态</b>：经营数据尚未完成正式门禁，应答由内置确定性模型生成。</>
-        )}
-        {simData && !mockLlm && (
-          <> 经营数据或装配仍未通过正式门禁（大模型已接真实）。</>
-        )}
-        {!simData && mockLlm && (
-          <>大模型仍为<b>内置确定性应答</b>（数据已切真实模式）。</>
-        )}
-        {" "}请开始接入真实数据使用——点击右侧按钮进入「落地向导」，全程自动完成。
+        <b>{banner.title}</b> · {banner.detail}
+        {failed && <span className="ml-2 text-warn">本次核对暂不可用，当前显示上次结果。</span>}
       </span>
+      {failed && retryButton}
       <a
-        href="/onboarding"
-        className="shrink-0 rounded border border-amber-500/60 bg-amber-200/60 px-3 py-1 font-bold text-amber-900 no-underline transition-colors hover:bg-amber-300/60"
+        href={banner.href}
+        className={`shrink-0 rounded border px-3 py-1 font-bold no-underline transition-colors ${pending ? "border-amber-500/60 bg-amber-200/60 text-amber-900 hover:bg-amber-300/60" : "border-gline bg-bg700 text-ink hover:bg-bg700/80"}`}
       >
-        接入真实数据 →
+        {banner.action} →
       </a>
     </div>
   );

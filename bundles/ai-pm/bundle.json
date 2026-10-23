@@ -92,11 +92,11 @@
   "schemaVersion": "workloom.bundle/v1",
   "integrity": {
     "algorithm": "sha256",
-    "digest": "31c2998b415bced69a12fed1148a8fc7fb4f30c037b003829468738141ca28fb",
+    "digest": "82f4719c40f61b5b62fb609a2a4234b41730cf81bc61b1289f4a05f368bf310a",
     "assets": {
       "eval/questions.json": "f49fd197375c488c3c46503914ce3aa9c710d8703fed4291ff3018dad60cefa3",
       "feedback-enums.yml": "184bf74d1e70d4e490d6c1fba07b2516f93c5c8cd507f1e1986501fad18151d1",
-      "fences/ai-pm-baseline.yml": "695e454672e765f4a44fb1287d37c589b422a42504b9dbd4234ff4a2f449f384",
+      "fences/ai-pm-baseline.yml": "d4555407d3b86546d1607dc1768bfed86783b8e8fd16f2926c4f6a18136857b3",
       "floor-scene.json": "8fc029125994ebfaf3fd3538b05e9d2a1f152d054bc4a85b197654a5f7d5b718",
       "model-policy.yml": "4c72f4be7ebe8a74a60afc487ff5851207b34c1fb9aeb65b1037cfadc971b5a6",
       "presets/competitor-scout.yml": "9f1a662cd43532d4230f2c9f26b3dcd7cc2c1b71fed57f3a70811d1df0b1740d",

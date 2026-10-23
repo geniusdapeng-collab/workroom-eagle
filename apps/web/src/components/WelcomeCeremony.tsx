@@ -42,6 +42,7 @@ type WelcomeStep = "start" | "mate" | "team" | "summary" | "done";
 export function WelcomeCeremony({
   actors,
   bundleName,
+  installation,
   welcome = null,
   initialStep = "start",
   role = "staff",
@@ -51,6 +52,7 @@ export function WelcomeCeremony({
 }: {
   actors: CeremonyActor[];
   bundleName: string;
+  installation?: { mode: "production" | "example" | "simulated"; customerDataReady: boolean };
   /** 已验证的 Bundle 行业介绍投影；缺省回落基座通用版。 */
   welcome?: BundleWelcomeProjection | null;
   initialStep?: WelcomeStep;
@@ -215,16 +217,18 @@ export function WelcomeCeremony({
             fontSize: "clamp(34px, 7vw, 62px)", fontWeight: 800, letterSpacing: 4, lineHeight: 1.25, marginBottom: 26,
             background: "linear-gradient(135deg, #f0f4f9 20%, #d6dce4 50%, #8fa0b5 90%)",
             WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", overflowWrap: "anywhere",
-          }}>您的 AI 公司，已在运转</div>
+          }}>您的数字团队，已完成装配</div>
           <div style={{ color: "#9aa2ac", fontSize: 17, lineHeight: 1.9, maxWidth: 880, marginBottom: 44 }}>
-            当前为您预装了 <b style={{ color: "#d6dce4" }}>「{bundleName}」</b>——{actors.length} 位数字员工真实在岗。<br />
-            这不是演示视频：<b style={{ color: "#d6dce4" }}>看到的一切都能点开、能派活、能拍板</b>，数据会随您的操作真实流转。
+            当前已装配 <b style={{ color: "#d6dce4" }}>「{bundleName}」</b>，共有 {actors.length} 名数字员工。<br />
+            {installation?.mode === "production"
+              ? `这是正式工作区，${installation.customerDataReady ? "客户名单已接入" : "客户名单尚未接入"}。请先核对模型配置与支持的任务范围，再提供授权资料和目标。`
+              : installation?.mode === "example" ? "当前为明确标识的示例工作区。经营结果仍须以真实执行回执核对。" : "安装与资料接入状态以首页核验结果为准。团队形象表示岗位装配，不代表业务任务已经完成。"}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", width: "min(960px, 100%)", gap: 20, marginBottom: 48 }}>
             {(welcomeCardsOf(welcome) ?? [
-              { t: "可操作的演示运行态", d: "晨报、审批、夜班、考试均可体验。示例数据会清楚标识，您的有效操作仍产生事件与留痕。" },
-              { t: "隔离定制 · 原子切换", d: "新装配先在隔离草案中预览与考试；通过后才一次性切换，原装配保留快照并可回滚。" },
-              { t: "向导定制 · 持证上岗", d: "说出您的行业，落地向导自动生成团队编制、装配技能，考试达标才上岗——10 分钟拥有您的专属版。" },
+              { t: "先接入授权资料", d: "安装只提供团队与规则。您提供资料和明确目标后，系统才按当前支持的入口执行，不生成虚构业绩。" },
+              { t: "按实际回执复核", d: "任务进度与产物应有可核验记录。缺少模型配置、资料或必要证据时明确提示，不把界面动画当作完成。" },
+              { t: "关键判断由您确认", d: "分析建议和草稿需要人复核；未接通的外部工具，不会因为岗位已经装配就自动完成。" },
             ]).map((c) => (
               <div key={c.t} style={{
                 minWidth: 0, padding: "22px 20px", borderRadius: 18, textAlign: "left",
@@ -244,14 +248,14 @@ export function WelcomeCeremony({
               background: "linear-gradient(135deg, #f0f4f9, #c3ccd8)",
               boxShadow: "0 12px 44px rgba(214,220,228,.3), inset 0 1px 0 #ffffff",
             }}>进入系统，先逛逛 →</button>
-            <a href="/onboarding?mode=customize" style={{
+            <a href={installation?.mode === "production" ? "/onboarding" : "/onboarding?mode=customize"} style={{
               padding: "17px 38px", borderRadius: 14, textDecoration: "none",
               fontSize: 15.5, fontWeight: 600, letterSpacing: 1.5, color: "#c3ccd8",
               background: "transparent", border: "1px solid rgba(214,220,228,.35)",
-            }}>定制我的行业版</a>
+            }}>{installation?.mode === "production" ? "查看经营配置" : "配置专属行业版"}</a>
           </div>
           <div style={{ color: "#8a939e", fontSize: 14, letterSpacing: .5, overflowWrap: "anywhere" }}>
-            切换前自动快照备份 <span style={{ color: "#a8b2be", margin: "0 10px" }}>·</span> 事件哈希链存证永不删除 <span style={{ color: "#a8b2be", margin: "0 10px" }}>·</span> 基座能力不受行业装配影响
+            团队以实际安装记录为准 <span style={{ color: "#a8b2be", margin: "0 10px" }}>·</span> 执行结果须有真实回执 <span style={{ color: "#a8b2be", margin: "0 10px" }}>·</span> 关键判断与对外动作由您确认
           </div>
         </div>
       )}

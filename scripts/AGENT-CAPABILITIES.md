@@ -24,13 +24,14 @@ node scripts/workloom-agent-mcp.mjs
 `WORKLOOM_PRODUCT_ROOT` 指定产品仓。公共能力清单始终随 CLI 版本提供，
 行业清单由目标仓提供。
 
-本机开发态在未提供 `WORKLOOM_ACCESS_TOKEN` 时，CLI 使用
-`product.manifest.json#demoWorkspaceSlug/demoMemberNo` 请求现有 `auth.loginAs`
-得到当前工作区成员会话；可用 `WORKLOOM_WORKSPACE_SLUG`、
-`WORKLOOM_MEMBER_NO` 指定另一种子成员，用 `WORKLOOM_DEV_AUTO_LOGIN=0` 禁用。
-远程地址必须预先提供 `WORKLOOM_ACCESS_TOKEN`。C 端能力单独要求
-`WORKLOOM_C_TOKEN`；它与 B 端成员令牌不能互换。令牌只读环境变量，
-不得放进命令参数、仓库文件或日志。
+服务端能力要求正式成员身份，优先读取进程环境 `WORKLOOM_ACCESS_TOKEN`。
+只有连接本机回环地址时，才可通过桌面进程的会话秘密或 macOS Keychain 读取安装所有者 token；
+不会请求 `auth.loginAs`，不会回退演示成员或游客。远程 HTTPS 必须显式提供 token，
+不得把本机 Keychain 或桌面秘密送至远程。C 端能力仍单独要求 `WORKLOOM_C_TOKEN`。
+凭据不得放进命令参数、仓库文件、日志或提示词。
+
+鹰眼具体流程、支持/未接通能力、生成的无秘密客户端配置和恢复方式见
+[`docs/EAGLE-AGENT-GUIDE.md`](../docs/EAGLE-AGENT-GUIDE.md)。
 
 ## 能力与完成判定
 
@@ -43,9 +44,9 @@ node scripts/workloom-agent-mcp.mjs
 `{schemaVersion, capabilityId, operation, status, dataMode, result, receipt?}`。
 `status=pending` 表示动作已提交但交付尚未核实；`receipt.synced` 只从服务端
 可验证回执得出。提供的外部快照用 `provided-unverified`，演示工单用
-`simulated`，不能被客户端提升为真实外部完成。错误只写 stderr 并返回非零退出码。
+`simulated`，不能被客户端提升为真实外部完成。请求错误只写 stderr 并返回非零退出码；服务端结果 `status=failed` 仍输出完整 JSON 回执并以退出码 9 结束。
 
-MCP 以 stdio JSON-RPC 暴露同一清单，每项能力一个工具；其
+MCP 完成 `initialize` 和 `notifications/initialized` 后，以 stdio JSON-RPC 暴露同一清单，每项能力一个工具；其
 `readOnlyHint/destructiveHint/idempotentHint` 是客户端提示，不是授权边界。
 Codex 配置本地 STDIO MCP 与 DeepSeek Harness 自定义 STDIO MCP 时，
 命令均指向本仓 `node scripts/workloom-agent-mcp.mjs`；具体配置键以各客户端

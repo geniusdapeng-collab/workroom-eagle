@@ -12,6 +12,7 @@
  *
  * 前置：未初始化环境时自动提示先跑 pnpm setup（幂等，已装好直接跳过）。
  */
+import { randomBytes } from "node:crypto";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { createServer, type Server } from "node:net";
@@ -225,6 +226,7 @@ export function portBusy(port: number, serverFactory: () => Server = () => creat
 }
 
 async function main() {
+  process.env.WORKLOOM_DESKTOP_SESSION_SECRET = randomBytes(32).toString("hex");
   say("WorkLoom · 桌面客户端启动中…");
 
   // ① 环境前置：.env 缺失 = 从未初始化——直接指引（bootstrap 幂等，客户复制即跑）

@@ -1,6 +1,6 @@
 /**
  * A5 · 演示种子数据（PRD V2.5 P 章示例场景：云栖酒店）
- * 用法：pnpm db:seed（读取 .env；幂等，可重复执行）
+ * 用法：pnpm db:seed:demo（独立旧演示入口，读取 .env；正式 db:seed 不调用本文件）
  *
  * 内容：demo 租户 / 云栖酒店工作区 / 3 人类成员 / 7 Agent preset 实例 /
  *      一店一档（含 forbidden 硬约束）/ 基线围栏 R1–R6 装载 / 3 官方技能 /
@@ -28,6 +28,7 @@ import YAML from "yaml";
 // P0-3 续：种子 ID 走 E-SEED- 前缀，zod 经 safeParseReplayAwareEvent 占位缝校验
 import { eventHash, safeParseReplayAwareEvent } from "@workloom/base/workdata";
 import { alignReadableIdSequences } from "@workloom/base/workdata";
+import { assertDemoDatabaseTargets, beginDemoWorkspacePhase, type DemoWorkspaceDefinition } from "./demo-seed-workspace.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -49,6 +50,11 @@ const WS_ID = "ws-yunqi";
 const WS_NAME = "云栖酒店";
 const WS_SLUG = "yunqi-hotel";
 const FENCE_VERSION = "hotel-baseline/v1";
+const DEMO_WORKSPACE: DemoWorkspaceDefinition = {
+  id: WS_ID, tenantId: TENANT_ID, tenantName: TENANT_NAME, name: WS_NAME, slug: WS_SLUG,
+  industry: "hotel", bundleId: "hotel", stage: "stable",
+  nightConfig: { enabled: true, candidateTime: "18:00", startTime: "22:00", packageTime: "08:30", timezone: "Asia/Shanghai" },
+};
 
 const MEMBERS = [
   { id: "MEM-001", name: "王店长", role: "owner" },
@@ -494,6 +500,7 @@ function makeEvent(i: number, time: Date, presets: Preset[]): SeedEvent {
 /* ================= 主流程 ================= */
 
 async function main(): Promise<void> {
+  assertDemoDatabaseTargets(DATABASE_URL, GATEWAY_URL);
   const presets = loadPresets();
   const fences = loadFences();
   const skillsDocs = loadSkills();
@@ -505,28 +512,8 @@ async function main(): Promise<void> {
 
   const q = (text: string, params: unknown[]) => owner.query(text, params);
 
-  // 租户 / 工作区
-  await q(
-    `INSERT INTO tenants (id, name, plan) VALUES ($1,$2,'pro') ON CONFLICT (id) DO NOTHING`,
-    [TENANT_ID, TENANT_NAME],
-  );
-  await q(
-    `INSERT INTO workspaces (id, tenant_id, name, slug, industry, stage, night_config)
-     VALUES ($1,$2,$3,$4,'hotel','stable',$5) ON CONFLICT (id) DO NOTHING`,
-    [
-      WS_ID,
-      TENANT_ID,
-      WS_NAME,
-      WS_SLUG,
-      JSON.stringify({
-        enabled: true,
-        candidateTime: "18:00",
-        startTime: "22:00",
-        packageTime: "08:30",
-        timezone: "Asia/Shanghai",
-      }),
-    ],
-  );
+  // 仅新建或精确匹配的示例工作区可入种；旧 false/未知身份不能被自动改标后覆盖。
+  await beginDemoWorkspacePhase(owner, DEMO_WORKSPACE, true);
   console.log("✓ 租户与工作区：demo / 云栖酒店");
 
   // 人类成员（王店长 owner / 陈经理 manager / 李前台 readonly，F5.6）
@@ -726,7 +713,9 @@ async function main(): Promise<void> {
   // "序列落后于手写 id"的问题必须在**写入方**解决——只抬不降、幂等，可重复执行。
   const seqFloor = await alignReadableIdSequences(owner);
   console.log(`✓ 可读号源对齐：threads→${seqFloor.threads}`);
-  await owner.end();
+  await owner.query("COMMIT");
+  // 重验并保持 owner 行锁，直到 gateway 完成；NO KEY UPDATE 不阻塞其外键 KEY SHARE。
+  await beginDemoWorkspacePhase(owner, DEMO_WORKSPACE, false);
   const gw = new pg.Client({ connectionString: GATEWAY_URL });
   await gw.connect();
   await gw.query("BEGIN");
@@ -1313,6 +1302,8 @@ async function main(): Promise<void> {
   // 同一提交；若中途抛错，main 捕获退出时连接关闭，PG 自动 ROLLBACK 不留半提交态
   await gw.query("COMMIT");
   await gw.end();
+  await owner.query("COMMIT");
+  await owner.end();
   console.log("种子数据完成 ✅（云栖酒店演示数据集就绪）");
 }
 

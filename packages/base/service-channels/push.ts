@@ -89,9 +89,14 @@ export async function pushMessage(
   const user = u.rows[0];
   if (!user) throw new Error(`C 端用户 ${input.cUserId} 不存在`);
   const meta = CHANNEL_REGISTRY[user.channel];
-  const driver = opts.drivers?.[meta.pushDriver]
-    ?? opts.drivers?.["mock"]
-    ?? new MockPushDriver(defaultMockBox);
+  const configuredDriver = opts.drivers?.[meta.pushDriver] ?? opts.drivers?.["mock"];
+  if (process.env.NODE_ENV === "production" && !configuredDriver) {
+    throw new Error("真实推送驱动未配置，正式环境禁止回落模拟通知");
+  }
+  const driver = configuredDriver ?? new MockPushDriver(defaultMockBox);
+  if (process.env.NODE_ENV === "production" && driver.driverKey === "mock") {
+    throw new Error("正式环境禁止模拟推送，请配置真实渠道驱动");
+  }
 
   await driver.deliver({
     channel: user.channel, openid: user.openid, kind: input.kind, payload: input.payload,

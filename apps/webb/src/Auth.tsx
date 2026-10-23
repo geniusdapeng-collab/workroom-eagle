@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AsyncState, Button, Card } from "@workloom/ui";
-import { enterGuest, savedWorkspace, setSession, trpc } from "./lib/trpc";
+import { savedWorkspace, setSession, trpc } from "./lib/trpc";
 import { safeMessage } from "./lib/useResource";
 
 export function Auth({ onReady }: { onReady: () => void }) {
@@ -9,7 +9,7 @@ export function Auth({ onReady }: { onReady: () => void }) {
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState("");
   const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState<"code" | "login" | "guest" | null>(null);
+  const [busy, setBusy] = useState<"code" | "login" | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -46,13 +46,6 @@ export function Auth({ onReady }: { onReady: () => void }) {
     finally { setBusy(null); }
   }
 
-  async function guest() {
-    if (busy) return;
-    setBusy("guest"); setError(""); setNotice("");
-    try { await enterGuest(); onReady(); }
-    catch (cause) { setError(safeMessage(cause)); }
-    finally { setBusy(null); }
-  }
 
   return (
     <main className="auth-page" data-workloom-client="b-mobile">
@@ -70,8 +63,7 @@ export function Auth({ onReady }: { onReady: () => void }) {
         {notice && <p className="status-strip" role="status">{notice}</p>}
         {error && <AsyncState status="error" title="登录未完成" description={error} />}
         <Button variant="primary" onClick={() => void login()} busy={busy === "login"} disabled={workspace.length < 3 || code.length !== 6 || Boolean(busy)}>登录工作区</Button>
-        <Button variant="quiet" onClick={() => void guest()} busy={busy === "guest"} disabled={Boolean(busy)}>体验只读示例</Button>
-        <p className="fine-print">示例不会执行审批、外发或正式经营动作；正式账号请使用受邀手机号登录。</p>
+        <p className="fine-print">请使用受邀手机号登录正式工作区；本产品不提供游客或模拟业务账号。</p>
       </Card>
     </main>
   );

@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Button } from "@workloom/ui";
 import { trpc, setToken, setRefreshToken, ensureDemoLogin, DEV_DEMO_MEMBER, clearGuestFlag } from "../../lib/trpc";
-import { DEMO_WORKSPACE, PRODUCT_NAME } from "../../lib/product";
+import { DEFAULT_WORKSPACE, PRODUCT_NAME } from "../../lib/product";
 
 type Tab = "code" | "password";
 
@@ -54,8 +54,8 @@ export default function Login() {
     setErr(""); setBusy(true);
     try {
       const r = tab === "code"
-        ? await svc().loginWithCode.mutate({ phone, code, workspaceSlug: DEMO_WORKSPACE })
-        : await svc().loginWithPassword.mutate({ email, password, workspaceSlug: DEMO_WORKSPACE });
+        ? await svc().loginWithCode.mutate({ phone, code, workspaceSlug: DEFAULT_WORKSPACE })
+        : await svc().loginWithPassword.mutate({ email, password, workspaceSlug: DEFAULT_WORKSPACE });
       clearGuestFlag(); // 正式身份进场，摘掉游客标记
       setToken(r.accessToken);
       setRefreshToken(r.refreshToken);

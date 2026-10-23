@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeclaredLocalAddition, loadLocalAdaptations, resolveLocalAdaptation } from "./verify-local-adaptations.mjs";
 
 const STATE_FILE = ".workloom-client-foundation.json";
 const GOVERNANCE_STATE = ".workloom-ui-governance.json";
@@ -119,6 +120,8 @@ export function verifyClientFoundationConsumer(repoPath) {
   if (Object.keys(managed).length === 0) errors.push("客户端基座 state 没有受管文件指纹");
   if (Object.keys(managed).length > 500) errors.push("客户端基座受管文件数超过安全上限 500");
   const repoExtensions = readRepoExtensionPaths(root, errors);
+  const adaptations = loadLocalAdaptations(root);
+  errors.push(...adaptations.errors);
   for (const [path, entry] of Object.entries(managed)) {
     if (matches(path, repoExtensions)) continue;
     let target;
@@ -136,16 +139,19 @@ export function verifyClientFoundationConsumer(repoPath) {
       errors.push(`受管客户端文件缺失：${path}`);
       continue;
     }
-    if (hash(readFileSync(target)) !== entry?.sha256) errors.push(`受管客户端文件指纹漂移：${path}`);
+    let expected = entry;
+    try { expected = resolveLocalAdaptation(adaptations, path, entry); }
+    catch (error) { errors.push(error.message); }
+    if (hash(readFileSync(target)) !== expected?.sha256) errors.push(`受管客户端文件指纹漂移：${path}`);
     const mode = (lstatSync(target).mode & 0o111) ? 493 : 420;
-    if (mode !== entry?.mode) errors.push(`受管客户端文件模式漂移：${path}`);
+    if (mode !== expected?.mode) errors.push(`受管客户端文件模式漂移：${path}`);
   }
   for (const entry of REQUIRED_MANAGED_ENTRIES) {
     if (!managed[entry] || !existsSync(join(root, entry))) errors.push(`客户端基座缺少受管必备入口：${entry}`);
   }
   for (const client of Object.values(CLIENTS)) {
     for (const path of walk(root, client)) {
-      if (managed[path] || matches(path, ALLOWED_EXTENSIONS) || matches(path, IGNORED) || matches(path, repoExtensions)) continue;
+      if (managed[path] || matches(path, ALLOWED_EXTENSIONS) || matches(path, IGNORED) || matches(path, repoExtensions) || isDeclaredLocalAddition(adaptations, path)) continue;
       errors.push(`客户端根存在非白名单行业文件：${path}`);
     }
   }
@@ -170,7 +176,10 @@ function main() {
   }
   const state = JSON.parse(readFileSync(join(resolve(repo), STATE_FILE), "utf8"));
   const extras = readRepoExtensionPaths(resolve(repo), []);
-  console.log(`✅ PC/B移动/C移动均来自客户端基座 ${state.version}；受管文件指纹零漂移${extras.length ? `（本仓自有扩展路径 ${extras.length} 条由基座声明豁免）` : ""}`);
+  const adaptations = loadLocalAdaptations(resolve(repo));
+  console.log(adaptations.active
+    ? `✅ 客户端基座 ${state.version} 原始来源状态完整保留；${adaptations.entries.size} 项明确本地适配已逐文件复核，当前不是零漂移。`
+    : `✅ PC/B移动/C移动均来自客户端基座 ${state.version}；受管文件指纹零漂移${extras.length ? `（本仓自有扩展路径 ${extras.length} 条由基座声明豁免）` : ""}`);
 }
 
 if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) main();

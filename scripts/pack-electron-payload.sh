@@ -85,7 +85,19 @@ for d in "${RUNTIME_SOURCE_DIRS[@]}"; do
   copy "$d" "$R/$(dirname "$d")/"
 done
 cp scripts/migrate.ts scripts/desktop-bootstrap-db.mjs scripts/product-runtime.mjs scripts/vite-product.mjs "$R/scripts/"
-cp scripts/seed*.ts "$R/scripts/"  # 全部行业种子随包（seed/seed-aipm/seed-geo/seed-video/seed-consulting/seed-boost/seed-platform…按仓配置选用）
+cp scripts/seed*.ts scripts/demo-seed-workspace.ts "$R/scripts/"  # 行业种子及其正式数据保护依赖一同交付
+# 正式 AI Agent 入口与使用说明必须随安装包交付，客户端配置入口据此打开。
+mkdir -p "$R/docs"
+if [ -f docs/EAGLE-AGENT-GUIDE.md ]; then cp docs/EAGLE-AGENT-GUIDE.md "$R/docs/"; fi
+for guide in docs/EAGLE-PRODUCTION-INSTALL.md docs/CONSULTING-LIVE-EVALUATION.md; do
+  [ ! -f "$guide" ] || cp "$guide" "$R/docs/"
+done
+cp scripts/agent-capabilities.mjs scripts/agent-client-config.mjs "$R/scripts/"
+cp scripts/agent-capabilities.core.json "$R/scripts/"
+[ ! -f AGENT-CAPABILITIES.md ] || cp AGENT-CAPABILITIES.md "$R/"
+for guideScript in scripts/workloom-agent*.mjs; do
+  [ -f "$guideScript" ] && cp "$guideScript" "$R/scripts/"
+done
 printf '%s\n' "$VERSION" > "$R/VERSION"
 # 源码不携带 node_modules：运行期统一由下方 npm 扁平化安装的根 node_modules 提供（v2.0.8 实证）
 find "$R/apps" "$R/packages" -type d -name node_modules -prune -exec rm -rf {} + 2>/dev/null || true
@@ -193,7 +205,7 @@ fi
 # ---------- 9. 载荷自检（v2.2.1 实证：NATS 段变量粘连致脚本中途异常但步骤未失败，
 #      DMG 带着残缺载荷照出——装配脚本必须自证完整，防"静默半成品"） ----------
 for f in runtime/node_modules/tsx/package.json runtime/node_modules/hono/package.json \
-         runtime/scripts/migrate.ts runtime/scripts/product-runtime.mjs runtime/scripts/vite-product.mjs \
+         runtime/scripts/migrate.ts runtime/scripts/product-runtime.mjs runtime/scripts/vite-product.mjs runtime/scripts/demo-seed-workspace.ts \
          runtime/product.manifest.json runtime/apps/web/vite.config.ts; do
   [ -f "$OUT/$f" ] || { echo "❌ 载荷自检失败：$f 缺失"; exit 1; }
 done
@@ -208,6 +220,11 @@ else
   [ -f "$OUT/pg/bin/initdb" ] || { echo "❌ 载荷自检失败：pg/bin/initdb 缺失"; exit 1; }
 fi
 node scripts/payload-policy.mjs assert-runtime "$R"
+case "$PLATFORM-$ARCH" in
+  mac-arm64|mac-x64) PREVIEW_NODE="$OUT/node/bin/node" ;;
+  win-x64) PREVIEW_NODE="$OUT/node/node.exe" ;;
+esac
+node scripts/verify-desktop-preview.mjs --runtime "$R" --node "$PREVIEW_NODE"
 echo "✓ 载荷自检通过"
 
 # ---------- 10. 载荷压缩包（electron-builder extraResources 对 **/node_modules/** 有硬排除，

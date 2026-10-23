@@ -40,20 +40,11 @@ const REFRESH_KEY = storageKey("refresh-token");
 export function getRefreshToken(): string | null { return localStorage.getItem(REFRESH_KEY); }
 export function setRefreshToken(token: string): void { localStorage.setItem(REFRESH_KEY, token); }
 
-/* ================= 游客模式（F-GUEST1 首次装机体验） =================
- * 首次安装后默认游客身份：只读浏览示例工作区（数字人/汇报/页面能力完整体验），
- * 进入配置引导（/onboarding）时才引导正式登录。游客令牌由 accounts.auth.guestEnter
- * 签发（readonly 角色；服务端 writeProcedure 403 一切写操作——体验全程零写入）。 */
+/* 历史游客标记仅用于升级时清除；正式安装不再创建游客身份。 */
 const GUEST_KEY = storageKey("guest");
 export function isGuest(): boolean { return localStorage.getItem(GUEST_KEY) === "1"; }
 export function clearGuestFlag(): void { localStorage.removeItem(GUEST_KEY); }
 
-function setGuestToken(token: string): void {
-  identityRevision += 1;
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(GUEST_KEY, "1");
-  announceIdentityChange();
-}
 
 let validatedToken: string | null = null;
 let guestSessionPromise: Promise<void> | null = null;
@@ -65,7 +56,11 @@ async function validateStoredSession(): Promise<boolean> {
   if (validatedToken === token) return true;
   const requestRevision = identityRevision;
   try {
-    await trpc.access.me.query();
+    const access = await trpc.access.me.query() as { subject?: { kind?: string } };
+    if (access?.subject?.kind === "guest") {
+      if (identityRevision === requestRevision) clearToken();
+      return false;
+    }
     // 校验返回期间身份已变化时，结果只属于旧令牌；保留新身份并阻止游客降级。
     if (identityRevision !== requestRevision || getToken() !== token) return getToken() !== null;
     validatedToken = token;
@@ -80,23 +75,22 @@ async function validateStoredSession(): Promise<boolean> {
   }
 }
 
-/** 无令牌时静默进场游客会话（幂等；正式登录后不再触发） */
+/** 兼容历史挂载调用名：无令牌时只从可信桌面 IPC 建立正式会话，禁止降级游客。 */
 export async function ensureGuestSession(): Promise<void> {
-  // 登录页正在换取正式身份时不再签发临时身份，避免页面短暂降级为游客。
   if (formalLoginsInFlight > 0) return;
   if (guestSessionPromise) return guestSessionPromise;
   guestSessionPromise = (async () => {
-    if (formalLoginsInFlight > 0) return;
+    if (isGuest()) clearToken();
     if (await validateStoredSession()) return;
     if (formalLoginsInFlight > 0 || getToken()) return;
+    const desktop = (window as unknown as { workloomDesktop?: { session: () => Promise<{ token: string; identity: { memberNo: string } }> } }).workloomDesktop;
+    if (!desktop) throw new Error("请使用已安装的鹰眼客户端，或通过正式账号登录。游客与演示入口已关闭。");
     const requestRevision = identityRevision;
-    const r = await (trpc.accounts.auth as unknown as {
-      guestEnter: { mutate: (i: Record<string, never>) => Promise<{ token: string }> };
-    }).guestEnter.mutate({});
-    // 登录页可能在游客请求尚未返回时完成正式登录。旧响应只能作废，不能降级身份。
+    const result = await desktop.session();
+    if (!result.token || result.identity?.memberNo === "GUEST") throw new Error("正式本机会话未建立");
     if (formalLoginsInFlight > 0 || identityRevision !== requestRevision || getToken()) return;
-    setGuestToken(r.token);
-    validatedToken = r.token;
+    setToken(result.token);
+    validatedToken = result.token;
   })();
   try { await guestSessionPromise; } finally { guestSessionPromise = null; }
 }
@@ -118,7 +112,7 @@ export const trpc: ReturnType<typeof createTRPCClient<AppRouter>> = createTRPCCl
  * 工作区与成员均可经 VITE_DEMO_WORKSPACE / VITE_DEMO_MEMBER 覆盖——
  * 不写死在调用侧，客户自建工作区（非种子库默认工作区）时演示登录仍可用。
  *
- * F-GUEST1 语义升级：无参调用 = 游客进场（readonly 只读体验，各页面挂载点沿用）；
+ * 无参调用通过可信桌面 IPC 建立正式本机会话；
  * 仅显式传 memberNo 时才走旧的种子成员真身份登录（开发后门专用，生产不出现）。
  */
 export const DEV_DEMO_MEMBER = DEMO_MEMBER;

@@ -15,6 +15,7 @@ import {
 } from "../../lib/display";
 import { Bridge } from "../../shell/Bridge";
 import { Icon } from "@workloom/ui";
+import { ProductionConfiguration } from "../../extensions/consulting/ProductionConfiguration";
 
 interface ThreadRow {
   id: string;
@@ -161,6 +162,7 @@ export default function Observability({ view }: { view: "events" | "models" }) {
           )}
         </div>
 
+        {view === "models" && <ProductionConfiguration />}
         {error && (
           <div role="alert" className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-alert/50 bg-alert/8 p-3 text-body text-alert">
             <span className="min-w-0 flex-1">暂时无法读取数据，已保留当前页面。</span>

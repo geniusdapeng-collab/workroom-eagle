@@ -8,6 +8,8 @@
 import { readFile, realpath } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 export const CATALOG_SCHEMA = "workloom.agent-capabilities/v1";
 export const RESULT_SCHEMA = "workloom.capability-result/v1";
@@ -70,6 +72,9 @@ function validateDescriptor(item, bundleId) {
   }
   const t = item.transport;
   if (!object(t)) reject("CATALOG_INVALID", item.id + " 缺少 transport");
+  if (t.timeoutMs !== undefined && (!Number.isInteger(t.timeoutMs) || t.timeoutMs < 1000 || t.timeoutMs > 120000)) {
+    reject("CATALOG_INVALID", item.id + " 传输超时须为 1000–120000 毫秒");
+  }
   if (t.kind === "trpc") {
     if (!TRPC_PATH.test(t.path ?? "") || !["query", "mutation"].includes(t.method)) {
       reject("CATALOG_INVALID", item.id + " tRPC 过程声明无效");
@@ -128,8 +133,11 @@ export async function loadCatalog(root = process.cwd(), bundleOverride) {
     if (error?.code !== "ENOENT") throw error;
   }
   const entries = new Map();
+  const toolNames = new Set();
   for (const item of [...core, ...industry]) {
     if (entries.has(item.id)) reject("CATALOG_INVALID", "能力 ID 重复：" + item.id);
+    if (toolNames.has(toolName(item))) reject("CATALOG_INVALID", "MCP 工具名称冲突：" + item.id);
+    toolNames.add(toolName(item));
     entries.set(item.id, item);
   }
   return { root: repositoryRoot, product, bundle, entries };
@@ -224,10 +232,10 @@ export function sanitizeErrorMessage(error, env = process.env) {
     [env.WORKLOOM_ACCESS_TOKEN, env.WORKLOOM_C_TOKEN]);
 }
 
-async function fetchJson(fetcher, url, init, secrets = []) {
+async function fetchJson(fetcher, url, init, secrets = [], timeoutMs = 30000) {
   let response;
   try {
-    response = await fetcher(url, { ...init, redirect: "error", signal: AbortSignal.timeout(30000) });
+    response = await fetcher(url, { ...init, redirect: "error", signal: AbortSignal.timeout(timeoutMs) });
   } catch (error) {
     reject("NETWORK_ERROR", "服务请求失败：" + safeMessage(error.message, secrets), 6);
   }
@@ -246,7 +254,7 @@ async function fetchJson(fetcher, url, init, secrets = []) {
   return body;
 }
 
-async function trpcCall(fetcher, base, path, method, input, token) {
+async function trpcCall(fetcher, base, path, method, input, token, timeoutMs) {
   const url = new URL(base + "/trpc/" + path);
   const headers = { authorization: "Bearer " + token };
   let init;
@@ -257,7 +265,7 @@ async function trpcCall(fetcher, base, path, method, input, token) {
     init = { method: "POST", headers: { ...headers, "content-type": "application/json" },
       body: JSON.stringify(input) };
   }
-  const response = await fetchJson(fetcher, url, init, [token]);
+  const response = await fetchJson(fetcher, url, init, [token], timeoutMs);
   if (!object(response?.result) || !Object.hasOwn(response.result, "data")) {
     reject("REMOTE_INVALID", "tRPC 响应缺少 result.data", 7);
   }
@@ -266,19 +274,29 @@ async function trpcCall(fetcher, base, path, method, input, token) {
 
 async function memberToken(catalog, base, loopback, env, fetcher) {
   if (env.WORKLOOM_ACCESS_TOKEN) return env.WORKLOOM_ACCESS_TOKEN;
-  if (!loopback || env.WORKLOOM_DEV_AUTO_LOGIN === "0") {
-    reject("UNAUTHORIZED", "缺少 WORKLOOM_ACCESS_TOKEN；仅本机开发入口支持默认成员", 3);
+  if (!loopback) {
+    reject("UNAUTHORIZED", "缺少 WORKLOOM_ACCESS_TOKEN；远程入口不读取本机安装凭据", 3);
   }
-  const response = await fetchJson(fetcher, base + "/trpc/auth.loginAs", {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      workspaceSlug: env.WORKLOOM_WORKSPACE_SLUG ?? catalog.product.demoWorkspaceSlug,
-      memberNo: env.WORKLOOM_MEMBER_NO ?? catalog.product.demoMemberNo,
-    }),
-  });
-  const token = response?.result?.data?.token;
-  if (typeof token !== "string" || !token) reject("UNAUTHORIZED", "开发身份签发失败", 3);
-  return token;
+  const desktopSecret = env.WORKLOOM_DESKTOP_SESSION_SECRET;
+  if (desktopSecret) {
+    const response = await fetchJson(fetcher, base + "/api/desktop/session", {
+      method: "POST", headers: { "x-workloom-desktop-secret": desktopSecret, "content-type": "application/json" },
+      body: "{}",
+    }, [desktopSecret]);
+    const token = response?.token;
+    if (typeof token !== "string" || !token || response.dataMode !== "real") reject("UNAUTHORIZED", "正式安装身份签发失败", 3);
+    return token;
+  }
+  if (process.platform === "darwin" && env.WORKLOOM_KEYCHAIN_ACCESS !== "0") {
+    try {
+      const { stdout } = await promisify(execFile)("/usr/bin/security", ["find-generic-password", "-s", "com.workloom.eagle.agent-access", "-a", "local-owner", "-w"],
+        { encoding: "utf8", timeout: 5000, maxBuffer: 64 * 1024 });
+      if (stdout.trim()) return stdout.trim();
+    } catch {
+      // No item / locked keychain / user declined access. Never fall back to a guest or demo member.
+    }
+  }
+  reject("UNAUTHORIZED", "缺少正式成员会话；请先启动已安装的鹰眼客户端，或注入 WORKLOOM_ACCESS_TOKEN", 3);
 }
 
 async function cServiceCall(fetcher, base, transport, input, env) {
@@ -327,6 +345,10 @@ function envelope(descriptor, raw) {
     if (descriptor.dataMode !== "real" && raw.dataMode === "real") {
       reject("REMOTE_INVALID", "未核实数据不得升级标记为 real", 7);
     }
+    if (descriptor.operation === "execute" && raw.status === "succeeded"
+        && (raw.receipt?.synced !== true || typeof raw.receipt?.eventId !== "string" || !raw.receipt.eventId)) {
+      reject("REMOTE_INVALID", "执行成功必须附服务端已同步事件回执", 7);
+    }
     return raw;
   }
   const receipt = object(raw?.receipt) ? raw.receipt : null;
@@ -361,7 +383,7 @@ export async function invokeCapability(catalog, id, input = {}, options = {}) {
     const { url, loopback } = baseUrlFor(catalog, options.baseUrl);
     if (descriptor.transport.kind === "trpc") {
       const token = await memberToken(catalog, url, loopback, env, fetcher);
-      raw = await trpcCall(fetcher, url, descriptor.transport.path, descriptor.transport.method, value, token);
+      raw = await trpcCall(fetcher, url, descriptor.transport.path, descriptor.transport.method, value, token, descriptor.transport.timeoutMs);
     } else {
       raw = await cServiceCall(fetcher, url, descriptor.transport, value, env);
     }

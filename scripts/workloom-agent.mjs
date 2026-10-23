@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /** Portable JSON CLI for the reviewed WorkLoom capability catalog. */
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { CapabilityError, invokeCapability, loadCatalog, sanitizeErrorMessage } from "./agent-capabilities.mjs";
+import { buildAgentClientConfig } from "./agent-client-config.mjs";
 
 function parseArgs(argv) {
   const command = argv[0];
-  const id = command === "list" ? undefined : argv[1];
-  const rest = argv.slice(command === "list" ? 1 : 2);
+  const noId = ["list", "config"].includes(command);
+  const id = noId ? undefined : argv[1];
+  const rest = argv.slice(noId ? 1 : 2);
   const options = {};
   for (let i = 0; i < rest.length; i += 1) {
     const flag = rest[i];
@@ -17,11 +19,11 @@ function parseArgs(argv) {
     if (options[flag] !== undefined) throw new CapabilityError("USAGE", "重复参数：" + flag, 2);
     options[flag] = rest[++i];
   }
-  if (!["list", "describe", "invoke"].includes(command)
-      || (command !== "list" && (!id || id.startsWith("--")))) {
+  if (!["list", "config", "describe", "invoke"].includes(command)
+      || (!noId && (!id || id.startsWith("--")))) {
     throw new CapabilityError(
       "USAGE",
-      "用法：node scripts/workloom-agent.mjs list|describe <id>|invoke <id> [--input-file <JSON文件或->] [--bundle <id>] [--base-url <URL>]",
+      "用法：node scripts/workloom-agent.mjs list|config|describe <id>|invoke <id> [--input-file <JSON文件或->] [--bundle <id>] [--base-url <URL>]",
       2,
     );
   }
@@ -34,12 +36,19 @@ async function readInput(file) {
   try {
     if (file === "-") {
       const chunks = [];
-      for await (const chunk of process.stdin) chunks.push(chunk);
+      let bytes = 0;
+      for await (const chunk of process.stdin) {
+        bytes += Buffer.byteLength(chunk);
+        if (bytes > 8 * 1024 * 1024) throw new CapabilityError("INPUT_TOO_LARGE", "输入超过 8 MiB", 2);
+        chunks.push(chunk);
+      }
       source = Buffer.concat(chunks).toString("utf8");
     } else {
+      if ((await stat(file)).size > 8 * 1024 * 1024) throw new CapabilityError("INPUT_TOO_LARGE", "输入超过 8 MiB", 2);
       source = await readFile(file, "utf8");
     }
   } catch (error) {
+    if (error instanceof CapabilityError) throw error;
     throw new CapabilityError("INPUT_READ_FAILED", "无法读取输入文件：" + error.message, 2);
   }
   try { return JSON.parse(source); }
@@ -51,7 +60,10 @@ async function main() {
   const root = options["--root"] ? resolve(options["--root"]) : resolve(import.meta.dirname, "..");
   const catalog = await loadCatalog(root, options["--bundle"]);
   let output;
-  if (command === "list") {
+  if (command === "config") {
+    output = buildAgentClientConfig({ productRoot: root, nodeExecutable: process.execPath,
+      baseUrl: options["--base-url"] ?? process.env.WORKLOOM_BASE_URL ?? `http://127.0.0.1:${8787 + (catalog.product.desktop?.portOffset ?? 0)}` });
+  } else if (command === "list") {
     output = {
       schemaVersion: "workloom.agent-capability-list/v1",
       productId: catalog.product.productId,
@@ -71,6 +83,7 @@ async function main() {
     output = await invokeCapability(catalog, id, input, { baseUrl: options["--base-url"] });
   }
   process.stdout.write(JSON.stringify(output) + "\n");
+  if (output.status === "failed") process.exitCode = 9;
 }
 
 try {

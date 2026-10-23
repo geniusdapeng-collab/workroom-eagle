@@ -83,20 +83,22 @@ describe.runIf(RUN_DB)("行业装配 PG 集成（F2.10 铁律）", async () => {
   };
 
 
-  it("hotel profile：七槽 7/7 已装配 + 起飞前检查单六项全绿（F2.10 + v3.0 第⑦槽）", async () => {
+  it("hotel 兼容包仅装配已声明六槽，未声明的模型策略继承默认且六项校验通过", async () => {
     const p = await computeAssembly(app, scope, "hotel");
     expect(p.status).toBe("active");
-    expect(p.filledCount).toBe(7);
+    expect(p.filledCount).toBe(6);
     expect(p.checks.map((c) => c.ok)).toEqual([true, true, true, true, true, true]);
     expect(p.canActivate).toBe(true);
     // 班组卡：7 preset 全注册且围栏绑定合法（P7E2）
     expect(p.agents.length).toBe(7);
     expect(p.agents.every((a) => a.fenceOk)).toBe(true);
-    // 槽摘要口径：档案 7 字段组 · forbidden 硬约束 2 条；UI 6 页 · 42 条；第⑦槽路由策略合法
-    expect(p.slots[0]!.summary).toContain("字段组");
-    expect(p.slots[5]!.summary).toBe("6 页 · 状态用例 42 条同步");
+    // 实物文件存在不构成装配授权；hotel 清单未声明 modelPolicy，因此继承底座默认。
+    expect(p.slots[0]!.summary).toMatch(/客户档案 \d+ 组字段 · 硬约束 2 条/u);
+    expect(p.slots[5]!.summary).toBe("6 个页面 · 42 条界面状态用例");
     expect(p.slots[6]!.id).toBe("model-policy");
-    expect(p.slots[6]!.summary).toContain("model-policy.yml");
+    expect(p.slots[6]!.filled).toBe(false);
+    expect(p.slots[6]!.summary).toBe("平台默认（可按行业单独配置）");
+    expect(p.checks.find((c) => c.key === "model_policy")?.ok).toBe(true);
   });
 
   it("校验留痕：recheck 写 bundle.check_run 事件（P7E3 留痕可查）", async () => {
@@ -123,6 +125,12 @@ describe.runIf(RUN_DB)("行业装配 PG 集成（F2.10 铁律）", async () => {
     const bjPath = join(root, "copycat", "bundle.json");
     const bj = JSON.parse(readFileSync(bjPath, "utf-8"));
     bj.name = "@workloom/copycat"; bj.workloom.industry = "copycat"; bj.workloom.status = "draft";
+    writeFileSync(bjPath, `${JSON.stringify(bj, null, 2)}\n`, "utf-8");
+    // 改名后的内容不能继续使用 hotel 的摘要；先验证门禁拒绝这份失效清单。
+    await expect(computeAssembly(app, scope, "copycat", root)).rejects.toMatchObject({ code: "INTEGRITY_FAILED" });
+    // 新草稿尚未封装，按正式草稿契约移除来源包的旧摘要；激活负责晋级并重新封装。
+    delete bj.integrity;
+    bj.workloom.provides.modelPolicy = "model-policy.yml";
     writeFileSync(bjPath, `${JSON.stringify(bj, null, 2)}\n`, "utf-8");
 
     // finally 还原演示工作区（hotel）：断言中断也不残留 industry 污染（测试纪律：不跨用例污染）

@@ -17,7 +17,7 @@
   "scripts": {
     "dev": "node scripts/dev-note.js && concurrently -k -n server,web \"pnpm -C apps/server dev\" \"pnpm -C apps/web dev\"",
     "db:migrate": "tsx --env-file=.env scripts/migrate.ts",
-    "db:seed": "tsx --env-file=.env scripts/seed.ts && tsx --env-file=.env scripts/seed-consulting.ts",
+    "db:seed": "tsx --env-file=.env scripts/seed-production.ts",
     "demo": "TOOL_UNVERIFIED_RATE=0 tsx --env-file=.env scripts/demo.ts",
     "doctor": "bash scripts/doctor.sh",
     "typecheck": "pnpm -r --if-present typecheck",
@@ -58,10 +58,12 @@
     "projections:check": "tsx scripts/generate-client-projections.mts",
     "oss:inventory": "bash scripts/oss-watch.sh --inventory",
     "oss:check": "bash scripts/oss-watch.sh --check",
-    "test:oss": "node --test scripts/oss-inventory.test.mjs"
+    "test:oss": "node --test scripts/oss-inventory.test.mjs",
+    "db:seed:demo": "tsx --env-file=.env scripts/seed.ts && tsx --env-file=.env scripts/seed-consulting.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/pg": "8.23.1",
     "concurrently": "^9.1.0",
     "jsdom": "^30.0.1",
     "tsx": "^4.23.12",
@@ -76,7 +78,7 @@
   "description": "鹰眼 AI 咨询管理系统 · 基于 WorkLoom IM 的咨询行业经营体",
   "pnpm": {
     "overrides": {
-      "@workloom/ui@0.1.19": "https://cnb.cool/workloom-ai/workloom-im/-/releases/download/ui-v0.1.19/workloom-ui-0.1.19.tgz"
+      "@workloom/ui@0.1.19": "file:vendor/workloom-ui-0.1.19.tgz"
     }
   }
 }

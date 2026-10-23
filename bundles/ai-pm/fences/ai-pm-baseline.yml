@@ -1,4 +1,6 @@
 # AI 产品经理行业包 · 基线围栏（方案 V4 §8）
+version: ai-pm-baseline/v1
+default_level: review
 fences:
   - rule_id: R-PM1
     name: 重大事项上报必经审批
