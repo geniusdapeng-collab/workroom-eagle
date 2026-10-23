@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { describe, it } = require("node:test");
+const { execFileSync } = require("node:child_process");
 const {
   bootstrap,
   installPayloadAtomically,
@@ -147,6 +148,47 @@ describe("桌面载荷原子装配", () => {
     tx.commit();
     assert.deepEqual(transientDirectories(f.supportDir), []);
   });
+
+  it("安装入口保留相对命令链接，源缓存移除后仍可运行", () => {
+    const f = fixture("2.0.0");
+    const modules = path.join(f.sourceRoot, "runtime", "node_modules");
+    fs.mkdirSync(path.join(modules, ".bin"), { recursive: true });
+    fs.mkdirSync(path.join(modules, "fixture-tool"));
+    fs.writeFileSync(path.join(modules, "fixture-tool", "cli.cjs"), 'console.log("installed-entry-ok")\n');
+    fs.symlinkSync("../fixture-tool/cli.cjs", path.join(modules, ".bin", "fixture-tool"));
+    try {
+      const tx = installPayloadAtomically({
+        sourceRoot: f.sourceRoot, supportDir: f.supportDir, payloadVer: "2.0.0",
+        previousEnv: fs.readFileSync(path.join(f.supportDir, "runtime", ".env")),
+      });
+      tx.commit();
+      const entry = path.join(f.supportDir, "runtime", "node_modules", ".bin", "fixture-tool");
+      assert.equal(fs.readlinkSync(entry), "../fixture-tool/cli.cjs");
+      fs.renameSync(f.sourceRoot, path.join(f.root, "source-cache-moved"));
+      fs.rmSync(path.join(f.root, "source-cache-moved"), { recursive: true });
+      assert.equal(execFileSync(process.execPath, [entry], { encoding: "utf8" }).trim(), "installed-entry-ok");
+      assert.equal(fs.readFileSync(path.join(f.supportDir, "runtime", ".env"), "utf8"), "JWT_SECRET=keep-me\n");
+    } finally { fs.rmSync(f.root, { recursive: true, force: true }); }
+  });
+
+  for (const kind of ["absolute", "external", "dangling", "cycle"]) {
+    it(`安装拒绝${kind}链接且保持旧运行时与版本`, () => {
+      const f = fixture("2.0.0");
+      const target = kind === "absolute" ? path.join(f.sourceRoot, "runtime", "payload.txt")
+        : kind === "external" ? "../../outside.txt" : kind === "dangling" ? "missing" : "invalid";
+      fs.writeFileSync(path.join(f.root, "outside.txt"), "outside-unchanged");
+      fs.symlinkSync(target, path.join(f.sourceRoot, "runtime", "invalid"));
+      try {
+        assert.throws(() => installPayloadAtomically({ sourceRoot: f.sourceRoot, supportDir: f.supportDir, payloadVer: "2.0.0" }), /运行载荷/);
+        assert.equal(fs.readFileSync(path.join(f.supportDir, "runtime", "current.txt"), "utf8"), "runtime-old");
+        assert.equal(fs.readFileSync(path.join(f.supportDir, "runtime", ".env"), "utf8"), "JWT_SECRET=keep-me\n");
+        assert.equal(fs.readFileSync(path.join(f.supportDir, "VERSION"), "utf8"), "1.0.0\n");
+        assert.equal(fs.readFileSync(path.join(f.supportDir, ".bootstrapped"), "utf8"), "done");
+        assert.equal(fs.readFileSync(path.join(f.root, "outside.txt"), "utf8"), "outside-unchanged");
+        assert.deepEqual(transientDirectories(f.supportDir), []);
+      } finally { fs.rmSync(f.root, { recursive: true, force: true }); }
+    });
+  }
 
   it("提交清理故障发生在不可逆边界之后，不会重新开放旧载荷回滚", () => {
     const f = fixture("2.0.0");

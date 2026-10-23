@@ -19,10 +19,10 @@
         "mode": 420
       },
       "after": {
-        "sha256": "efa740cd3c5e3a4f61a2ac1145f8161da6c5bb7f20fe5be850eaa26cf6116eba",
+        "sha256": "7e42800c0063dda6593d5a21675a47d781787f7da602b6451cf66b2b3fbd0add",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "dddd09e9b2387796dde94a6a4d2e7ead99686d158f78b31cf287d551f23498b8",
+      "canonicalGitDiffSha256": "52d89681cb0a6d1f15ded8d362346eea4a7ea4f1b1e39bfdc707cc8f01874ecb",
       "reason": "CI完整拉取Git基线并运行实际来源、安装与正式默认门禁，使适配补丁可复算。"
     },
     {
