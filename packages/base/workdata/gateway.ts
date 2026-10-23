@@ -16,8 +16,10 @@
 import type pg from "pg";
 import { safeParseBusinessEvent, type BusinessEvent } from "@workloom/shared";
 import {
-  appendEventIdempotent,
+  appendEventIdempotentInTx,
   appendEventInTx,
+  isReplayEventId,
+  REPLAY_EVENT_ID_PREFIXES,
   safeParseReplayAwareEvent,
   type AppendResult,
   type EventDraft,
@@ -399,23 +401,27 @@ export async function gatewayAppendIdempotent(
 ): Promise<AppendResult> {
   const checked = safeParseReplayAwareEvent(event); // L6：先 zod 后权限（回放前缀 ID 走校验缝）
   if (!checked.success) throw new Error("事件未过附录 E 校验");
-  checkPermission(ctx.actor, checked.data);
-  const scope = { tenantId: ctx.tenantId, workspaceId: ctx.workspaceId };
-  // 段③（P1-8）需要 RLS 上下文事务查 approvals；仅在确需验真时开启（agent + highRisk + 写动作）
-  if (ctx.actor.type === "agent" && ctx.actor.highRisk && isWriteAction(checked.data.decision.action)) {
-    const client = await gateway.connect();
-    try {
-      await client.query("BEGIN");
-      await client.query("SELECT set_config('app.tenant_id', $1, true)", [scope.tenantId]);
-      await client.query("SELECT set_config('app.workspace_id', $1, true)", [scope.workspaceId]);
-      await checkHighRiskAuthorization(client, scope, ctx.actor, checked.data, ctx.approvalRef);
-      await client.query("COMMIT");
-    } catch (err) {
-      await client.query("ROLLBACK").catch(() => undefined);
-      throw err;
-    } finally {
-      client.release();
-    }
+  if (!isReplayEventId(checked.data.event_id)) {
+    throw new Error(`回放通道 event_id 必须使用独立前缀空间（${REPLAY_EVENT_ID_PREFIXES.join("/")} 开头），拒绝：${checked.data.event_id}（P0-3）`);
   }
-  return appendEventIdempotent(gateway, scope, checked.data, ctx.sessionId);
+  checkPermission(ctx.actor, checked.data);
+  const masked = maskDeep(checked.data);
+  const scope = { tenantId: ctx.tenantId, workspaceId: ctx.workspaceId };
+  // Approval consumption and event insertion must commit together. Previously the
+  // approval committed first; a later append failure permanently spent the ticket.
+  const client = await gateway.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT set_config('app.tenant_id', $1, true)", [scope.tenantId]);
+    await client.query("SELECT set_config('app.workspace_id', $1, true)", [scope.workspaceId]);
+    await checkHighRiskAuthorization(client, scope, ctx.actor, masked.value, ctx.approvalRef);
+    const result = await appendEventIdempotentInTx(client, scope, masked.value, ctx.sessionId);
+    await client.query("COMMIT");
+    return { ...result, piiHits: masked.hits + result.piiHits };
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw err;
+  } finally {
+    client.release();
+  }
 }

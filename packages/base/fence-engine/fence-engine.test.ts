@@ -190,15 +190,15 @@ describe("fenceActivationFromProposal（E1 审批→激活接线）", () => {
   const WS = "ws-yunqi";
 
   it("fenceRuleRowId 生成口径稳定（与 confirmDryRun 入库一致）", () => {
-    expect(fenceRuleRowId("R7", WS)).toBe("fr-r7-vnext-ws-yunqi");
+    expect(fenceRuleRowId("R7", WS, "v2")).toBe("fr-r7-v2-ws-yunqi");
   });
 
   it("fence.rule.propose 事件 → 提取 ruleRowId + dryRunId", () => {
     const payload = {
-      decision: { action: "fence.rule.propose", after: { ruleId: "R7", dryRunId: "fdr-r7-abc" } },
+      decision: { action: "fence.rule.propose", after: { ruleId: "R7", dryRunId: "fdr-r7-abc", version: "v2" } },
     };
     expect(fenceActivationFromProposal(payload, WS)).toEqual({
-      ruleRowId: "fr-r7-vnext-ws-yunqi",
+      ruleRowId: "fr-r7-v2-ws-yunqi",
       dryRunId: "fdr-r7-abc",
     });
   });
@@ -206,6 +206,7 @@ describe("fenceActivationFromProposal（E1 审批→激活接线）", () => {
   it("非提案事件 / 缺字段 → null（不激活）", () => {
     expect(fenceActivationFromProposal({ decision: { action: "price.adjust" } }, WS)).toBeNull();
     expect(fenceActivationFromProposal({ decision: { action: "fence.rule.propose", after: { ruleId: "R7" } } }, WS)).toBeNull();
+    expect(fenceActivationFromProposal({ decision: { action: "fence.rule.propose", after: { ruleId: "R7", dryRunId: "fdr-r7-legacy" } } }, WS)).toBeNull();
     expect(fenceActivationFromProposal(null, WS)).toBeNull();
     expect(fenceActivationFromProposal({}, WS)).toBeNull();
   });
