@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyInstalledRuntimeTarget } from './runtime-deps-lock.mjs';
+import { copyRuntimeTree, verifyPortableRuntimeTree } from './portable-runtime-copy.mjs';
 import YAML from 'yaml';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -37,7 +38,7 @@ console.log('构建鹰眼本机客户端：正式空白工作区、真实模型�
 run('pnpm', ['-C', 'apps/web', 'build']);
 const runtime = join(payload, 'runtime');
 mkdirSync(runtime, { recursive: true });
-const copy = (from, to) => cpSync(from, to, { recursive: true, dereference: false, filter: (file) => !file.split('/').includes('node_modules') });
+const copy = (from, to) => copyRuntimeTree(from, to, { filter: (file) => !file.split('/').includes('node_modules') });
 for (const file of ['package.json', 'pnpm-workspace.yaml', 'tsconfig.base.json', 'product.manifest.json', '.env.example']) copy(join(ROOT, file), join(runtime, file));
 cpSync(join(ROOT, '.env.example'), join(runtime, '.env.defaults'));
 if (existsSync(join(ROOT, 'AGENT-CAPABILITIES.md'))) cpSync(join(ROOT, 'AGENT-CAPABILITIES.md'), join(runtime, 'AGENT-CAPABILITIES.md'));
@@ -59,7 +60,7 @@ writeFileSync(join(payload, 'PAYLOAD_VERSION'), `${version}\n`);
 const depStage = join(OUT, 'runtime-dependencies');
 run(join(SOURCE, 'node/bin/node'), [join(ROOT, 'scripts/runtime-deps-lock.mjs'), 'stage', depStage, '--os', 'darwin', '--cpu', 'arm64']);
 const deps = verifyInstalledRuntimeTarget(depStage, 'darwin', 'arm64');
-cpSync(join(depStage, 'node_modules'), join(runtime, 'node_modules'), { recursive: true, dereference: false });
+copyRuntimeTree(join(depStage, 'node_modules'), join(runtime, 'node_modules'));
 for (const directory of readdirSync(join(ROOT, 'packages'))) {
   const manifestFile = join(ROOT, 'packages', directory, 'package.json');
   if (!existsSync(manifestFile)) continue;
@@ -67,7 +68,8 @@ for (const directory of readdirSync(join(ROOT, 'packages'))) {
   if (manifest.name) copy(join(ROOT, 'packages', directory), join(runtime, 'node_modules', manifest.name));
 }
 // 只复制三个运行时二进制目录；绝不复制原客户的pgdata、.env、日志或业务资料。
-for (const part of ['node', 'pg', 'nats']) cpSync(join(SOURCE, part), join(payload, part), { recursive: true, dereference: false });
+for (const part of ['node', 'pg', 'nats']) copyRuntimeTree(join(SOURCE, part), join(payload, part));
+const portability = verifyPortableRuntimeTree(payload);
 // 开发依赖存在时的源码构建不能证明运行载荷可启动；归档前用载荷自身依赖实际起预览。
 run(process.execPath, [join(ROOT, 'scripts/verify-desktop-preview.mjs'), '--runtime', runtime, '--node', join(payload, 'node/bin/node')]);
 // 本机验收专用签名，只封装staged载荷；私钥仅内存/子进程env，绝不落盘或修改源Bundle。
@@ -108,7 +110,7 @@ if (finalCommit !== sourceCommit || (!dirty && finalDirty)) throw new Error('构
 const receipt = {
   schemaVersion: 'eagle.local-client-build/v1', environment: 'client-runtime',
   sourceCommit, sourceDirty: dirty || finalDirty, payloadVersion: version, platform: process.platform, arch: process.arch,
-  distribution: 'local-unsigned-not-notarized', payloadSha256: sha(archive), runtimeInventory: deps,
+  distribution: 'local-unsigned-not-notarized', payloadSha256: sha(archive), runtimeInventory: deps, portability,
   bundleSignatureSource: 'local-acceptance-ephemeral-ed25519', bundleTrustSha256: sha(trustFile),
   binaries: ['node/bin/node', 'pg/bin/postgres', 'nats/nats-server'].map((file) => ({ file, sha256: sha(join(payload, file)) })),
   builtAt: new Date().toISOString(),
