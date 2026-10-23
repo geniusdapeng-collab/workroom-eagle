@@ -70,7 +70,9 @@ test("existing formal, unknown, foreign ID/slug/tenant/industry/bundle collision
 test("even a marked example cannot overwrite a real, unknown or user-configured profile", async () => {
   for (const archive of [{ dataMode: "real" }, {}, { dataMode: "simulated", business: { source: "user" } },
     { dataMode: "simulated", business: { configured_at: "2026-10-24" } }, { dataMode: "simulated", realModeActivation: { at: "2026-10-24" } },
-    { dataMode: "simulated", production_install: true }, { dataMode: "simulated", production_install: "true" }]) {
+    { dataMode: "simulated", production_install: true }, { dataMode: "simulated", production_install: "true" },
+    { dataMode: "simulated", business: { configured_at: null } }, { dataMode: "simulated", business: { configured_at: "" } },
+    { dataMode: "simulated", realModeActivation: null }, { dataMode: "simulated", realModeActivation: "" }]) {
     const f = fixture(workspace(), { tenant_id: target.tenantId, industry: target.industry, archive });
     await assert.rejects(beginDemoWorkspacePhase(f.client, target, true), /身份冲突/);
     assert.deepEqual(writes(f.calls), []); assert.equal(f.calls.at(-1), "ROLLBACK");
@@ -123,7 +125,7 @@ async function withDatabase(body: (owner: pg.Client, other: pg.Client) => Promis
   }
 }
 
-test("actual SQL creates an explicit example and repeat initialization preserves its identity", async () => {
+test("actual SQL creates and repeats an explicit example, preserving identity and refusing ambiguous formal markers", async () => {
   await withDatabase(async (owner) => {
     await beginDemoWorkspacePhase(owner, target, true);
     await owner.query("INSERT INTO profiles VALUES ($1,$2,$3,$4)", [target.id, target.tenantId, target.industry, { dataMode: "simulated", userNote: "preserve fixture" }]);
@@ -137,6 +139,13 @@ test("actual SQL creates an explicit example and repeat initialization preserves
     assert.equal(found.rows.length, 1); assert.equal(found.rows[0].name, target.name);
     assert.equal(found.rows[0].is_example, true); assert.equal(found.rows[0].bundle_id, target.bundleId);
     assert.deepEqual(found.rows[0].archive, { dataMode: "simulated", userNote: "preserve fixture" });
+    for (const marker of [{ business: { configured_at: null } }, { business: { configured_at: "" } },
+      { realModeActivation: null }, { realModeActivation: "" }]) {
+      const archive = { dataMode: "simulated", sentinel: "preserve ambiguous fixture", ...marker };
+      await owner.query("UPDATE profiles SET archive=$1 WHERE workspace_id=$2", [archive, target.id]);
+      await assert.rejects(beginDemoWorkspacePhase(owner, target, true), /身份冲突/);
+      assert.deepEqual((await owner.query("SELECT archive FROM profiles WHERE workspace_id=$1", [target.id])).rows[0].archive, archive);
+    }
   });
 });
 

@@ -69,8 +69,8 @@ async function readAndLock(client: QueryClient, target: DemoWorkspaceDefinition,
       || (archive as Record<string, unknown>).dataMode !== "simulated") conflict();
     const business = (archive as Record<string, unknown>).business;
     if (business && typeof business === "object" && !Array.isArray(business)
-      && ((business as Record<string, unknown>).source === "user" || (business as Record<string, unknown>).configured_at)) conflict();
-    if ((archive as Record<string, unknown>).realModeActivation || isProductionInstallFlag((archive as Record<string, unknown>).production_install)) conflict();
+      && ((business as Record<string, unknown>).source === "user" || Object.hasOwn(business, "configured_at"))) conflict();
+    if (Object.hasOwn(archive, "realModeActivation") || isProductionInstallFlag((archive as Record<string, unknown>).production_install)) conflict();
   }
   const installs = await client.query(
     `SELECT bundle_id, assets, status FROM bundle_installs WHERE workspace_id=$1 FOR NO KEY UPDATE`,
