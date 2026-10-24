@@ -7,7 +7,7 @@
  * https://api-docs.deepseek.com/guides/search/
  */
 import { randomUUID, createHash } from 'node:crypto';
-import { mkdirSync, openSync, closeSync, readFileSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
+import { constants, mkdirSync, openSync, closeSync, fstatSync, fsyncSync, lstatSync, readFileSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -59,6 +59,48 @@ function fail(code, detail) { throw new DeepSeekError(code, detail); }
 function isInteger(n) { return Number.isSafeInteger(n) && n >= 0; }
 function snapshot(value) { return structuredClone(value); }
 
+function privateBudgetDirectory(path) {
+  let info;
+  try { info = lstatSync(path); }
+  catch (error) {
+    if (error?.code !== 'ENOENT') fail('BUDGET_STORAGE_UNSAFE');
+    mkdirSync(path, { recursive: true, mode: 0o700 });
+    info = lstatSync(path);
+  }
+  if (!info.isDirectory() || info.isSymbolicLink()
+    || (process.platform !== 'win32' && (info.mode & 0o077) !== 0)) fail('BUDGET_STORAGE_UNSAFE');
+}
+
+function privateBudgetFile(path) {
+  let info;
+  try { info = lstatSync(path); }
+  catch (error) { if (error?.code === 'ENOENT') return null; fail('BUDGET_STORAGE_UNSAFE'); }
+  if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1
+    || info.size > 8 * 1024 * 1024
+    || (process.platform !== 'win32' && (info.mode & 0o077) !== 0)) fail('BUDGET_STORAGE_UNSAFE');
+  return info;
+}
+
+function readPrivateBudgetFile(path) {
+  const info = privateBudgetFile(path);
+  if (!info) return undefined;
+  let fd;
+  try {
+    fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    const opened = fstatSync(fd);
+    if (!opened.isFile() || opened.ino !== info.ino || opened.dev !== info.dev || opened.nlink !== 1
+      || (process.platform !== 'win32' && (opened.mode & 0o077) !== 0)) fail('BUDGET_STORAGE_UNSAFE');
+    return readFileSync(fd, 'utf8');
+  } catch (error) { if (error instanceof DeepSeekError) throw error; fail('BUDGET_STORAGE_UNSAFE'); }
+  finally { if (fd !== undefined) closeSync(fd); }
+}
+
+function writePrivateBudgetFile(path, text) {
+  const fd = openSync(path, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+  try { writeFileSync(fd, text); fsyncSync(fd); }
+  finally { closeSync(fd); }
+}
+
 function initialState(policy, now) {
   return { schemaVersion: 'eagle.deepseek-budget/v1', policy, startedAt: now(), llmAttempts: 0, searchAttempts: 0, fetchAttempts: 0, actualTokens: 0, reservedTokens: 0, actualCostCny: 0, reservedCostCny: 0, frozen: false, freezeReason: null, reservations: [], tokenizerProof: TOKENIZER_PROOF };
 }
@@ -71,20 +113,24 @@ function budgetStore(options, now) {
   }
   const file = options.budgetFile ? resolve(options.budgetFile) : undefined;
   let memory = initialState(policy, now);
-  if (file) mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+  if (file) { privateBudgetDirectory(dirname(file)); privateBudgetFile(file); }
   function transaction(change) {
     if (!file) {
       const out = change(memory);
       return out;
     }
     const lock = `${file}.lock`;
+    privateBudgetDirectory(dirname(file));
+    privateBudgetFile(file);
+    privateBudgetFile(lock);
     let fd;
-    try { fd = openSync(lock, 'wx', 0o600); }
+    try { fd = openSync(lock, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600); }
     catch { fail('BUDGET_LOCKED', 'another writer or an interrupted transaction owns the ledger lock'); }
     try {
       let state;
-      try { state = JSON.parse(readFileSync(file, 'utf8')); }
-      catch (error) { if (error?.code === 'ENOENT') state = initialState(policy, now); else fail('BUDGET_LEDGER_INVALID'); }
+      const raw = readPrivateBudgetFile(file);
+      try { state = raw === undefined ? initialState(policy, now) : JSON.parse(raw); }
+      catch { fail('BUDGET_LEDGER_INVALID'); }
       if (state.schemaVersion !== 'eagle.deepseek-budget/v1' || JSON.stringify(state.policy) !== JSON.stringify(policy) || state.tokenizerProof?.artifactSha256 !== TOKENIZER_PROOF.artifactSha256 || !Array.isArray(state.reservations)) fail('BUDGET_LEDGER_INVALID');
       for (const field of ['llmAttempts', 'searchAttempts', 'fetchAttempts', 'actualTokens', 'reservedTokens']) if (!isInteger(state[field])) fail('BUDGET_LEDGER_INVALID');
       for (const field of ['startedAt', 'actualCostCny', 'reservedCostCny']) if (typeof state[field] !== 'number' || !Number.isFinite(state[field]) || state[field] < 0) fail('BUDGET_LEDGER_INVALID');
@@ -98,7 +144,8 @@ function budgetStore(options, now) {
       try { out = change(state); } catch (error) { thrown = error; }
       const temp = `${file}.${randomUUID()}.tmp`;
       try {
-        writeFileSync(temp, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
+        writePrivateBudgetFile(temp, `${JSON.stringify(state, null, 2)}\n`);
+        privateBudgetFile(file);
         renameSync(temp, file);
       } finally { try { unlinkSync(temp); } catch (error) { if (error?.code !== 'ENOENT') throw error; } }
       if (thrown) throw thrown;
@@ -112,6 +159,9 @@ function budgetStore(options, now) {
       const counter = kind === 'llm' ? 'llmAttempts' : kind === 'search' ? 'searchAttempts' : 'fetchAttempts';
       const ceiling = kind === 'llm' ? policy.maxLlmCalls : kind === 'search' ? policy.maxSearchCalls : policy.maxFetchCalls;
       if (state[counter] >= ceiling) fail('BUDGET_CALLS', kind);
+      // One acceptance round may spend at most eight web operations in total.
+      // Keep the existing ledger policy shape so old evidence remains readable.
+      if (kind !== 'llm' && state.searchAttempts + state.fetchAttempts >= Math.min(8, policy.maxSearchCalls + policy.maxFetchCalls)) fail('BUDGET_WEB_CALLS');
       if (state.actualTokens + state.reservedTokens + tokens > policy.maxLlmTokens) fail('BUDGET_TOKENS');
       const cost = kind === 'llm' ? tokens * CNY_PER_TOKEN_UPPER : CNY_PER_WEB_REQUEST;
       if (state.actualCostCny + state.reservedCostCny + cost > policy.maxCostCny) fail('BUDGET_COST');
@@ -200,9 +250,9 @@ export function createDeepSeekClient(options = {}) {
     if (!apiKey.trim()) fail('CREDENTIAL_MISSING');
     return { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' };
   }
-  function rejectSecrets(text) {
+  function rejectSecrets(text, code = 'SECRET_IN_INPUT') {
     const apiKey = currentKey();
-    if ((apiKey.length >= 8 && text.includes(apiKey)) || /\b(?:sk-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9_]{20,})\b/u.test(text)) fail('SECRET_IN_INPUT');
+    if ((apiKey.length >= 8 && text.includes(apiKey)) || /\b(?:sk-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9_]{20,}|github_pat_[a-zA-Z0-9_]{20,})\b/u.test(text)) fail(code);
   }
   async function http(path, body, signal) {
     if (signal?.aborted) fail('CANCELLED');
@@ -245,6 +295,7 @@ export function createDeepSeekClient(options = {}) {
     let data;
     try {
       data = await http('/chat/completions', { model: DEEPSEEK_MODEL, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], thinking: { type: 'disabled' }, max_tokens: maxTokens, stream: false, temperature: 0.2, ...(jsonMode ? { response_format: { type: 'json_object' } } : {}) }, signal);
+      rejectSecrets(JSON.stringify(data), 'SECRET_IN_OUTPUT');
       const u = data.usage;
       if (!u || ![u.prompt_tokens, u.completion_tokens, u.total_tokens].every(isInteger) || u.prompt_tokens + u.completion_tokens !== u.total_tokens) fail('USAGE_INVALID');
       if (data.model !== DEEPSEEK_MODEL || typeof data.id !== 'string' || !data.id) fail('MODEL_RECEIPT_INVALID');
@@ -269,6 +320,7 @@ export function createDeepSeekClient(options = {}) {
     const reservation = budget.reserve(kind);
     try {
       const data = await http(`/v1/tools/${kind}`, body, signal);
+      rejectSecrets(JSON.stringify(data), 'SECRET_IN_OUTPUT');
       if (kind === 'search') {
         if (!Array.isArray(data.results)) fail('SEARCH_RESPONSE_INVALID');
         const results = data.results.slice(0, body.count).map((r) => {
@@ -315,6 +367,8 @@ export function getDeepSeekClientForTask(taskIdentity) {
   if (typeof taskIdentity !== 'string' || !taskIdentity || taskIdentity.length > 1000) fail('TASK_ID_INVALID');
   if (process.env.WORKLOOM_CONSULTING_BUDGET_FILE) return getDefaultDeepSeekClient();
   const support = process.env.WORKLOOM_SUPPORT_DIR ?? resolve(homedir(), 'Library', 'Application Support', 'WorkRoomEagle');
+  privateBudgetDirectory(resolve(support, 'consulting'));
+  privateBudgetDirectory(resolve(support, 'consulting', 'budgets'));
   const id = createHash('sha256').update(taskIdentity).digest('hex');
   return createDeepSeekClient({ budgetFile: resolve(support, 'consulting', 'budgets', `${id}.json`) });
 }

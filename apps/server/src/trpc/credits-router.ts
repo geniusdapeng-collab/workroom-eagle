@@ -5,12 +5,14 @@
  * modelFeedback：👍/👎 质量信号（model.feedback 事件）+ 一键升级重答（升一档重新生成，24h 限免 1 次）。
  */
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import {
   CREDIT_PACKS, GatewayEventSink, MemoryQuotaStore, escalate, grantCredits,
   ledgerOf, poolFromEnv, purchaseCredits, type Tier3,
 } from "@workloom/base/model-router";
-import { protectedProcedure, router, scopeOf, writeProcedure } from "./context.js";
+import { actionProcedure, protectedProcedure, router, scopeOf, writeProcedure } from "./context.js";
 import { getAppPool, getGatewayPool } from "@workloom/db";
+import { resolveWorkspaceActiveBundle } from "../service/active-bundle.js";
 
 /** 升级重答配额（24h 限免 1 次/问题；进程级实现，生产可换 Redis 同接口） */
 const escalationQuota = new MemoryQuotaStore(1);
@@ -72,7 +74,7 @@ export const modelFeedbackRouter = router({
     }),
 
   /** 一键升级重答：👎 → 升一档重新生成（对比展示「原回答 vs 升级版」；24h 限免 1 次防刷） */
-  escalate: protectedProcedure
+  escalate: actionProcedure("task.dispatch")
     .input(z.object({
       scene: z.string().min(1).max(64),
       action: z.string().min(1).max(128),
@@ -82,6 +84,13 @@ export const modelFeedbackRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const scope = scopeOf(ctx.identity);
+      const active = await resolveWorkspaceActiveBundle(scope.workspaceId);
+      if (active.state !== "ready" || !active.bundleId) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "当前行业装配尚未通过验证，暂不能发起额外模型调用。" });
+      }
+      if (active.bundleId === "consulting") {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "咨询任务使用固定模型与原任务预算，不能通过反馈切换模型重答。请记录反馈并交由人类顾问复核。" });
+      }
       const sink = new GatewayEventSink(getGatewayPool(), scope);
       const r = await escalate({
         task: {

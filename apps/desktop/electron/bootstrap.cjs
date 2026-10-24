@@ -991,6 +991,9 @@ async function bootstrap(opts) {
     WORKLOOM_SERVER_PORT: String(SERVER_PORT),
     WORKLOOM_WEB_PORT: String(WEB_PORT),
     WORKLOOM_NATS_PORT: String(NATS_PORT),
+    // Provider budgets, source snapshots and cached receipts belong to this
+    // installed product, including when multiple desktop products coexist.
+    WORKLOOM_SUPPORT_DIR: supportDir,
   };
   const desktopSessionSecret = crypto.randomBytes(32).toString("hex");
   const serverEnv = {

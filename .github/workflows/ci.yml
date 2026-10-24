@@ -92,7 +92,7 @@ jobs:
           # Keep database regressions enabled explicitly against the real consulting
           # installation; do not substitute the legacy hotel demo workspace.
           pnpm db:seed
-          RELEASE_WORKSPACE_ID=ws-workroom-eagle-production pnpm -C apps/server test --pool=threads --maxWorkers=1 src/service/adapters/business-registry.pg.test.ts src/service/neutral-industry-default.pg.test.ts src/service/overlay-runtime.pg.test.ts src/service/eval-source.pg.test.ts src/service/onboarding-continuity.pg.test.ts src/trpc/fence-proposal.pg.test.ts src/service/onboarding-installation.test.ts src/service/onboarding-model-verification.test.ts
+          RELEASE_WORKSPACE_ID=ws-workroom-eagle-production pnpm -C apps/server test --pool=threads --maxWorkers=1 src/service/adapters/business-registry.pg.test.ts src/service/neutral-industry-default.pg.test.ts src/service/overlay-runtime.pg.test.ts src/service/eval-source.pg.test.ts src/service/onboarding-continuity.pg.test.ts src/trpc/fence-proposal.pg.test.ts src/service/onboarding-installation.test.ts src/service/onboarding-model-verification.test.ts src/trpc/thread-execution.pg.test.ts src/industry/consulting/ui-receipt.pg.test.ts src/industry/consulting/task-execution.pg.test.ts
           pnpm -C apps/web test --pool=threads --maxWorkers=1
 
       - name: 全场景套件（服务层与独立 HTTP 权限矩阵）

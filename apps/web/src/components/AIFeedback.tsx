@@ -3,14 +3,16 @@
  *
  * 交互：AI 生成卡片右下角常驻 👍/👎；
  *  - 👍 → modelFeedback.submit（质量信号入事件库）；
- *  - 👎 → modelFeedback.escalate（升一档模型重新生成），对比展示「原回答 vs 升级版」；
+ *  - 咨询行业 👎 → modelFeedback.submit，只记录质量反馈并提示人工复核；不触发模型升级。
+ *  - 其它行业 👎 → modelFeedback.escalate（升一档模型重新生成），对比展示「原回答 vs 升级版」；
  *    首次免费（24h 限免 1 次，防刷），超出按倍率实扣；L3 天花板 → 引导转人工。
  * 反馈数据回流驱动路由调表（场景升级率 >15% 自动上调默认档）。
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { trpc } from "../lib/trpc";
-import { Icon, clientChineseText } from "@workloom/ui";
+import { Icon } from "@workloom/ui";
 import { clientNaturalText } from "../lib/clientText";
+import { useNavigationAccess } from "../shell/NavigationAccess";
 
 const TIER_TEXT: Record<string, string> = {
   L1: "基础能力档",
@@ -45,25 +47,38 @@ interface EscalateResult {
   suggestHuman: boolean;
 }
 
-export function AIFeedback({ scene, action, prompt, originalText, fromTier = "L2" }: AIFeedbackProps) {
+export function AIFeedback(props: AIFeedbackProps) {
+  const { identityKey, bundle, status } = useNavigationAccess();
+  return <ScopedFeedback key={`${identityKey}:${bundle?.bundleId ?? "pending"}`} {...props}
+    consulting={bundle?.bundleId === "consulting"} ready={status === "ready"} />;
+}
+
+function ScopedFeedback({ scene, action, prompt, originalText, fromTier = "L2", consulting, ready }: AIFeedbackProps & { consulting: boolean; ready: boolean }) {
   const [voted, setVoted] = useState<"up" | "down" | null>(null);
   const [busy, setBusy] = useState(false);
   const [upgraded, setUpgraded] = useState<EscalateResult | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [pendingVote, setPendingVote] = useState<"up" | "down" | null>(null);
+  const busyRef = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
   const vote = async (thumbs: "up" | "down") => {
-    if (busy || voted) return;
+    if (!ready || busyRef.current || voted) return;
+    busyRef.current = true;
     setBusy(true);
+    setPendingVote(thumbs);
     setErr(null);
     try {
-      if (thumbs === "up") {
-        await trpc.modelFeedback.submit.mutate({ scene, action, thumbs: "up", originalTier: fromTier });
-        setVoted("up");
+      if (thumbs === "up" || consulting) {
+        await trpc.modelFeedback.submit.mutate({ scene, action, thumbs, originalTier: fromTier });
+        if (alive.current) setVoted(thumbs);
       } else {
         const r = (await trpc.modelFeedback.escalate.mutate({
           scene, action, prompt, fromTier,
           fingerprint: `${scene}:${prompt.slice(0, 40)}`,
         })) as EscalateResult;
+        if (!alive.current) return;
         setUpgraded({
           ...r,
           text: r.text === null
@@ -73,19 +88,20 @@ export function AIFeedback({ scene, action, prompt, originalText, fromTier = "L2
         setVoted("down");
       }
     } catch {
-      setErr("反馈暂时未能提交，请稍后重试。");
+      if (alive.current) setErr("反馈暂时未能提交，请稍后重试。");
     } finally {
-      setBusy(false);
+      busyRef.current = false;
+      if (alive.current) { setBusy(false); setPendingVote(null); }
     }
   };
 
   return (
     <div className="mt-1.5">
-      <div className="flex items-center gap-2 text-body text-ink3">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-body text-ink3">
         <span>回答有帮助吗？</span>
         <button
           type="button"
-          disabled={busy || voted !== null}
+          disabled={!ready || busy || voted !== null}
           onClick={() => void vote("up")}
           className={`cursor-pointer rounded px-1.5 py-0.5 transition-colors ${
             voted === "up" ? "bg-emerald-500/20 text-emerald-300" : "hover:bg-white/5"
@@ -95,16 +111,17 @@ export function AIFeedback({ scene, action, prompt, originalText, fromTier = "L2
         ><Icon name="like" size={16} /></button>
         <button
           type="button"
-          disabled={busy || voted !== null}
+          disabled={!ready || busy || voted !== null}
           onClick={() => void vote("down")}
           className={`cursor-pointer rounded px-1.5 py-0.5 transition-colors ${
             voted === "down" ? "bg-rose-500/20 text-rose-300" : "hover:bg-white/5"
           } disabled:opacity-50`}
-          title="不满意——换更强大脑重答"
-          aria-label="这条回答没有帮助，使用更强能力重新回答"
+          title={consulting ? "不满意，记录反馈并建议人工复核" : "不满意——换更强大脑重答"}
+          aria-label={consulting ? "这条回答没有帮助，记录反馈并建议人工复核" : "这条回答没有帮助，使用更强能力重新回答"}
         ><Icon name="dislike" size={16} /></button>
-        {busy && <span className="animate-pulse">更强大脑思考中…</span>}
+        {busy && <span className="animate-pulse">{consulting || pendingVote === "up" ? "正在提交反馈…" : "更强大脑思考中…"}</span>}
         {voted === "up" && <span className="text-emerald-300/80">已收到，感谢反馈</span>}
+        {consulting && voted === "down" && <span role="status" className="min-w-0 break-words text-warn">已记录反馈。请由人工复核原回答与来源；反馈不会触发重新生成。</span>}
         {err && <span className="text-rose-300/80">{err}</span>}
       </div>
 

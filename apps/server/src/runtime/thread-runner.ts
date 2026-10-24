@@ -15,9 +15,11 @@ import YAML from "yaml";
 import { getAppPool, getGatewayPool } from "@workloom/db";
 import { bundlesRoot } from "@workloom/base/bundles";
 import { assemblePreset, runQuest, type AssembledPreset, type QuestPlanner, type QuestRunResult } from "@workloom/runtime";
-import { llmCall } from "../service/llm.js";
+import { routedLlmCall } from "../service/llm.js";
+import { resolveWorkspaceActiveBundle } from "../service/active-bundle.js";
 import { loadDeploymentToolExecutor, describeToolCoverage } from "./tool-executor.js";
 import { preferredDispatchPresets } from "./dispatch-routing.js";
+import { assertThreadInputSafe } from "./thread-input.js";
 
 export interface Scope { tenantId: string; workspaceId: string }
 
@@ -251,6 +253,8 @@ export interface ThreadQuestInput {
   mode?: "quest" | "agent";
   /** preset 引用（preset_key 或 agents.id）；缺省按线程 agent_id / 派遣默认解析 */
   presetRef?: string | null;
+  /** Authenticated caller or persisted creator; never a client supplied RPC field. */
+  actorId?: string;
   /** GR-01：显式重规划（缺省复用已持久化计划；replan 会失效本线程未决审批） */
   replan?: boolean;
   replanReason?: string;
@@ -306,82 +310,143 @@ export async function loadGoalArchive(
   }
 }
 
-export interface ThreadQuestOutcome extends QuestRunResult {
+export interface ThreadQuestOutcome extends Omit<QuestRunResult, "status"> {
+  status: QuestRunResult["status"] | "cancelled";
   /** GR-15：派遣/续跑前的连接器覆盖度提示 */
   warnings?: string[];
   /** 实际使用的岗位（复盘"派给了谁"） */
   presetKey: string;
+  executionSource?: string;
+  current_action?: string | null;
+}
+
+export interface IndustryThreadExecutionContext {
+  scope: Scope;
+  input: ThreadQuestInput & { actorId: string };
+  presetKey: string;
+  taskContext: { threadId: string; requestId?: string };
+}
+export type IndustryThreadExecutor = (context: IndustryThreadExecutionContext) => Promise<ThreadQuestOutcome | undefined>;
+let industryThreadExecutor: IndustryThreadExecutor | null = null;
+/** Industry composition root registers its execution adapter; undefined means generic execution. */
+export function registerIndustryThreadExecutor(executor: IndustryThreadExecutor | null): void {
+  industryThreadExecutor = executor;
 }
 
 /**
  * 线程执行唯一装配点：dispatch(runImmediately) / threads.run / 审批自动续跑 / 调度器都走这里。
  */
 export async function runQuestForThread(scope: Scope, input: ThreadQuestInput): Promise<ThreadQuestOutcome> {
-  /**
-   * A-03 修复（来源：WorkLoom-growth 排雷 T-2026-0929-0003）：执行前原子认领（queued/paused→running CAS）。
-   * 此前 SELECT 取线程到 runQuest 置 running 之间有装配+LLM 规划窗口（最长 120s），
-   * dispatch(runImmediately) / threads.run / 多实例调度器可并发重入同一线程——
-   * 写类工具重复执行＝重复扣费/重复发布。
-   * 调度器已用自己的单语句认领，必须传 skipClaim 跳过本 CAS（否则自相挡死）。
-   */
-  if (!input.skipClaim) {
-    const app0 = getAppPool();
-    const c = await app0.connect();
-    let blocked = false;
+  assertThreadInputSafe(input.goal, input.presetRef, input.replanReason);
+  // The scoped row lock covers admission before preset assembly or any external
+  // I/O. A zero-match claim never falls through to execution. The scheduler may
+  // consume only the running row it already atomically claimed.
+  const c = await getAppPool().connect();
+  let actorId: string;
+  let requestId: string | undefined;
+  let already: ThreadQuestOutcome | undefined;
+  try {
+    await c.query("BEGIN");
+    await c.query("SELECT set_config('app.workspace_id',$1,true)", [scope.workspaceId]);
+    await c.query("SELECT set_config('app.tenant_id',$1,true)", [scope.tenantId]);
+    const rows = await c.query<{
+      status: ThreadQuestOutcome["status"] | "queued"; created_by: string; progress_done: number; progress_total: number;
+      current_action: string | null; error: string | null; request_id: string | null; execution_source: string | null;
+    }>(
+      `SELECT t.status,t.created_by,t.progress_done,t.progress_total,t.current_action,t.error,
+       (SELECT e.payload->'decision'->'after'->>'execution_request_id' FROM biz_events e
+         WHERE e.tenant_id=$3 AND e.workspace_id=$2 AND e.session_id=t.id
+         AND e.payload->'decision'->>'action'='thread.dispatch' ORDER BY e.seq ASC LIMIT 1) AS request_id,
+       (SELECT e.payload->'decision'->'after'->>'executionSource' FROM biz_events e
+         WHERE e.tenant_id=$3 AND e.workspace_id=$2 AND e.session_id=t.id
+         AND e.payload->'decision'->>'action'='thread.execution.bound' ORDER BY e.seq DESC LIMIT 1) AS execution_source
+       FROM threads t JOIN workspaces w ON w.id=t.workspace_id AND w.tenant_id=t.tenant_id
+       WHERE t.id=$1 AND t.workspace_id=$2 AND t.tenant_id=$3 FOR UPDATE OF t`,
+      [input.threadId, scope.workspaceId, scope.tenantId],
+    );
+    const row = rows.rows[0];
+    if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "任务不存在或无权访问" });
+    actorId = input.actorId ?? row.created_by;
+    requestId = row.request_id ?? undefined;
+    const terminal = row.status === "completed" || row.status === "cancelled";
+    const held = row.status === "running" && !input.skipClaim;
+    // An industry adapter owns the pause/resume receipt. A generic run request
+    // must only read its paused state; its explicit resume action projects queued
+    // before this admission path can claim execution again.
+    const controlledPause = row.status === "paused" && Boolean(row.execution_source && row.execution_source !== "generic");
+    if (terminal || held || controlledPause) {
+      already = { threadId: input.threadId, status: row.status as ThreadQuestOutcome["status"],
+        stepsDone: row.progress_done, stepsTotal: row.progress_total, unverified: [], presetKey: "",
+        executionSource: row.execution_source ?? "generic", current_action: row.current_action,
+        ...(row.error ? { error: row.error } : {}),
+      };
+    } else {
+      if (input.skipClaim && row.status !== "running") throw new TRPCError({ code: "CONFLICT", message: "任务认领已失效，请刷新任务状态。" });
+      await c.query(`UPDATE threads SET status='running',error=NULL,updated_at=now()
+        WHERE id=$1 AND workspace_id=$2 AND tenant_id=$3`, [input.threadId, scope.workspaceId, scope.tenantId]);
+    }
+    await c.query("COMMIT");
+  } catch (error) {
+    await c.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally { c.release(); }
+  if (already) return already;
+  try {
+    const presetKey = await resolveThreadPresetKey(scope, input.presetRef, input.goal);
+    // Complete assembly before handing authority to an industry adapter. The
+    // adapter owns its own append-only receipts/control state and never bypasses
+    // the generic tenant/preset admission above.
+    await assemblePreset(getAppPool(), scope, { workspaceId: scope.workspaceId, presetKey, goal: input.goal });
+    const taskContext = { threadId: input.threadId, ...(requestId ? { requestId } : {}) };
+    const industryResult = await industryThreadExecutor?.({ scope, input: { ...input, actorId: actorId! }, presetKey, taskContext });
+    if (industryResult !== undefined) return industryResult;
+    const toolExecutor = await loadDeploymentToolExecutor(scope);
+    const visualGoal = VISUAL_GOAL_PATTERN.test(input.goal);
+    const warnings = await questCoverageWarnings(scope, presetKey, input.goal);
+    // GR-13：把本工作区 bundle 的对象枚举交给规划器（围栏词表由 runQuest 内部按 active 规则注入）
+    const planVocabulary = await loadObjectVocabulary(scope);
+    // 行业规划器由行业仓组合根注册；未注册（基座缺省）时不传 fallbackPlanner，退回通用确定性规划
+    const fallbackPlanner = industryPlannerFactory?.(input.goal);
+    const result = await runQuest(getAppPool(), getGatewayPool(), scope, {
+      threadId: input.threadId,
+      goal: input.goal,
+      presetKey,
+      ...(input.mode ? { mode: input.mode } : {}),
+      ...(input.replan ? { replan: true, ...(input.replanReason ? { replanReason: input.replanReason } : {}) } : {}),
+      // 视觉目标关掉 LLM 规划（空参步骤到桥侧必 bad_request），走行业确定性直译
+      ...(visualGoal ? {} : { llmCall: routedLlmCall({ gateway: getGatewayPool(), scope, scene: "quest-plan", taskContext,
+        industryResolver: async () => {
+          const active = await resolveWorkspaceActiveBundle(scope.workspaceId);
+          return active.state === "ready" ? active.bundleId : null;
+        },
+      }) }),
+      ...(fallbackPlanner ? { fallbackPlanner } : {}),
+      ...(toolExecutor ? { toolExecutor } : {}),
+      ...(planVocabulary.objectTypes.length ? { planVocabulary } : {}),
+    });
+    return { ...result, ...(warnings.length ? { warnings } : {}), presetKey, executionSource: "generic" };
+  } catch (error) {
+    // An adapter/assembly exception must not strand the admitted row in running.
+    // Only a row still owned by this run is marked failed; human control and an
+    // already committed completion are preserved. Supplier internals stay private.
+    const message = error instanceof Error && error.name === "AssemblyReject"
+      ? error.message.slice(0, 300)
+      : "任务执行中断，未取得完整回执；请查看任务记录后处理，系统不会自动重复未知调用。";
+    const failure = await getAppPool().connect();
     try {
-      /**
-       * 认领必须带**事务级 RLS 上下文**：threads 表对 app 角色启用 RLS
-       * （`workspace_id = current_setting('app.workspace_id', true)`），
-       * 无 GUC 时那条 UPDATE 匹配 0 行 → CAS 静默空转、并发重入照旧放行
-       * （2026-09-30 实测：线程置 running 后入口仍照常执行并写 3 条事件）。
-       */
-      await c.query("BEGIN");
-      await c.query("SELECT set_config('app.workspace_id', $1, true)", [scope.workspaceId]);
-      await c.query("SELECT set_config('app.tenant_id', $1, true)", [scope.tenantId]);
-      const claimed = await c.query(
-        `UPDATE threads SET status='running', updated_at=now()
-          WHERE id=$1 AND workspace_id=$2 AND status IN ('queued','paused') RETURNING id`,
-        [input.threadId, scope.workspaceId],
-      );
-      if ((claimed.rowCount ?? 0) === 0) {
-        const cur = await c.query<{ status: string }>(
-          `SELECT status FROM threads WHERE id=$1 AND workspace_id=$2`, [input.threadId, scope.workspaceId]);
-        blocked = (cur.rows[0]?.status ?? "unknown") === "running";
-      }
-      await c.query("COMMIT");
-    } catch (err) {
-      await c.query("ROLLBACK").catch(() => undefined);
-      throw err;
-    } finally {
-      c.release();
-    }
-    // 他方正在执行：幂等退出（不并发重入）；
-    // pending_review/completed/failed 等维持原语义（审批续跑/重放由 runQuest 按事件态处理）
-    if (blocked) {
-      return { threadId: input.threadId, status: "running", stepsDone: 0, stepsTotal: 0, unverified: [], presetKey: "" };
-    }
+      await failure.query("BEGIN");
+      await failure.query("SELECT set_config('app.workspace_id',$1,true)", [scope.workspaceId]);
+      await failure.query("SELECT set_config('app.tenant_id',$1,true)", [scope.tenantId]);
+      await failure.query(`UPDATE threads SET status='failed',error=$4,updated_at=now()
+        WHERE id=$1 AND workspace_id=$2 AND tenant_id=$3 AND status='running'`,
+      [input.threadId, scope.workspaceId, scope.tenantId, message]);
+      await failure.query("COMMIT");
+    } catch (persistError) {
+      await failure.query("ROLLBACK").catch(() => undefined);
+      throw new AggregateError([error, persistError], "THREAD_EXECUTION_AND_FAILURE_PERSISTENCE_FAILED");
+    } finally { failure.release(); }
+    throw error;
   }
-  const presetKey = await resolveThreadPresetKey(scope, input.presetRef, input.goal);
-  const toolExecutor = await loadDeploymentToolExecutor(scope);
-  const visualGoal = VISUAL_GOAL_PATTERN.test(input.goal);
-  const warnings = await questCoverageWarnings(scope, presetKey, input.goal);
-  // GR-13：把本工作区 bundle 的对象枚举交给规划器（围栏词表由 runQuest 内部按 active 规则注入）
-  const planVocabulary = await loadObjectVocabulary(scope);
-  // 行业规划器由行业仓组合根注册；未注册（基座缺省）时不传 fallbackPlanner，退回通用确定性规划
-  const fallbackPlanner = industryPlannerFactory?.(input.goal);
-  const result = await runQuest(getAppPool(), getGatewayPool(), scope, {
-    threadId: input.threadId,
-    goal: input.goal,
-    presetKey,
-    ...(input.mode ? { mode: input.mode } : {}),
-    ...(input.replan ? { replan: true, ...(input.replanReason ? { replanReason: input.replanReason } : {}) } : {}),
-    // 视觉目标关掉 LLM 规划（空参步骤到桥侧必 bad_request），走行业确定性直译
-    ...(visualGoal ? {} : { llmCall: llmCall("quest-plan") }),
-    ...(fallbackPlanner ? { fallbackPlanner } : {}),
-    ...(toolExecutor ? { toolExecutor } : {}),
-    ...(planVocabulary.objectTypes.length ? { planVocabulary } : {}),
-  });
-  return { ...result, ...(warnings.length ? { warnings } : {}), presetKey };
 }
 
 /**

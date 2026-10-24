@@ -42,6 +42,13 @@ import { clientNaturalText } from "../../lib/clientText";
 import { NAV_ENTRIES } from "../../shell/NavMenu";
 import { COMMON_STATUS_TEXT, dictText, THREAD_MODE_TEXT } from "../../lib/display";
 import { sharedLayoutPixels } from "../../lib/useAskRail";
+import { useNavigationAccess } from "../../shell/NavigationAccess";
+import { operationFailure } from "../../lib/ui-state";
+import {
+  beginDispatchAttempt, finishSettledDispatch, readDispatchAttempt, updateDispatchAttempt,
+  type DispatchAttempt,
+} from "../../extensions/consulting/dispatch-attempt";
+import { consultingTaskStatusText, type ConsultingTaskView } from "../../extensions/consulting/task-client";
 
 /** 路由 → 情境快捷钮（前缀匹配；越靠上越优先） */
 const CONTEXT_CHIPS: Array<[prefix: string, chips: string[]]> = [
@@ -96,11 +103,18 @@ interface TaskCard {
   unverified?: string[];
   /** 归属岗位（举一反三/X-06：卡片上就能看出活派给了谁） */
   presetKey?: string;
+  currentAction?: string;
+  executionSource?: "consulting-report" | "generic";
+  consultingStatus?: string;
+  artifactAvailable?: boolean;
+  sourceCount?: number;
+  detailLoaded?: boolean;
+  readError?: string;
 }
 
 const TASK_STATUS_TEXT: Record<string, string> = {
   queued: "排队中", running: "进行中", pending_review: "等待业务关卡放行",
-  completed: "已完成", failed: "失败", paused: "已暂停",
+  completed: "已完成", failed: "失败", paused: "已暂停", cancelled: "已停止",
 };
 
 function taskStatusClass(status: string): string {
@@ -112,6 +126,8 @@ function taskStatusClass(status: string): string {
 }
 
 function taskCardSummary(card: TaskCard): string {
+  if (card.consultingStatus === "draft_ready") return "内部报告草稿已生成，待人工审阅";
+  if (card.consultingStatus) return consultingTaskStatusText(card.consultingStatus);
   if (card.summary) return card.summary;
   if (card.status === "completed") return `全部 ${card.stepsTotal ?? card.stepsDone ?? 0} 步已完成`;
   if (card.status === "failed") return "执行失败，可进入任务详情查看原因";
@@ -160,6 +176,15 @@ interface DispatchResult {
   /** runImmediately 的 Quest 执行回执（步数/总数；pending_review=有步骤等待业务关卡放行） */
   stepsDone?: number;
   stepsTotal?: number;
+  requestId?: string;
+  executionSource?: "consulting-report" | "generic";
+  error?: string;
+  current_action?: string | null;
+  warnings?: string[];
+  pendingApprovalId?: string;
+  presetKey?: string;
+  blockedBy?: string;
+  unverified?: string[];
 }
 
 function ClapperIcon({ size = 24 }: { size?: number }) {
@@ -172,13 +197,13 @@ function ClapperIcon({ size = 24 }: { size?: number }) {
  *   整卡可点 → 任务详情（与员工头顶任务牌同一线程状态机）。
  *   2026-09-21 产品所有者口径（本机单人运行）：卡片不再附「批准并继续」按钮——基座通用审批环节已移除。
  */
-function TaskCardView({ card, onOpen, highlight = false }: {
+function TaskCardView({ card, onOpen, onReport, highlight = false }: {
   card: TaskCard;
   onOpen: () => void;
+  onReport: () => void;
   /** 任务完成播报期间（小织的魔法棒指过来）卡片发光，视线落在同一处 */
   highlight?: boolean;
 }) {
-  const terminal = card.status === "completed" || card.status === "failed";
   const icon = card.status === "completed" ? "check"
     : card.status === "failed" ? "error"
       : card.status === "pending_review" ? "warning"
@@ -192,7 +217,7 @@ function TaskCardView({ card, onOpen, highlight = false }: {
       role="button"
       tabIndex={0}
       onClick={onOpen}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
+      onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onOpen(); } }}
       title="打开任务详情"
       className={`cursor-pointer rounded-xl border bg-bg850/85 p-2.5 text-left transition-all hover:border-gline ${
         highlight ? "border-gold/70 shadow-[0_0_26px_rgba(255,214,138,.35)]" : "border-line"
@@ -202,12 +227,15 @@ function TaskCardView({ card, onOpen, highlight = false }: {
         <Icon name={icon} size={15} className={iconClass} />
         {/* 截断必须给完整文本提示（基座 UI 治理门禁：截断/单行内容要有 title 兜底） */}
         <span className="min-w-0 flex-1 truncate text-body font-bold text-ink" title={card.title}>{card.title}</span>
-        <span className={`shrink-0 rounded border px-1.5 text-body ${taskStatusClass(card.status)}`}>
+        <span className={`min-w-0 max-w-[55%] shrink-0 break-words rounded border px-1.5 text-center text-body ${taskStatusClass(card.status)}`}>
           {/* 动态值必须先经中文映射（门禁：工程代号/原始字段不上屏） */}
-          {dictText(TASK_STATUS_TEXT, card.status)}
+          {card.consultingStatus ? consultingTaskStatusText(card.consultingStatus) : dictText(TASK_STATUS_TEXT, card.status)}
         </span>
       </div>
       <div className="mt-1 break-words text-body text-ink3">{taskCardSummary(card)}</div>
+      {card.currentAction && <div className="mt-1 break-words text-body text-ink2">当前动作：{clientNaturalText(card.currentAction, "当前动作待确认")}</div>}
+      {card.executionSource && <div className="mt-1 text-body text-ink3">执行来源：{card.executionSource === "consulting-report" ? "公开资料报告流程" : "通用任务流程"}{card.sourceCount !== undefined ? ` · 已冻结 ${card.sourceCount} 项来源` : ""}</div>}
+      {card.readError && <div role="alert" className="mt-1 text-body text-alert">{card.readError} 保留最后已知状态，正在重新读取。</div>}
       {card.presetKey && (
         <div className="mt-0.5 text-body text-ink3">派给：{clientIdentifierText(card.presetKey)} · {card.mode === "agent" ? "逐步确认" : card.mode === "ask" ? "问答" : "自主执行"}</div>
       )}
@@ -232,6 +260,7 @@ function TaskCardView({ card, onOpen, highlight = false }: {
           <Icon name="error" size={12} label="失败" />{card.error}
         </div>
       )}
+      {card.artifactAvailable && <button type="button" onClick={event => { event.stopPropagation(); onReport(); }} className="mt-2 w-full rounded border border-gline px-2 py-1 text-body text-gold hover:bg-gold/10">打开报告</button>}
       {/**
        * X-02（第四轮实测，P0）：挂起任务必须给出**可点的**下一秒动作——去审批直达。
        * 链接带 ?apr= 锚点，任务页据此高亮并滚动到该审批卡（GR-24）。
@@ -266,6 +295,12 @@ function emitRailWidth(w: number) {
 }
 
 export function StarRing() {
+  const { identityKey, status, bundle } = useNavigationAccess();
+  return <ScopedStarRing key={`${identityKey}:${bundle?.bundleId ?? "pending"}`} identityKey={identityKey}
+    accessReady={status === "ready"} queueTasks={bundle?.bundleId === "consulting"} />;
+}
+
+function ScopedStarRing({ identityKey, accessReady, queueTasks }: { identityKey: string; accessReady: boolean; queueTasks: boolean }) {
   const nav = useNavigate();
   const { pathname } = useLocation();
   // 首次提交就必须与当前视口一致；若等 useEffect 再收起，窄屏会先闪现一帧
@@ -276,6 +311,11 @@ export function StarRing() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [msgs, setMsgs] = useState<RingMsg[]>([]);
+  const [attempt, setAttempt] = useState<DispatchAttempt | null>(null);
+  const [dispatchNotice, setDispatchNotice] = useState<string | null>(null);
+  const sendingRef = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   /** 三合一：域（工作区 / 我的）与下一条落点预设（由页面 chip / 小织头像唤起时注入） */
   const [domain, setDomain] = useState<RailDomain>("work");
   const [presetIntent, setPresetIntent] = useState<RailIntent | null>(null);
@@ -392,9 +432,91 @@ export function StarRing() {
   }, [msgs, collapsed]);
 
   const pushMsg = useCallback((m: Omit<RingMsg, "id">) => {
-    msgSeq.current += 1;
-    setMsgs((cur) => [...cur, { ...m, id: msgSeq.current }]);
+    if (!alive.current) return;
+    const id = ++msgSeq.current;
+    setMsgs((cur) => [...cur, { ...m, id }]);
   }, []);
+
+  const recordAttempt = useCallback((requestId: string, state: DispatchAttempt["state"], threadId?: string) => {
+    const prior = readDispatchAttempt(identityKey);
+    if (prior?.requestId !== requestId || (prior.state === "settled" && state !== "settled")) return;
+    updateDispatchAttempt(identityKey, requestId, { state, ...(threadId ? { threadId } : {}) });
+    if (alive.current) setAttempt(readDispatchAttempt(identityKey));
+  }, [identityKey]);
+
+  const showDispatchResult = useCallback((result: DispatchResult, requestId: string, text = "恢复的原提交") => {
+    if (!alive.current) return;
+    if (result.kind === "dispatching") {
+      recordAttempt(requestId, "dispatching");
+      setDispatchNotice("正在确认原提交结果；服务端已认领，当前只查询原请求，不会另建任务。");
+      return;
+    }
+    if (result.kind === "not-found") {
+      setDispatchNotice("正在确认原提交结果：暂未查询到服务端记录。请重新输入相同目标并提交，将沿用原请求标识。");
+      return;
+    }
+    if (result.kind === "failed") {
+      recordAttempt(requestId, "settled");
+      setDispatchNotice(clientNaturalText(result.error, "原提交未完成，服务端尚未提供具体原因。请核对任务中心后明确新建任务。"));
+      return;
+    }
+    if (result.kind === "clarify") {
+      recordAttempt(requestId, "settled"); setDispatchNotice(null);
+      setConfirm({ text, options: hasActionVerb(text) ? ["task", "note", "ask"] : ["ask", "note", "task"] });
+      const routeContext = (result as { routeContext?: { goal?: string } }).routeContext;
+      if (routeContext?.goal) pendingClarifyRef.current = routeContext.goal;
+      pushMsg({ role: "agent", action: "落点待确认", receipt: "unverified",
+        text: clientNaturalText(result.question, "请补充目标与时间；信息完整前不会创建任务。") });
+      return;
+    }
+    if (result.mode === "ask") {
+      recordAttempt(requestId, "settled", result.threadId); setDispatchNotice(null);
+      pushMsg({ role: "agent", intent: "ask", action: INTENT_LABEL.ask, receipt: "unverified", refId: result.threadId,
+        text: clientNaturalText(result.answer, "原提交已返回，尚无可展示的应答正文。"), ...(text !== "恢复的原提交" ? { prompt: text } : {}) });
+      return;
+    }
+    if (!result.threadId) throw new Error("Dispatch result has no recoverable thread");
+    recordAttempt(requestId, "settled", result.threadId); setDispatchNotice(null);
+    const card: TaskCard = {
+      threadId: result.threadId, title: text, status: result.status ?? "queued", mode: result.mode,
+      stepsDone: result.stepsDone, stepsTotal: result.stepsTotal, updatedAt: new Date().toISOString(),
+      warnings: result.warnings, error: result.error, currentAction: result.current_action ?? undefined,
+      approvalId: result.pendingApprovalId, presetKey: result.presetKey, blockedBy: result.blockedBy,
+      unverified: result.unverified, executionSource: result.executionSource, detailLoaded: false,
+    };
+    const id = ++msgSeq.current;
+    setMsgs(current => current.some(message => message.card?.threadId === result.threadId)
+      ? current : [...current, { id, role: "agent", intent: "task", card }]);
+  }, [recordAttempt, pushMsg]);
+
+  useEffect(() => {
+    if (!accessReady) return;
+    try { setAttempt(readDispatchAttempt(identityKey)); }
+    catch (error) { setDispatchNotice(error instanceof Error ? error.message : "原提交恢复标识读取失败，尚未提交新任务。"); }
+  }, [identityKey, accessReady]);
+
+  useEffect(() => {
+    if (!accessReady || !attempt?.requestId) return;
+    const requestId = attempt.requestId;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const queryOriginal = async () => {
+      try {
+        if (sendingRef.current) { timer = setTimeout(() => void queryOriginal(), 5000); return; }
+        const result = await trpc.threads.dispatchRequest.query({ requestId }) as DispatchResult;
+        if (cancelled || !alive.current || sendingRef.current) return;
+        showDispatchResult(result, requestId);
+      } catch (error) {
+        if (!cancelled && alive.current) setDispatchNotice(`${operationFailure(error, "原提交查询")} 保留原请求标识，不会自动重发。`);
+      }
+      if (!cancelled && alive.current) {
+        try { if (readDispatchAttempt(identityKey)?.state !== "settled") timer = setTimeout(() => void queryOriginal(), 5000); }
+        catch (error) { setDispatchNotice(error instanceof Error ? error.message : "请求标识读取失败。"); }
+      }
+    };
+    void queryOriginal();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [accessReady, attempt?.requestId, identityKey, showDispatchResult]);
 
   /**
    * 发送（三合一：四种落点 + 我的域）：
@@ -408,10 +530,12 @@ export function StarRing() {
      * GR-20：clarify 续答——上一轮若在等用户回答（如"走营销片还是叙事片"），
      * 这次输入必须与原目标合并回传，否则"走营销片"会被当成全新目标、与原需求脱节。
      */
+    if (sendingRef.current || !accessReady) return;
     const pendingGoal = pendingClarifyRef.current;
     const text = pendingGoal ? `${pendingGoal}（用户补充：${raw.trim()}）` : raw.trim();
+    if (!text) return;
+    sendingRef.current = true;
     pendingClarifyRef.current = null;
-    if (!text || sending) return;
     const intent: RailIntent = forcedIntent
       ?? presetIntent
       ?? classifyRailIntent(text, { domain, threadId: ctxThreadId, nightChannel });
@@ -420,9 +544,10 @@ export function StarRing() {
     setSending(true);
     pushMsg({ role: "human", text });
     setInput("");
-    let cardMsgId: number | null = null;
+    let activeRequestId: string | null = null;
     try {
       await ensureDemoLogin();
+      if (!alive.current) return;
       const secretary = trpc.service as unknown as {
         secretary: { chat: { mutate: (i: { text: string }) => Promise<{ reply: string }> } };
       };
@@ -481,12 +606,13 @@ export function StarRing() {
          * 以前传 goal 会把计划按"继续/推进吧"重新洗一遍（漂移、空计划、误匹配都由此而来）。
          */
         const r = await trpc.threads.run.mutate({ threadId: ctxThreadId }) as {
-          status?: string; stepsDone?: number; stepsTotal?: number;
+          status?: string; stepsDone?: number; stepsTotal?: number; error?: string; current_action?: string;
         };
         pushMsg({
-          role: "agent", intent, action: `${INTENT_LABEL.advance} · 已续跑`, receipt: "unverified", refId: ctxThreadId,
-          text: `已续跑任务${clientIdentifierText(ctxThreadId)}：${dictText(COMMON_STATUS_TEXT, r.status ?? "queued")}`
-            + `（${r.stepsDone ?? 0}/${r.stepsTotal ?? 0} 步）。执行仍以围栏与回执为准。`,
+          role: "agent", intent, action: `${INTENT_LABEL.advance} · 状态已返回`, receipt: "unverified", refId: ctxThreadId,
+          text: `任务${clientIdentifierText(ctxThreadId)}当前状态：${dictText(COMMON_STATUS_TEXT, r.status ?? "queued")}`
+            + `（${r.stepsDone ?? 0}/${r.stepsTotal ?? 0} 步）。执行仍以围栏与回执为准。`
+            + (r.error ? ` ${clientNaturalText(r.error, "任务执行未完成，具体原因待确认。")}` : ""),
           linkTo: `/tasks/${encodeURIComponent(ctxThreadId)}`,
         });
         return;
@@ -496,85 +622,52 @@ export function StarRing() {
        * 派活的执行路由（2026-09-20 真机修复）：
        *  - 视觉类目标（海报/配图/封面/生图…）默认派给「视觉设计师」岗位——它声明了
        *    visualwrite.* 工具，才会走真实视觉工位（bridge → Ark seedream）出图；
-       *  - runImmediately：本机演示没有独立调度器，只立项会永远排队；这里让派活立即执行
-       *    （围栏/回执语义不变；命中业务关卡时 pending_review 会在对应业务页面等待放行）。
+       *  - 咨询任务只入队并立即取得线程，由真实后台调度器执行，便于中途查看、转人工或停止；
+       *    其它行业保留既有立即执行语义。客户端不会补发另一个 run 请求。
        */
       // 覆盖口语说法："生成一张…图 / 画一张 / 做一张…图"都要能落到视觉岗位
       const visualGoal = /海报|配图|封面|生图|出图|图片|视觉|主视觉|素材图|生成.{0,12}图|画一?[张幅].{0,12}图|做一?[张幅].{0,12}图/.test(text);
       const presetKey = presetKeyRef.current ?? (visualGoal ? "visual-designer" : undefined);
       presetKeyRef.current = null;
-      const r = (await trpc.threads.dispatch.mutate({
-        title: text, ...(presetKey ? { presetKey } : {}), runImmediately: intent === "task",
-      })) as DispatchResult;
-      if (r.kind === "clarify") {
-        // 像留言的陈述句被反问时，给出落点确认（误路由一键纠正）
-        setConfirm({ text, options: hasActionVerb(text) ? ["task", "note", "ask"] : ["ask", "note", "task"] });
-        // GR-20：视频分流等"带上下文的追问"记下原目标，下一条输入合并回传
-        const routeContext = (r as { routeContext?: { goal?: string } }).routeContext;
-        if (routeContext?.goal) pendingClarifyRef.current = routeContext.goal;
-        pushMsg({
-          role: "agent", intent, action: "落点待确认", receipt: "unverified", refId: r.threadId,
-          text: clientNaturalText(r.question, "请补充目标与时间；信息完整前不会创建任务。"),
-        });
-      } else if (intent === "ask" || (r.mode === "ask" && r.answer)) {
-        pushMsg({
-          role: "agent", intent: "ask", action: INTENT_LABEL.ask,
-          receipt: "synced", refId: r.threadId,
-          text: clientNaturalText(r.answer, "应答内容暂时无法显示，请稍后再试。"),
-          prompt: text,
-        });
-      } else {
-        /**
-         * 长周期任务：出**任务卡片**而不是长文本气泡（2026-09-20 产品要求）——
-         * 卡片状态与员工头顶任务牌同源（同一个线程状态机），完成后点卡片直接进任务详情。
-         */
-        msgSeq.current += 1;
-        cardMsgId = msgSeq.current;
-        /**
-         * GR-15 ③ / GR-17：把「无连接器（将以未核实收尾）」与「执行失败原因」直接带到卡片上——
-         * 此前用户要等任务跑完、进任务页才发现没有连接器或被驳回，属于"事后才知道"。
-         */
-        const dispatchWarnings = (r as { warnings?: string[] }).warnings ?? [];
-        const dispatchError = (r as { error?: string }).error;
-        const dispatchApprovalId = (r as { pendingApprovalId?: string }).pendingApprovalId;
-        const dispatchPresetKey = (r as { presetKey?: string }).presetKey;
-        const dispatchBlockedBy = (r as { blockedBy?: string }).blockedBy;
-        const dispatchUnverified = (r as { unverified?: string[] }).unverified;
-        const card: TaskCard = {
-          threadId: r.threadId ?? "",
-          title: text,
-          status: r.status ?? "queued",
-          mode: r.mode,
-          stepsDone: r.stepsDone,
-          stepsTotal: r.stepsTotal,
-          updatedAt: new Date().toISOString(),
-          ...(dispatchWarnings.length ? { warnings: dispatchWarnings } : {}),
-          ...(dispatchError ? { error: dispatchError } : {}),
-          ...(dispatchApprovalId ? { approvalId: dispatchApprovalId } : {}),
-          ...(dispatchBlockedBy ? { blockedBy: dispatchBlockedBy } : {}),
-          ...(dispatchUnverified?.length ? { unverified: dispatchUnverified } : {}),
-          ...(dispatchPresetKey ? { presetKey: dispatchPresetKey } : {}),
-        };
-        setMsgs((cur) => [...cur, { id: cardMsgId!, role: "agent", intent: "task", card }]);
+      const runImmediately = intent === "task" && !queueTasks;
+      const begun = await beginDispatchAttempt(identityKey, { title: text, ...(presetKey ? { presetKey } : {}), runImmediately });
+      if (!alive.current) return;
+      activeRequestId = begun.attempt.requestId;
+      setAttempt(begun.attempt);
+      let result: DispatchResult | null = null;
+      if (begun.reused) {
+        const original = await trpc.threads.dispatchRequest.query({ requestId: activeRequestId }) as DispatchResult;
+        if (!alive.current) return;
+        if (original.kind !== "not-found") result = original;
+        else if (begun.attempt.state === "settled") {
+          setDispatchNotice("原提交已结算，但暂未读取到服务端结果。请先到任务中心核对；明确点击新建任务后才会生成新请求。");
+          return;
+        }
       }
-    } catch (e) {
-      console.warn("织伴统一入口请求失败", e);
+      if (!result) {
+        result = await trpc.threads.dispatch.mutate({
+          title: text, ...(presetKey ? { presetKey } : {}), runImmediately, requestId: activeRequestId,
+        }) as DispatchResult;
+      }
+      showDispatchResult(result, activeRequestId, text);
+    } catch (error) {
+      if (!alive.current) return;
       setInput(text);
-      const message = e instanceof Error ? e.message : String(e);
-      // 错误文案给下一步（U3-02）：并发上限/权限/并发冲突分别给出可执行指引，不再一律说"连不上"
-      const guidance = /并发上限|TOO_MANY_REQUESTS|429/.test(message)
-        ? "当前工作区在跑的任务已达并发上限（10 条）。请先到任务中心处理/关闭在跑任务，再重发这条输入。"
-        : /FORBIDDEN|权限|403/.test(message)
-          ? "当前身份没有执行该动作的权限；如需派活或推进，请联系管理员调整角色。"
-          : "织伴暂时无法连接服务。输入已保留，请稍后重试。";
-      pushMsg({
-        role: "agent", action: "调用失败", receipt: "failed",
-        text: guidance,
-      });
+      if (activeRequestId) {
+        try { recordAttempt(activeRequestId, "unknown"); }
+        catch (storageError) { setDispatchNotice(storageError instanceof Error ? storageError.message : "本机请求标识暂不可读，请先核对原任务。"); }
+        pushMsg({ role: "agent", action: "提交结果待确认", receipt: "unverified",
+          text: `${operationFailure(error, "任务提交")} 输入已保留；再次提交会先查询原请求并沿用同一标识。` });
+      } else {
+        pushMsg({ role: "agent", action: "操作未完成", receipt: "failed",
+          text: error instanceof Error && /恢复标识|原提交|上一项|身份尚未/.test(error.message)
+            ? error.message : `${operationFailure(error, "本次操作")} 输入已保留。` });
+      }
     } finally {
-      setSending(false);
+      sendingRef.current = false;
+      if (alive.current) setSending(false);
     }
-  }, [sending, pushMsg, presetIntent, domain, ctxThreadId, nightChannel]);
+  }, [accessReady, identityKey, queueTasks, pushMsg, presetIntent, domain, ctxThreadId, nightChannel, recordAttempt, showDispatchResult]);
 
   /* 外部 chip 通过 sendRef 调用最新 send（事件监听常驻，不因依赖变化重挂） */
   useEffect(() => { sendRef.current = send; }, [send]);
@@ -587,70 +680,59 @@ export function StarRing() {
    */
   const msgsRef = useRef<RingMsg[]>([]);
   msgsRef.current = msgs;
-  const pendingCardKey = msgs
-    .filter((m) => m.card && m.card.threadId && m.card.status !== "completed" && m.card.status !== "failed")
-    .map((m) => `${m.id}:${m.card!.threadId}`)
-    .join(",");
+  const shouldReadCard = (card: TaskCard) => !card.detailLoaded || Boolean(card.readError)
+    || !["completed", "failed", "cancelled"].includes(card.status);
+  const pendingCardKey = msgs.filter(message => message.card?.threadId && shouldReadCard(message.card))
+    .map(message => `${message.id}:${message.card!.threadId}`).join(",");
   useEffect(() => {
     if (!pendingCardKey) return;
-    let alive = true;
-    /** 每个线程上一次已知状态：非终态 → completed/failed 的一次跃迁触发「小织任务完成播报」 */
-    const settledRef = new Map<string, string>();
-    /**
-     * N-12：轮询降频——原来只有 completed/failed 才停止，`pending_review`（等审批）与 `paused`（熔断）
-     * 会 5s 一次永久打服务端。改为：活跃态 5s；停滞态（等人工）降频到 30s；
-     * 连续 N 次无变化再退到 60s（审批/熔断本就不会自己变，等用户动作即可）。
-     */
-    const POLL_ACTIVE_MS = 5000;
-    const POLL_IDLE_MS = 30000;
-    const POLL_STALE_MS = 60000;
-    let timer: number | undefined;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const tick = async () => {
-      try {
-        await ensureDemoLogin();
-        const targets = msgsRef.current.filter(
-          (m) => m.card && m.card.threadId && m.card.status !== "completed" && m.card.status !== "failed",
-        );
-        for (const m of targets) {
-          const threadId = m.card!.threadId;
-          const t = (await trpc.threads.get.query({ threadId })) as {
-            status?: string; progress_done?: number; progress_total?: number; updated_at?: string; error?: string | null;
+      const targets = msgsRef.current.filter(message => message.card?.threadId && shouldReadCard(message.card));
+      await Promise.all(targets.map(async message => {
+        const threadId = message.card!.threadId;
+        try {
+          await ensureDemoLogin();
+          if (cancelled || !alive.current) return;
+          const thread = await trpc.threads.get.query({ threadId }) as {
+            title?: string; status?: string; progress_done?: number; progress_total?: number; updated_at?: string;
+            error?: string | null; current_action?: string | null; executionSource?: "consulting-report" | "generic";
             pending_approval_id?: string | null; preset_key?: string | null;
           } | null;
-          if (!alive || !t?.status) continue;
-          const previous = settledRef.get(threadId);
-          if (previous && previous !== t.status && (t.status === "completed" || t.status === "failed")) {
-            // 完成后主动播报：小织挥魔法棒并指向本卡片（LoomMate 监听该事件）
-            window.dispatchEvent(new CustomEvent("workloom:task-settled", {
-              detail: { threadId, title: m.card!.title, status: t.status },
-            }));
+          if (cancelled || !alive.current) return;
+          if (!thread?.status) throw new Error("Thread detail unavailable");
+          const consulting = thread.executionSource === "consulting-report"
+            ? await trpc.consulting.taskView.query({ threadId }) as ConsultingTaskView | null : null;
+          if (cancelled || !alive.current) return;
+          if (thread.executionSource === "consulting-report" && (!consulting || consulting.threadId !== threadId)) throw new Error("Industry task detail unavailable");
+          if (message.card?.status !== thread.status && ["completed", "failed"].includes(thread.status)) {
+            window.dispatchEvent(new CustomEvent("workloom:task-settled", { detail: { threadId, title: thread.title ?? message.card?.title, status: thread.status } }));
           }
-          settledRef.set(threadId, t.status);
-          setMsgs((cur) => cur.map((x) => (x.id === m.id && x.card ? {
-            ...x,
-            card: {
-              ...x.card,
-              status: t.status!,
-              stepsDone: typeof t.progress_done === "number" ? t.progress_done : x.card.stepsDone,
-              stepsTotal: typeof t.progress_total === "number" ? t.progress_total : x.card.stepsTotal,
-              updatedAt: t.updated_at ?? new Date().toISOString(),
-              ...(t.error ? { error: t.error } : {}),
-              // X-02：审批号随轮询刷新（批准/续跑后自动消失，不残留旧号）
-              ...(t.pending_approval_id ? { approvalId: t.pending_approval_id } : { approvalId: undefined }),
-              ...(t.preset_key ? { presetKey: t.preset_key } : {}),
-            },
-          } : x)));
+          setMsgs(current => current.map(item => item.id === message.id && item.card ? { ...item, card: {
+            ...item.card, title: thread.title ?? item.card.title, status: thread.status!, detailLoaded: true, readError: undefined,
+            stepsDone: typeof thread.progress_done === "number" ? thread.progress_done : item.card.stepsDone,
+            stepsTotal: typeof thread.progress_total === "number" ? thread.progress_total : item.card.stepsTotal,
+            updatedAt: thread.updated_at ?? item.card.updatedAt,
+            error: thread.error ? clientNaturalText(thread.error, "任务执行未完成，具体原因待确认。")
+              : thread.status === "failed" ? "任务执行未完成，服务端尚未提供具体失败原因。" : undefined,
+            currentAction: thread.current_action ? clientNaturalText(thread.current_action, "当前动作待确认") : undefined,
+            executionSource: thread.executionSource ?? "generic", approvalId: thread.pending_approval_id ?? undefined,
+            presetKey: thread.preset_key ?? item.card.presetKey,
+            consultingStatus: consulting?.status, sourceCount: consulting?.sources.length,
+            artifactAvailable: consulting?.finalArtifact?.synced === true && /^[a-f0-9]{64}$/i.test(consulting.finalArtifact.sha256),
+          } } : item));
+        } catch (error) {
+          if (!cancelled && alive.current) setMsgs(current => current.map(item => item.id === message.id && item.card
+            ? { ...item, card: { ...item.card, readError: operationFailure(error, "任务状态读取") } } : item));
         }
-      } catch { /* 断线保留上次状态 */ }
-      if (!alive) return;
-      const idle = msgsRef.current.some((m) =>
-        m.card && (m.card.status === "pending_review" || m.card.status === "paused"));
-      const unchanged = settledRef.size > 0 && [...settledRef.values()].every((s) => s === "pending_review" || s === "paused");
-      const next = unchanged ? POLL_STALE_MS : idle ? POLL_IDLE_MS : POLL_ACTIVE_MS;
-      timer = window.setTimeout(() => void tick(), next);
+      }));
+      if (cancelled || !alive.current) return;
+      const idle = targets.length > 0 && targets.every(message => ["pending_review", "paused"].includes(message.card!.status));
+      timer = setTimeout(() => void tick(), idle ? 30000 : 5000);
     };
     void tick();
-    return () => { alive = false; if (timer) window.clearTimeout(timer); };
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [pendingCardKey]);
 
   const inputBar = (
@@ -668,7 +750,7 @@ export function StarRing() {
       />
       <button
         type="button"
-        disabled={!input.trim() || sending}
+        disabled={!input.trim() || sending || !accessReady}
         onClick={() => void send(input)}
         className="shrink-0 cursor-pointer rounded-lg gold-grad px-3.5 py-2 text-body font-black text-ongold disabled:cursor-not-allowed disabled:opacity-40"
       >
@@ -790,6 +872,7 @@ export function StarRing() {
             <TaskCardView
               key={m.id}
               card={m.card}
+              onReport={() => nav(`/tasks/${encodeURIComponent(m.card!.threadId)}#report`)}
               onOpen={() => {
                 if (!m.card?.threadId) return;
                 // X-02：挂起卡直达审批锚点（任务页据 ?apr= 高亮并滚动）
@@ -900,6 +983,11 @@ export function StarRing() {
             </div>
           </div>
         )}
+        {dispatchNotice && <div role="status" className="mb-2 break-words rounded border border-warn/40 bg-warn/5 p-2 text-body text-warn">{dispatchNotice}</div>}
+        {attempt?.state === "settled" && <button type="button" disabled={sending} className="mb-2 text-body text-holo underline disabled:opacity-50" onClick={() => {
+          try { finishSettledDispatch(identityKey); setAttempt(null); setDispatchNotice(null); pendingClarifyRef.current = null; inputRef.current?.focus(); }
+          catch (error) { setDispatchNotice(error instanceof Error ? error.message : "新任务标识暂不可用。"); }
+        }}>新建任务</button>}
         {inputBar}
       </div>
     </div>

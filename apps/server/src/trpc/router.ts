@@ -12,7 +12,7 @@ import { TRPCError } from "@trpc/server";
 import type pg from "pg";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { getAppPool, getGatewayPool, getOwnerPool } from "@workloom/db";
 import {
   getMember,
@@ -24,7 +24,9 @@ import { gatewayAppend, gatewayAppendOnClient, insertWithReadableId, MockEmbedde
 import { INTENT_ROUTE_TIMEOUT_DISPATCH_MS, makeReadableId } from "@workloom/shared";
 import { registerAskKbSearch } from "@workloom/runtime";
 
-import { loadGoalArchive, registerIndustryQuestPlanner, resolveDispatchPresetKey } from "../runtime/thread-runner.js";
+import { loadGoalArchive, registerIndustryQuestPlanner, registerIndustryThreadExecutor, resolveDispatchPresetKey, runQuestForThread } from "../runtime/thread-runner.js";
+import { claimDispatchRequest, dispatchFingerprint, readDispatchRequest, settleDispatchRequest, type DispatchResult } from "../runtime/thread-dispatch-request.js";
+import { assertThreadInputSafe } from "../runtime/thread-input.js";
 import {
   actionProcedure,
   capabilityActionProcedure,
@@ -44,7 +46,7 @@ import {
   expireSweep,
   listQueue,
 } from "@workloom/base/review-console";
-import { routeIntent, runAsk, runQuest } from "@workloom/runtime";
+import { routeIntent, runAsk } from "@workloom/runtime";
 import { LlmIntentClassifier, type IntentClassifier } from "@workloom/runtime";
 import { providerFromEnv, OpenAiCompatibleProvider } from "@workloom/base/model-router";
 import { routedLlmCall, resetLlmAssembly } from "../service/llm.js";
@@ -58,7 +60,7 @@ import { overlayRouter } from "./overlay-router.js";
 import { accountsRouter } from "./accounts-router.js";
 import { searchKB } from "../service/kb.js";
 import { acquisitionQuestPlanner } from "../industry/hotel/acquisition-planner.js";
-import { consultingRouter } from "../industry/consulting/router.js";
+import { consultingRouter, createConsultingIndustryThreadExecutor } from "../industry/consulting/router.js";
 import { runRouterReviewBeat } from "@workloom/base/model-router";
 import {
   loadCharter, parseCharter, transition, defaultCharter,
@@ -1089,6 +1091,8 @@ const threadsRouter = router({
   dispatch: capabilityActionProcedure("quest", "task.dispatch")
     .input(
       z.object({
+        /** Stable submission identity, retained across client response loss/reload. */
+        requestId: z.string().uuid().optional(),
         title: z.string().min(1).max(500), // F3.1：≤500 字
         // GR-14：长目标走档案引用——标题继续当 ≤500 字索引，规划器读全文（此前长 brief 被硬截断）
         goalRef: z.string().min(1).max(120).nullish(),
@@ -1100,125 +1104,152 @@ const threadsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const scope = scopeOf(ctx.identity);
-      // F3.2 意图路由（B8 接线：真实模型分类 → 超时/异常规则兜底 → 含糊反问；via 留痕）
-      // GR-06：交付型入口用 12s 预算（真实模型 3s 内回不来 → 此前 100% 落 timeout_fallback）
-      const intent = await routeIntent(input.title, intentClassifier(scope), INTENT_ROUTE_TIMEOUT_DISPATCH_MS);
-      if (intent.kind === "clarify") {
-        // 含糊指令：反问澄清，不盲目建任务
-        return { kind: "clarify" as const, question: intent.clarifyQuestion, via: intent.via };
-      }
-      // N-14：岗位解析带任务语义（视觉/视频/发布/增长四域偏好），不再只认 Bundle 清单顺序
-      const presetKey = input.presetKey ?? (await resolveDispatchPresetKey(scope, input.title));
-      /**
-       * GR-14：档案读取失败一律 fail-closed（按无档案走并留痕），绝不"猜"目标。
-       * 读到了则用全文替换规划目标；线程 title 仍是索引（事件 after 里带 goal_ref 与版本）。
-       */
-      const goalArchive = input.goalRef ? await loadGoalArchive(scope, input.goalRef) : undefined;
-      const planningGoal = goalArchive?.text ?? input.title;
-      if (input.goalRef && !goalArchive) {
-        console.warn(`[dispatch] goalRef=${input.goalRef} 未取到档案（fail-closed：按标题规划）`);
-      }
-      const app = getAppPool();
-      const client = await app.connect();
-      let threadId: string;
-      let selectedAgent: RunnableAgent;
+      assertThreadInputSafe(input.title, input.goalRef, input.presetKey);
+      const requestId = input.requestId ?? randomUUID();
+      const admission = await claimDispatchRequest(scope, ctx.identity.memberNo, requestId, dispatchFingerprint(input));
+      if (!admission.claimed) return admission.result;
+      const settle = (result: DispatchResult) => settleDispatchRequest(scope, ctx.identity.memberNo, requestId, result);
       try {
-        // 事务级 RLS 上下文必须在显式事务内设置：autocommit 下 set_config(...,true) 语句结束即失效
-        await client.query("BEGIN");
-        await client.query("SELECT set_config('app.workspace_id', $1, true)", [scope.workspaceId]);
-        await client.query("SELECT set_config('app.tenant_id', $1, true)", [scope.tenantId]);
-        selectedAgent = await runnableAgentOn(client, scope.workspaceId, presetKey);
+        // F3.2 意图路由（B8 接线：真实模型分类 → 超时/异常规则兜底 → 含糊反问；via 留痕）
+        // GR-06：交付型入口用 12s 预算（真实模型 3s 内回不来 → 此前 100% 落 timeout_fallback）
+        const intent = await routeIntent(input.title, intentClassifier(scope, { requestId }), INTENT_ROUTE_TIMEOUT_DISPATCH_MS);
+        if (intent.kind === "clarify") {
+          // 含糊指令：反问澄清，不盲目建任务
+          return settle({ kind: "clarify", question: intent.clarifyQuestion, via: intent.via });
+        }
+        const intentMode = intent.mode ?? "quest";
+        // N-14：岗位解析带任务语义（视觉/视频/发布/增长四域偏好），不再只认 Bundle 清单顺序
+        const presetKey = input.presetKey ?? (await resolveDispatchPresetKey(scope, input.title));
         /**
-         * L3.1：单工作区并发 ≤10，超出排队且可见（须在 RLS 上下文内统计，否则恒 0 行 fail-open）。
-         * N-15（第三轮实测）：只统计**有近期心跳**的 running——种子/崩溃遗留的"僵尸 running"
-         * 既不会被推进、也无法自愈，却白占配额（实测 3/10 被演示数据占掉）。
-         * 判定与调度器重启恢复同口径（`WORKLOOM_STALE_RUNNING_MIN`，默认 10 分钟）。
+         * GR-14：档案读取失败一律 fail-closed（按无档案走并留痕），绝不"猜"目标。
+         * 读到了则用全文替换规划目标；线程 title 仍是索引（事件 after 里带 goal_ref 与版本）。
          */
-        const staleRunningMin = Number(process.env.WORKLOOM_STALE_RUNNING_MIN ?? 10);
-        const conc = await client.query<{ c: string }>(
-          `SELECT count(*) AS c FROM threads
-            WHERE workspace_id=$1
-              AND (status='queued'
-                   OR (status='running' AND updated_at > now() - ($2::text || ' minutes')::interval))`,
-          [scope.workspaceId, String(Number.isFinite(staleRunningMin) && staleRunningMin > 0 ? staleRunningMin : 10)],
-        );
-        if (Number(conc.rows[0]?.c ?? 0) >= MAX_CONCURRENT_THREADS) {
-          throw new TRPCError({
-            code: "TOO_MANY_REQUESTS",
-            message: `并发上限 ${MAX_CONCURRENT_THREADS}/工作区（L3.1/G11），已超出请稍后或排队`,
+        const goalArchive = input.goalRef ? await loadGoalArchive(scope, input.goalRef) : undefined;
+        const planningGoal = goalArchive?.text ?? input.title;
+        assertThreadInputSafe(planningGoal);
+        if (input.goalRef && !goalArchive) {
+          console.warn(`[dispatch] goalRef=${input.goalRef} 未取到档案（fail-closed：按标题规划）`);
+        }
+        const app = getAppPool();
+        const client = await app.connect();
+        let threadId: string;
+        let selectedAgent: RunnableAgent;
+        try {
+          // 事务级 RLS 上下文必须在显式事务内设置：autocommit 下 set_config(...,true) 语句结束即失效
+          await client.query("BEGIN");
+          await client.query("SELECT set_config('app.workspace_id', $1, true)", [scope.workspaceId]);
+          await client.query("SELECT set_config('app.tenant_id', $1, true)", [scope.tenantId]);
+          selectedAgent = await runnableAgentOn(client, scope.workspaceId, presetKey);
+          /**
+           * L3.1：单工作区并发 ≤10，超出排队且可见（须在 RLS 上下文内统计，否则恒 0 行 fail-open）。
+           * N-15（第三轮实测）：只统计**有近期心跳**的 running——种子/崩溃遗留的"僵尸 running"
+           * 既不会被推进、也无法自愈，却白占配额（实测 3/10 被演示数据占掉）。
+           * 判定与调度器重启恢复同口径（`WORKLOOM_STALE_RUNNING_MIN`，默认 10 分钟）。
+           */
+          const staleRunningMin = Number(process.env.WORKLOOM_STALE_RUNNING_MIN ?? 10);
+          const conc = await client.query<{ c: string }>(
+            `SELECT count(*) AS c FROM threads
+              WHERE workspace_id=$1
+                AND (status='queued'
+                     OR (status='running' AND updated_at > now() - ($2::text || ' minutes')::interval))`,
+            [scope.workspaceId, String(Number.isFinite(staleRunningMin) && staleRunningMin > 0 ? staleRunningMin : 10)],
+          );
+          if (Number(conc.rows[0]?.c ?? 0) >= MAX_CONCURRENT_THREADS) {
+            throw new TRPCError({
+              code: "TOO_MANY_REQUESTS",
+              message: `并发上限 ${MAX_CONCURRENT_THREADS}/工作区（L3.1/G11），已超出请稍后或排队`,
+            });
+          }
+          /**
+           * X-07（第四轮实测，P2）：建档即写 agent_id——此前只有 runQuest 执行时才回填，
+           * 排队中的线程在楼层上无归属（`agent_id IS NULL` 被过滤），客户看不到"谁在排这条队"。
+           */
+          const ownerAgent = await client.query<{ id: string }>(
+            `SELECT id FROM agents WHERE workspace_id=$1 AND preset_key=$2 LIMIT 1`,
+            [scope.workspaceId, presetKey],
+          );
+          const ownerAgentId = ownerAgent.rows[0]?.id ?? selectedAgent.id;
+          /**
+           * 号源走 SECURITY DEFINER 函数（0016：全库最大值绕 RLS——主键全库唯一，按本区分配必撞他区；
+           * 历史教训：第二次派遣即 duplicate key，ASK/QUEST 主链路故障）。
+           *
+           * GR-02（2026-09-29 第二次修复，基座 T-2026-0929-0003）：取号 + 建档统一走
+           * `insertWithReadableId`——纯 nextval 原子取号、返回值直接可用（不再 +1）、
+           * 撞号用 SAVEPOINT 换号重试。旧实现把重试写在**已被中止的事务**里
+           * （PG：`current transaction is aborted`），从诞生起就不可能成功。
+           */
+          const allocated = await insertWithReadableId(client, THREAD_ID_SOURCE, async (id) => {
+            await client.query(
+              `INSERT INTO threads (id, tenant_id, workspace_id, title, mode, status, created_by, agent_id)
+               VALUES ($1,$2,$3,$4,$5,'queued',$6,$7)`,
+              [id, scope.tenantId, scope.workspaceId, input.title, intentMode, ctx.identity.memberNo, ownerAgentId],
+            );
+            return id;
+          });
+          threadId = allocated.id;
+          // D16（#1/A）：建线程与派遣事件同一事务（G8 留痕不再独立于状态）
+          await gatewayAppendOnClient(client, {
+            ...scope,
+            actor: { id: ctx.identity.memberNo, type: "human" },
+            sessionId: threadId,
+          }, {
+            who: { type: "human", id: ctx.identity.memberNo },
+            context: { tenant_id: scope.tenantId, workspace_id: scope.workspaceId, time: new Date().toISOString(), channel: "inapp" },
+            object: { type: "thread", id: threadId },
+            decision: {
+              action: "thread.dispatch",
+              after: {
+                threadId, title: input.title, mode: intentMode, rationale: intent.rationale, via: intent.via,
+                execution_request_id: requestId,
+                // GR-14：长文档案引用与版本进账本（规划输入可追溯）
+                ...(input.goalRef ? { goal_ref: input.goalRef, goal_ref_version: goalArchive?.version ?? null } : {}),
+              },
+            },
+            rule_impact: [],
+          });
+        } catch (err) {
+          await client.query("ROLLBACK").catch(() => undefined);
+          throw err;
+        } finally {
+          await client.query("COMMIT").catch(() => undefined);
+          client.release();
+        }
+        // 派遣事件已随建线程同事务落库（D16；G8 三段瀑布同口径）
+        // 演示驱动：立即执行 Quest 循环（生产由调度器拉取，B9）
+        // ask 问询：即时应答（B8——取数为真、模型可插拔；不依赖 runImmediately 按钮）
+        if (intentMode === "ask") {
+          // N-11：ask 事件归属本工作区实际岗位（此前硬编码 hotel 的 "morning-briefing"，账本张冠李戴）
+          const ra = await runAsk(getAppPool(), getGatewayPool(), scope, {
+            threadId, goal: planningGoal, presetKey, llmCall: llmCall("ask-synthesize", scope, { threadId, requestId }),
+          });
+          return settle({ kind: "routed", mode: intentMode, via: intent.via, threadId, status: ra.status, answer: ra.answer, executionSource: "generic" });
+        }
+        if (input.runImmediately) {
+          const r = await runQuestForThread(scope, {
+            threadId, goal: planningGoal, presetRef: presetKey, mode: intentMode, actorId: ctx.identity.memberNo,
+          });
+          return settle({ kind: "routed", mode: intentMode, via: intent.via, threadId, status: r.status,
+            stepsDone: r.stepsDone, stepsTotal: r.stepsTotal, executionSource: r.executionSource ?? "generic",
+            ...(r.error ? { error: r.error } : {}), current_action: r.current_action,
+            ...(r.pendingApprovalId ? { pendingApprovalId: r.pendingApprovalId } : {}),
           });
         }
-        /**
-         * X-07（第四轮实测，P2）：建档即写 agent_id——此前只有 runQuest 执行时才回填，
-         * 排队中的线程在楼层上无归属（`agent_id IS NULL` 被过滤），客户看不到"谁在排这条队"。
-         */
-        const ownerAgent = await client.query<{ id: string }>(
-          `SELECT id FROM agents WHERE workspace_id=$1 AND preset_key=$2 LIMIT 1`,
-          [scope.workspaceId, presetKey],
-        );
-        const ownerAgentId = ownerAgent.rows[0]?.id ?? selectedAgent.id;
-        /**
-         * 号源走 SECURITY DEFINER 函数（0016：全库最大值绕 RLS——主键全库唯一，按本区分配必撞他区；
-         * 历史教训：第二次派遣即 duplicate key，ASK/QUEST 主链路故障）。
-         *
-         * GR-02（2026-09-29 第二次修复，基座 T-2026-0929-0003）：取号 + 建档统一走
-         * `insertWithReadableId`——纯 nextval 原子取号、返回值直接可用（不再 +1）、
-         * 撞号用 SAVEPOINT 换号重试。旧实现把重试写在**已被中止的事务**里
-         * （PG：`current transaction is aborted`），从诞生起就不可能成功。
-         */
-        const allocated = await insertWithReadableId(client, THREAD_ID_SOURCE, async (id) => {
-          await client.query(
-            `INSERT INTO threads (id, tenant_id, workspace_id, title, mode, status, created_by, agent_id)
-             VALUES ($1,$2,$3,$4,$5,'queued',$6,$7)`,
-            [id, scope.tenantId, scope.workspaceId, input.title, intent.mode, ctx.identity.memberNo, ownerAgentId],
-          );
-          return id;
-        });
-        threadId = allocated.id;
-        // D16（#1/A）：建线程与派遣事件同一事务（G8 留痕不再独立于状态）
-        await gatewayAppendOnClient(client, {
-          ...scope,
-          actor: { id: ctx.identity.memberNo, type: "human" },
-          sessionId: threadId,
-        }, {
-          who: { type: "human", id: ctx.identity.memberNo },
-          context: { tenant_id: scope.tenantId, workspace_id: scope.workspaceId, time: new Date().toISOString(), channel: "inapp" },
-          object: { type: "thread", id: threadId },
-          decision: {
-            action: "thread.dispatch",
-            after: {
-              threadId, title: input.title, mode: intent.mode, rationale: intent.rationale,
-              // GR-14：长文档案引用与版本进账本（规划输入可追溯）
-              ...(input.goalRef ? { goal_ref: input.goalRef, goal_ref_version: goalArchive?.version ?? null } : {}),
-            },
-          },
-          rule_impact: [],
-        });
-      } catch (err) {
-        await client.query("ROLLBACK").catch(() => undefined);
-        throw err;
-      } finally {
-        await client.query("COMMIT").catch(() => undefined);
-        client.release();
+        return settle({ kind: "routed", mode: intentMode, via: intent.via, threadId, status: "queued", executionSource: "generic" });
+      } catch (error) {
+        // Never classify the same request again, including an unknown COMMIT ACK.
+        // A committed thread is recovered from its atomic dispatch event first.
+        const recovered = await readDispatchRequest(scope, requestId).catch(() => null);
+        if (recovered?.kind === "routed" || recovered?.kind === "clarify") return recovered;
+        const message = error instanceof TRPCError && error.code !== "INTERNAL_SERVER_ERROR"
+          ? error.message : "本次提交未完成，请保留提交标识并查看执行记录；系统不会自动重复付费调用。";
+        await settle({ kind: "failed", requestId, error: message });
+        throw error;
       }
-      // 派遣事件已随建线程同事务落库（D16；G8 三段瀑布同口径）
-      // 演示驱动：立即执行 Quest 循环（生产由调度器拉取，B9）
-      // ask 问询：即时应答（B8——取数为真、模型可插拔；不依赖 runImmediately 按钮）
-      if (intent.mode === "ask") {
-        // N-11：ask 事件归属本工作区实际岗位（此前硬编码 hotel 的 "morning-briefing"，账本张冠李戴）
-        const ra = await runAsk(getAppPool(), getGatewayPool(), scope, {
-          threadId, goal: planningGoal, presetKey, llmCall: llmCall("ask-synthesize", scope),
-        });
-        return { kind: "routed" as const, mode: intent.mode, via: intent.via, threadId, status: ra.status, answer: ra.answer };
-      }
-      if (input.runImmediately && intent.mode === "quest") {
-        const r = await runQuest(app, getGatewayPool(), scope, {
-          threadId, goal: planningGoal, presetKey, llmCall: llmCall("quest-plan", scope),
-        });
-        return { kind: "routed" as const, mode: intent.mode, via: intent.via, threadId, status: r.status, stepsDone: r.stepsDone, stepsTotal: r.stepsTotal };
-      }
-      return { kind: "routed" as const, mode: intent.mode, via: intent.via, threadId, status: "queued" as const };
     }),
+
+  /** Read-only recovery after transport loss; never performs classification/execution. */
+  dispatchRequest: protectedProcedure.input(z.object({ requestId: z.string().uuid() }).strict())
+    .query(({ ctx, input }) => readDispatchRequest(scopeOf(ctx.identity), input.requestId)),
 
   /** 线程详情（P2 线程头/信息面板；L7.1 越权返回空） */
   get: protectedProcedure
@@ -1231,8 +1262,13 @@ const threadsRouter = router({
         // 事务级 RLS 上下文必须在显式事务内设置：autocommit 下 set_config(...,true) 语句结束即失效
         await client.query("BEGIN");
         await client.query("SELECT set_config('app.workspace_id', $1, true)", [scope.workspaceId]);
+        await client.query("SELECT set_config('app.tenant_id', $1, true)", [scope.tenantId]);
         const r = await client.query(
           `SELECT id, title, mode, status, progress_done, progress_total, created_by, agent_id, created_at, updated_at,
+                  error,current_action,plan_version,
+                  COALESCE((SELECT e.payload->'decision'->'after'->>'executionSource' FROM biz_events e
+                    WHERE e.tenant_id=$3 AND e.workspace_id=$1 AND e.session_id=threads.id
+                      AND e.payload->'decision'->>'action'='thread.execution.bound' ORDER BY e.seq DESC LIMIT 1),'generic') AS "executionSource",
                   /**
                    * X-02（第四轮实测，P0）：对话框任务卡需要在 pending_review 时给出「去审批」直达入口——
                    * 服务端 dispatch 早就在返回这个号，但刷新/换页后卡片拿不到；这里随线程详情一起给出。
@@ -1242,8 +1278,8 @@ const threadsRouter = router({
                     ORDER BY a.created_at DESC LIMIT 1) AS pending_approval_id,
                   /** 举一反三（X-06）：把归属岗位带回前端——"请示出现在正确的员工头上"可肉眼核验 */
                   (SELECT ag.preset_key FROM agents ag WHERE ag.workspace_id=threads.workspace_id AND ag.id=threads.agent_id) AS preset_key
-           FROM threads WHERE workspace_id=$1 AND id=$2`,
-          [scope.workspaceId, input.threadId],
+           FROM threads WHERE workspace_id=$1 AND id=$2 AND tenant_id=$3`,
+          [scope.workspaceId, input.threadId, scope.tenantId],
         );
         return r.rows[0] ?? null;
       } catch (err) {
@@ -1341,21 +1377,30 @@ const threadsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const scope = scopeOf(ctx.identity);
+      assertThreadInputSafe(input.goal, input.presetKey);
       const app = getAppPool();
       const client = await app.connect();
       let mode: "ask" | "agent" | "quest" = "quest";
       let selectedAgent: RunnableAgent;
       let runGoal = "";
+      let runRequestId: string | undefined;
       try {
         await client.query("BEGIN");
         await client.query("SELECT set_config('app.workspace_id', $1, true)", [scope.workspaceId]);
-        const t = await client.query<{ mode: string; agent_id: string | null; title: string }>(`SELECT mode, agent_id, title FROM threads WHERE id=$1 AND workspace_id=$2`, [input.threadId, scope.workspaceId]);
+        await client.query("SELECT set_config('app.tenant_id', $1, true)", [scope.tenantId]);
+        const t = await client.query<{ mode: string; agent_id: string | null; title: string; request_id: string | null }>(
+          `SELECT mode,agent_id,title,(SELECT e.payload->'decision'->'after'->>'execution_request_id' FROM biz_events e
+             WHERE e.tenant_id=$3 AND e.workspace_id=$2 AND e.session_id=threads.id
+               AND e.payload->'decision'->>'action'='thread.dispatch' ORDER BY e.seq ASC LIMIT 1) AS request_id
+           FROM threads WHERE id=$1 AND workspace_id=$2 AND tenant_id=$3`, [input.threadId, scope.workspaceId, scope.tenantId]);
         if (!t.rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "任务不存在或无权访问" });
         selectedAgent = await runnableAgentOn(client, scope.workspaceId, input.presetKey ?? t.rows[0].agent_id);
         await client.query("COMMIT");
         if (t.rows[0]?.mode === "ask" || t.rows[0]?.mode === "agent") mode = t.rows[0].mode;
         // N-06：缺省读线程 title——对话框"推进"不再把"继续/推进吧"当规划目标
         runGoal = input.goal ?? t.rows[0]?.title ?? "";
+        assertThreadInputSafe(runGoal);
+        runRequestId = t.rows[0]?.request_id ?? undefined;
       } catch (err) {
         await client.query("ROLLBACK").catch(() => undefined);
         throw err;
@@ -1363,10 +1408,11 @@ const threadsRouter = router({
         client.release();
       }
       if (mode === "ask") {
-        return runAsk(app, getGatewayPool(), scope, { threadId: input.threadId, goal: runGoal, presetKey: selectedAgent!.presetKey, llmCall: llmCall("ask-synthesize", scope) });
+        return runAsk(app, getGatewayPool(), scope, { threadId: input.threadId, goal: runGoal, presetKey: selectedAgent!.presetKey,
+          llmCall: llmCall("ask-synthesize", scope, { threadId: input.threadId, ...(runRequestId ? { requestId: runRequestId } : {}) }) });
       }
-      return runQuest(app, getGatewayPool(), scope, {
-        threadId: input.threadId, goal: runGoal, presetKey: selectedAgent!.presetKey, mode, llmCall: llmCall("quest-plan", scope),
+      return runQuestForThread(scope, {
+        threadId: input.threadId, goal: runGoal, presetRef: selectedAgent!.presetKey, mode, actorId: ctx.identity.memberNo,
       });
     }),
 });
@@ -2960,10 +3006,10 @@ let cachedLlmCall: ((prompt: string) => Promise<string>) | null | undefined;
  * （场景表 × 套餐映射 × 降级链 × 真实计量 × model.call 事件留痕）；
  * 无 scope 或装配失败 → 旧轻量路径兜底；mock → undefined（via=rule 确定性兜底）。
  */
-function llmCall(scene = "generic", scope?: { tenantId: string; workspaceId: string }): ((prompt: string) => Promise<string>) | undefined {
+function llmCall(scene = "generic", scope?: { tenantId: string; workspaceId: string }, taskContext?: { threadId?: string; requestId?: string }): ((prompt: string) => Promise<string>) | undefined {
   if (scope) {
     const routed = routedLlmCall({
-      gateway: getGatewayPool(), scope, scene,
+      gateway: getGatewayPool(), scope, scene, ...(taskContext ? { taskContext } : {}),
       industryResolver: () => workspaceIndustry(scope),
     });
     if (routed) return routed;
@@ -2993,9 +3039,9 @@ async function workspaceIndustry(scope: { workspaceId: string }): Promise<string
 }
 
 let cachedClassifier: IntentClassifier | null | undefined;
-function intentClassifier(scope?: { tenantId: string; workspaceId: string }): IntentClassifier | undefined {
+function intentClassifier(scope?: { tenantId: string; workspaceId: string }, taskContext?: { threadId?: string; requestId?: string }): IntentClassifier | undefined {
   if (scope) {
-    const call = llmCall("intent-classify", scope);
+    const call = llmCall("intent-classify", scope, taskContext);
     if (call) return new LlmIntentClassifier(call);
   }
   if (cachedClassifier !== undefined) return cachedClassifier ?? undefined;
@@ -3600,6 +3646,7 @@ export type { IntelItem, RepoPulse } from "../service/aipm.js";
  * 本模块随服务启动加载（index.ts 导入 appRouter），注册早于任何派遣/调度执行。
  */
 registerIndustryQuestPlanner((goal) => acquisitionQuestPlanner(goal));
+registerIndustryThreadExecutor(createConsultingIndustryThreadExecutor());
 registerAskKbSearch(async (scope, question, limit) => {
   const hits = await searchKB({ workspaceId: scope.workspaceId, query: question, limit });
   return hits.map((hit) => ({
