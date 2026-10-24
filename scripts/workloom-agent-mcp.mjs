@@ -42,8 +42,8 @@ async function handle(request) {
       }
       initialized = true;
       reply(id, { protocolVersion: SUPPORTED_VERSIONS.has(params.protocolVersion) ? params.protocolVersion : "2025-11-25",
-        capabilities: { tools: { listChanged: false } }, serverInfo: { name: "eagle-consulting", version: "1.1.0" },
-        instructions: "先读咨询catalog与docs/EAGLE-AGENT-GUIDE.md。正式成员会话必需。先建授权档案再submit；复杂任务由服务端真实模型拆解，advance仅推进下一个有前序回执的步骤。禁止代写产物、跳步、把draft_ready当人类定调或外发成功；最终须回读artifact散列与事件回执。" });
+        capabilities: { tools: { listChanged: false } }, serverInfo: { name: "eagle-consulting", version: "1.2.0" },
+        instructions: "先读咨询catalog与docs/EAGLE-AGENT-GUIDE.md。正式成员会话必需。授权客户资料先建档再submit；复杂任务由服务端真实模型拆解，advance仅推进下一个有前序回执的步骤。公开研究使用task.dispatch，先保存UUID requestId并默认runImmediately:false；运输中断后只读dispatch_request找回原提交，再读task.view/task.report，不换号重复付费。任务控制只认actionReceipt。禁止代写产物、跳步、把draft_ready当人类定调或外发成功；最终须回读报告/artifact散列、UTF-8字节数与真实事件回执。" });
       return;
     }
     if (method === "ping") { reply(id, {}); return; }

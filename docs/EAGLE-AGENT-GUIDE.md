@@ -24,13 +24,25 @@ DeepSeek 的请求模型 ID 为 `deepseek-flash`；连接器先读取供应商 `
 
 服务端不给 Agent “直接写产物”“修改执行状态”“跳到某一步”的入口。未知字段、未绑定技能、跨工作区任务、缺前序回执、被修改的本地文件、资产版本漂移和配额不足均失败关闭。模型引用必须逐字出现在原始资料中；虚构出处不会被记为成功。
 
-## 正常客户端的公开研究报告
+## 客户端、CLI 与 MCP 的公开研究报告
 
 在经营主页提交地区或产业研究报告目标后，咨询行业执行桥会先检索和读取政府官网公开页面，在本机冻结供应商实际返回的完整正文，再向上述六员工流程提供有明确字节范围和散列的原文摘录。来源面板展示 URL、发布日期、采集时间、全文与摘录的字节数；摘录合计受 4000 UTF-8 字节的资料契约约束，不能据此声称模型通读了全部网页。报告正文、独立质检、引用目录和支撑分析汇编为一个可回读的 Markdown 内部待审稿。没有取得适用地区与行业的官网正文、没有真实模型或文件回执时，任务保留具体错误，不生成替代来源或完成状态。
 
 公开研究入口不接受客户内部报表、私密资料、外发和代为访谈目标。客户授权资料继续走一企一档和受控 CLI/MCP 流程。旧任务保持原有执行来源和失败记录；不会因为标题中出现“报告”就被重分类成已经成功的新报告。
 
 客户端在发送前持久保存本次提交标识。双击、运输中断或刷新后先查询原请求，禁止换标识重复购买分类、规划或报告。模型、搜索和网页读取都绑定同一任务预算；相同操作只能复用原始供应商回执，结果未知时停止后续调用。活动行业包无法核验时拒绝新的模型请求，不回退共享模型池。转人工会追加事件并暂停后续自动步骤；明确继续后沿用原流程。停止任务保留资料、已发生费用和草稿，不再启动后续步骤，也不声称撤销已经发生的外部动作。界面只有收到真实操作回执才展示动作已记录。
+
+办公 Agent 可以通过同一份能力清单直接使用这条公开研究链路：
+
+| 能力 | 输入与核对 |
+|---|---|
+| `consulting.task.dispatch` | `requestId` 为新建任务前已保存的 UUID；`title` 为公开议题；`runImmediately` 默认 `false`，交正常后台调度。`goalRef`、`presetKey` 为可选字段，可显式为 `null`。提交返回 `pending` 仅表示尚无报告交付证明。 |
+| `consulting.task.dispatch_request` | 只传原 `requestId`，找回原提交与当前 `threadId`。只读恢复不会重新分类或派遣；`dispatching`、`not-found` 或未知响应时保留原标识与错误，禁止换号重购。 |
+| `core.threads.get` / `consulting.task.view` | 只传服务端返回的 `threadId`，轮询线程与咨询流程。`task.view` 保留真实 `lastReceipt`、`runId`、进度、官网来源、全文/摘录散列和可用控制动作；刚排队尚未绑定咨询流程时继续查询原线程。 |
+| `consulting.task.report` | `task.view.status` 达到 `draft_ready` 后回读原 `threadId` 的实际 Markdown `content`，独立计算 SHA256 和 UTF-8 字节数，与 `sha256`、`bytes`、报告 `receipt.eventId` 及视图 `finalArtifact` 对照。需要核对每步时，用返回的 `runId` 读取 `consulting.workflow.get` 与每件 `consulting.artifact.read`，无需重新执行。 |
+| `consulting.task.action` | 传 `threadId`、`action`（`resume` / `handoff` / `cancel`）、至少八字符的稳定 `idempotencyKey`，可附 `reason`。只在服务端表示动作可用时操作；回读并核对该次 `actionReceipt`，不能借另一条 `lastReceipt` 宣称操作成功。 |
+
+`task.dispatch` 的幂等字段明确为 `requestId`；其余变更能力默认使用 `idempotencyKey`。输入不接受完成状态、任意阶段、产物或租户覆盖字段。`task.view`、`task.report`、`task.action` 的回执字段由受审能力清单分别声明为 `lastReceipt`、`receipt`、`actionReceipt`；缺失、格式错误、未同步或没有非空事件 ID 均失败。运输层不会凭任务状态补造回执，也不把“已转人工”当成“报告已交付”。
 
 ## CLI
 
@@ -59,6 +71,21 @@ node scripts/workloom-agent.mjs invoke consulting.artifact.read --input-file art
 ```
 
 `task-input.json` 使用 `enterpriseId`、`goal`、`idempotencyKey`；`advance-input.json` 使用服务端返回的 `runId` 和本次 `idempotencyKey`；`run-input.json` 只有 `runId`；产物读取再加 `stepId`。文件只留在客户本机受保护资料区，不进入源码仓库。服务端运输超时对执行能力为 120 秒，客户端工具超时应大于此值；网络中断后先回读原任务，禁止换幂等键盲重试。
+
+公开研究使用独立输入文件，先生成并保存本次 UUID，再填入如下字段；重传和恢复使用同一 UUID：
+
+```json
+{"requestId":"6d82ac53-32cb-4b27-b468-a6d829f4a2e5","title":"做一个温州地区制造业的分析报告","runImmediately":false}
+```
+
+```sh
+node scripts/workloom-agent.mjs invoke consulting.task.dispatch --input-file public-task-input.json
+node scripts/workloom-agent.mjs invoke consulting.task.dispatch_request --input-file original-request-input.json
+node scripts/workloom-agent.mjs invoke consulting.task.view --input-file original-thread-input.json
+node scripts/workloom-agent.mjs invoke consulting.task.report --input-file original-thread-input.json
+```
+
+`original-request-input.json` 只有原 `requestId`；`original-thread-input.json` 只有服务端实际返回的 `threadId`。示例 UUID 只用于说明格式；新业务任务必须自行生成自己的标识，不能把示例当作所有任务共用的提交键。公开研究会产生实际模型与搜索费用；列工具、描述输入、查原状态和回读文件不会发起新的报告生成。
 
 ## Codex 与通用 MCP 配置
 

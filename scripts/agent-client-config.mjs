@@ -16,7 +16,7 @@ export function buildAgentClientConfig({ productRoot, nodeExecutable, baseUrl })
   const codexToml = `[mcp_servers.eagle]\ncommand = ${q(node)}\nargs = [${q(entry)}]\ncwd = ${q(root)}\nstartup_timeout_sec = 30\ntool_timeout_sec = 130\n\n[mcp_servers.eagle.env]\nWORKLOOM_PRODUCT_ROOT = ${q(root)}\nWORKLOOM_BASE_URL = ${q(endpoint.origin)}\n`;
   const stdioMcp = { mcpServers: { eagle: { command: node, args: [entry], cwd: root, env } } };
   return { codexToml, stdioMcp, guideFile: join(root, "docs", "EAGLE-AGENT-GUIDE.md"),
-    instruction: "先读取EAGLE-AGENT-GUIDE.md和consulting.workforce.catalog；仅用服务端dossierPut→submit→advance→get→artifact链路，禁止跳步或自写完成；draft_ready只表示内部草稿等待人类顾问审阅，须核对sha256和事件回执。" };
+    instruction: "先读取EAGLE-AGENT-GUIDE.md和consulting.workforce.catalog。授权客户资料走dossier.put→workflow.submit→advance→get→artifact.read；公开研究走task.dispatch（先保存UUID requestId，runImmediately:false）→dispatch_request找回原提交→task.view→task.report。结果未知只读原标识，不换键或换号重购。禁止跳步或自写完成；draft_ready只表示内部草稿等待人类顾问审阅，须核对sha256、UTF-8字节数和真实事件回执；任务控制还须核对actionReceipt。" };
 }
 
 export async function writeAgentClientConfig(directory, options) {

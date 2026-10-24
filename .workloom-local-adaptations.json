@@ -6,9 +6,9 @@
     ".workloom-ui-governance.json": "6163db35ba9974670b71141de0431526d6705b5c304f7afd9364ac0dd43f8c4d"
   },
   "task": {
-    "id": "T-2026-1024-0001",
-    "issue": "https://github.com/geniusdapeng-collab/workroom-eagle/issues/25",
-    "reason": "修复正常客户端派单、公开资料报告和受控恢复，并补齐任务留言真实事件回执；保留此前逐文件适配与两份原始基座状态，为必要客户端行为登记可复算边界。"
+    "id": "T-2026-1024-0002",
+    "issue": "https://github.com/geniusdapeng-collab/workroom-eagle/issues/28",
+    "reason": "从已合并主线接通Codex公开研究的真实CLI/MCP调用，修复输入白名单与空证据验收问题，逐文件保留原适配及两份不可变基座状态。"
   },
   "files": [
     {
@@ -19,11 +19,11 @@
         "mode": 420
       },
       "after": {
-        "sha256": "8e9d0123f1dc8a7e02b1d0d4223509d9b38e8685be9eac3b7820bd2dca1a0e6f",
+        "sha256": "3847aacf26256a169e5effb1e7598282d343d870bea8498e17b259c9bd2346e9",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "c90cfdd344d00e2a265e305946a65c197cb6c71566a2b1512d30187d17a5cef2",
-      "reason": "CI完整拉取Git基线并运行实际来源、安装与正式默认门禁，使适配补丁可复算。"
+      "canonicalGitDiffSha256": "d431ad11813dd4c5c212f505c00c5c9135fc4f76a409229c274b64c660476331",
+      "reason": "CI完整拉取Git基线并运行实际来源、安装与正式默认门禁，新增公开研究CLI/MCP回归随主门禁执行。"
     },
     {
       "path": ".github/workflows/workloom-ui-contract.yml",
@@ -488,6 +488,31 @@
       "reason": "移动端鉴权使用正式会话并对缺失或失效会话失败关闭。"
     },
     {
+      "path": "bundles/consulting/agent-capabilities.json",
+      "kind": "modified",
+      "before": {
+        "sha256": "9980415c038f249703998eba37dae5a9f2041b8f49935392d8c805dc4f026fbc",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "6f37cadadbd71d83b97477bba793b897651e03a43de3c862e4241eaf355ce0aa",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "f9b99ea62f2002c52a92f1163198464504580832977bcad1555374f5518a49cb",
+      "reason": "向办公Agent显式开放既有公开研究派单、同标识找回、任务视图、真实报告及控制回执五项受控能力。"
+    },
+    {
+      "path": "docs/EAGLE-AGENT-GUIDE.md",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "c2c761f446730c2b15e6e0783b638fd142bbf7894b42b31904351760d90bb03b",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "f742209a78eb93797e97f9625b8c7c067a12de73e2864892189a069b36a77678",
+      "reason": "记录公开研究与授权资料的真实CLI/MCP调用顺序、稳定提交标识、费用及文件回读边界。"
+    },
+    {
       "path": "package.json",
       "kind": "modified",
       "before": {
@@ -528,6 +553,75 @@
       },
       "canonicalGitDiffSha256": "7d04da62eb3f96430260682aa49760823371f6db96347cd8bceb1e60ecab12c0",
       "reason": "精确共享UI版本的工作区覆盖改为同字节原制品镜像，避免不可用canonical下载阻断冷安装。"
+    },
+    {
+      "path": "scripts/agent-capabilities.mjs",
+      "kind": "modified",
+      "before": {
+        "sha256": "70488ed24cd6c4b1d32a3126e3ec542a788b30ffbba5e7891559dacd7a0ab49c",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "f0bd121fc9b2deaf91e168f80ba53695172b75e47bedb4efdca22302989c75c4",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "4555de493fb149a00e9c7607862ba1abafe1308ff383eb7813371e027da73a27",
+      "reason": "严格验证声明式幂等字段与同步事件回执，并用自身字段白名单拒绝原型链同名未声明输入。"
+    },
+    {
+      "path": "scripts/agent-client-config.mjs",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "446b9a147b495d30559a657105038536b7bf94bb77bed6483bf3140ec8ccf595",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "7b58b5fb9f03b67a26a7c91e0f49aab7bbc76a52f51b86d0e04ba785d1e23344",
+      "reason": "在无凭据的客户端配置引导中加入公开研究同标识恢复和真实报告回执调用顺序。"
+    },
+    {
+      "path": "scripts/agent-client-config.test.mjs",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "f1dd7ed3594e22a04988a8c98b64fbc01a608e7aa58b3765bf4855b874685319",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "849c76103bae51532e11153bdcf4c1ca51fd8d50fa3a6c4fa10c6ee7ac38bfeb",
+      "reason": "验证客户端配置保留公开研究恢复、禁止未知结果换标识重购的必要指引。"
+    },
+    {
+      "path": "scripts/agent-task-capabilities.test.mjs",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "3a520d5601f3a689737447a4dca7996c8750232bb6afee66f13b682fbff9069c",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "ad15c3a2a505e37dd3caf7cbe8c0d25a5a43392b8ab4b8b1034e2abfa8069fbb",
+      "reason": "真实本地HTTP、CLI子进程和MCP生命周期验证公开研究能力、原标识恢复、权限错误及严格回执和输入白名单。"
+    },
+    {
+      "path": "scripts/consulting-eval.mjs",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "87f7ffb732c20e8fe2b93a601536749cc19f7a3dc8fa4634c03c1cf16aca04d2",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "3fd6761ff2c7ac7cc457c4f253b0cf9d585f4bcdeec843117e4197447c5eef48",
+      "reason": "验收器逐项要求非空来源引用和建议依据，拒绝空数组导致的虚假通过。"
+    },
+    {
+      "path": "scripts/consulting-eval.test.mjs",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "2fa8a7d71316929a76904e334551b27363eea87c989e45c68bdc65c7aaa48608",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "69d8b6e033c5bd27c7432304eb1d590f57fc406839f8627bac30f628720c4f63",
+      "reason": "通过有效产物及空缺来源引用和建议依据反例验证验收器不会产生虚假通过。"
     },
     {
       "path": "scripts/ui-offline-mirror.mjs",
@@ -600,6 +694,20 @@
       },
       "canonicalGitDiffSha256": "8672eb0a7318405b217cfa120bf7600b5a951ad51548b9dea5651fb617ba8072",
       "reason": "保留原治理状态与UI规则，识别同字节离线传输和逐文件核验的治理适配。"
+    },
+    {
+      "path": "scripts/workloom-agent-mcp.mjs",
+      "kind": "modified",
+      "before": {
+        "sha256": "c2e1a7e2aa12c1c751b414bbc34973e4bf899325f539ab6cbedaf9372308552f",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "597c98dc6982a0c2981273f61490f349d9d5d307f7c1b0c518eda807adb3980e",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "98c395aef590a5e7962d2863ce6658c092027fb233fa0b62fca95271a96622d8",
+      "reason": "向真实MCP生命周期返回受控公开研究、原标识恢复、任务操作回执及内部草稿边界指引。"
     },
     {
       "path": "vendor/workloom-ui-0.1.19.tgz",
