@@ -85,14 +85,14 @@ jobs:
       - name: 正式安装、受控模型与 Agent 回归（不调用供应商）
         run: |
           node --import tsx --test scripts/eagle-production-defaults.test.mjs scripts/seed-production.test.mts scripts/demo-seed-workspace.test.mts scripts/suite-fixture-preflight.test.mjs apps/desktop/electron/credential-store.test.cjs scripts/reset-safety.test.mjs
-          node --test scripts/agent-capabilities.test.mjs scripts/agent-client-config.test.mjs bundles/consulting/connectors/deepseek.test.mjs scripts/consulting-eval.test.mjs scripts/portable-runtime-copy.test.mjs apps/desktop/electron/bootstrap.test.cjs
+          node --test scripts/agent-capabilities.test.mjs scripts/agent-client-config.test.mjs bundles/consulting/connectors/deepseek.test.mjs scripts/consulting-eval.test.mjs scripts/portable-runtime-copy.test.mjs apps/desktop/electron/bootstrap.test.cjs scripts/trpc-contract.test.mjs
           # C-front legacy suites require a separately supported business adapter;
           # their fixture selector must not accidentally enable them in Eagle.
           env -u RUN_DB_TESTS -u SERVICE_C_TEST_WORKSPACE_ID -u SERVICE_C_WORKSPACE_ID -u RELEASE_WORKSPACE_ID pnpm -C apps/server test --pool=threads --maxWorkers=1
           # Keep database regressions enabled explicitly against the real consulting
           # installation; do not substitute the legacy hotel demo workspace.
           pnpm db:seed
-          RELEASE_WORKSPACE_ID=ws-workroom-eagle-production pnpm -C apps/server test --pool=threads --maxWorkers=1 src/service/adapters/business-registry.pg.test.ts src/service/neutral-industry-default.pg.test.ts src/service/overlay-runtime.pg.test.ts src/service/eval-source.pg.test.ts src/service/onboarding-continuity.pg.test.ts src/trpc/fence-proposal.pg.test.ts src/service/onboarding-installation.test.ts src/service/onboarding-model-verification.test.ts
+          RELEASE_WORKSPACE_ID=ws-workroom-eagle-production pnpm -C apps/server test --pool=threads --maxWorkers=1 src/service/adapters/business-registry.pg.test.ts src/service/neutral-industry-default.pg.test.ts src/service/overlay-runtime.pg.test.ts src/service/eval-source.pg.test.ts src/service/onboarding-continuity.pg.test.ts src/trpc/fence-proposal.pg.test.ts src/service/onboarding-installation.test.ts src/service/onboarding-model-verification.test.ts src/trpc/thread-execution.pg.test.ts src/trpc/thread-note.pg.test.ts src/industry/consulting/ui-receipt.pg.test.ts src/industry/consulting/task-execution.pg.test.ts
           pnpm -C apps/web test --pool=threads --maxWorkers=1
 
       - name: 全场景套件（服务层与独立 HTTP 权限矩阵）

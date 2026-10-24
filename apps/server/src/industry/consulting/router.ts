@@ -4,11 +4,14 @@ import { z } from "zod";
 import { actionProcedure, protectedProcedure, router, scopeOf } from "../../trpc/context.js";
 import { ConsultingError, sourceSchema } from "./workflow-core.js";
 import { consultingWorkflow, type ConsultingRun } from "./workflow.js";
+import { consultingTaskService } from "./task-execution.js";
+export { createConsultingIndustryThreadExecutor } from "./task-execution.js";
 
 const enterpriseId = z.string().min(1).max(80).regex(/^[A-Za-z0-9_\-\u3400-\u9fff]+$/u);
 const idempotencyKey = z.string().min(8).max(160);
 const runId = z.string().regex(/^CR-[a-f0-9]{24}$/);
 const transitionInput = z.object({ runId, idempotencyKey }).strict();
+const threadInput = z.object({ threadId: z.string().regex(/^T-[A-Za-z0-9_-]{1,110}$/) }).strict();
 async function handled<T>(body: () => Promise<T>): Promise<T> {
   try { return await body(); }
   catch (error) {
@@ -57,4 +60,11 @@ export const consultingRouter = router({
     .query(({ ctx, input }) => handled(() => consultingWorkflow.get(scopeOf(ctx.identity), input.runId))),
   artifact: protectedProcedure.input(z.object({ runId, stepId: z.string().regex(/^s[1-6]$/) }).strict())
     .query(({ ctx, input }) => handled(() => consultingWorkflow.artifact(scopeOf(ctx.identity), input.runId, input.stepId))),
+  taskView: protectedProcedure.input(threadInput)
+    .query(({ ctx, input }) => handled(() => consultingTaskService.view(scopeOf(ctx.identity), input.threadId))),
+  taskReport: protectedProcedure.input(threadInput)
+    .query(({ ctx, input }) => handled(() => consultingTaskService.report(scopeOf(ctx.identity), input.threadId))),
+  taskAction: actionProcedure("task.dispatch").input(threadInput.extend({
+    action: z.enum(["resume", "handoff", "cancel"]), idempotencyKey, reason: z.string().max(500).optional(),
+  }).strict()).mutation(({ ctx, input }) => handled(() => consultingTaskService.action(scopeOf(ctx.identity), ctx.identity.memberNo, input))),
 });

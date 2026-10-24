@@ -6,9 +6,9 @@
     ".workloom-ui-governance.json": "6163db35ba9974670b71141de0431526d6705b5c304f7afd9364ac0dd43f8c4d"
   },
   "task": {
-    "id": "T-2026-1023-0001",
-    "issue": "https://github.com/geniusdapeng-collab/workroom-eagle/issues/21",
-    "reason": "本次正式空白安装、受保护身份和真实结果展示修复涉及客户端受管壳；保留原基座与共享UI来源，以逐文件任务记录和原字节镜像保证可审查、可复算的必要本地适配。"
+    "id": "T-2026-1024-0001",
+    "issue": "https://github.com/geniusdapeng-collab/workroom-eagle/issues/25",
+    "reason": "修复正常客户端派单、公开资料报告和受控恢复，并补齐任务留言真实事件回执；保留此前逐文件适配与两份原始基座状态，为必要客户端行为登记可复算边界。"
   },
   "files": [
     {
@@ -19,10 +19,10 @@
         "mode": 420
       },
       "after": {
-        "sha256": "7e42800c0063dda6593d5a21675a47d781787f7da602b6451cf66b2b3fbd0add",
+        "sha256": "8e9d0123f1dc8a7e02b1d0d4223509d9b38e8685be9eac3b7820bd2dca1a0e6f",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "52d89681cb0a6d1f15ded8d362346eea4a7ea4f1b1e39bfdc707cc8f01874ecb",
+      "canonicalGitDiffSha256": "c90cfdd344d00e2a265e305946a65c197cb6c71566a2b1512d30187d17a5cef2",
       "reason": "CI完整拉取Git基线并运行实际来源、安装与正式默认门禁，使适配补丁可复算。"
     },
     {
@@ -68,6 +68,31 @@
       "reason": "消费测试按产品清单精确匹配PC登录标题，保留三端首帧/表单/导航/200%长文案断言；正常截图等待有限入场动画自然结束，并核验C端主内容透明度和正文对比度。"
     },
     {
+      "path": "apps/web/src/components/AIFeedback.consulting.test.tsx",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "5cbda59e6aef1d502a97e2d2e8d05980a6716f38ee1b99622206805ed7ecfbbb",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "9459c8aa736af16fd20ed09c021198cb4371cdcb76a0e17e9383e44427542b8a",
+      "reason": "实际渲染反馈验证咨询不调用升级模型、重复点击一次入账与失败重试，另断言其他行业原行为。"
+    },
+    {
+      "path": "apps/web/src/components/AIFeedback.tsx",
+      "kind": "modified",
+      "before": {
+        "sha256": "7d91a6899e812b0c02175d7ef9a20329005c3824ff7b0f4e4b96e39c911f7731",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "4a6a0fcedbab4533a087f3f7ad5ae39c59b793d887188331aadd4724d4760eff",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "cbe13534e5076b52690aa572e9896de13490452ad913628f14e8c860ed6f9f32",
+      "reason": "咨询质量反馈仅入账，不通过反馈入口切换模型或绕过原任务预算；保留其他行业现有行为与加载失败反馈。"
+    },
+    {
       "path": "apps/web/src/components/runtimeBanner.test.ts",
       "kind": "added",
       "before": null,
@@ -102,6 +127,31 @@
       },
       "canonicalGitDiffSha256": "bce568d6a1caa33a5a759a2bca38ca534c4b3fb271a7417ee912866a8386ee57",
       "reason": "正式安装事实、示例标记与经营资格分别展示，避免把空白正式客户安装误称模拟模型。"
+    },
+    {
+      "path": "apps/web/src/components/star-ring/StarRing.task-state.test.tsx",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "c6d6459c2e0151525c194aa69b2447e2a357e46b5a9034729c141a60bc721a84",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "979d23c84cdc6d202bacc1cd915d67128f47c46d6180fa93a8cefa5fe9ab412e",
+      "reason": "实际渲染助手断言咨询队列、双击、刷新未知提交恢复、身份切换与原线程报告跳转，保留其他行业立即执行语义。"
+    },
+    {
+      "path": "apps/web/src/components/star-ring/StarRing.tsx",
+      "kind": "modified",
+      "before": {
+        "sha256": "08c7b91c784b166a2843547e89a3028264969ed50ef3f03f02d0c3e800eb8c18",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "3e266a6fe23611e9cd0bf3466b427be270c92ae5f2fa37160b911f54b3483a3e",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "0d954288a9f95563f762ed69efc344da0e0ca17fd4187ba255500b0f63f91b9a",
+      "reason": "咨询派单立即返回队列卡片并沿用持久请求标识，回读真实错误、来源与报告入口，刷新和双击不重复购买模型调用。"
     },
     {
       "path": "apps/web/src/components/ValueCounters.test.tsx",
@@ -168,6 +218,17 @@
       "reason": "欢迎文案与正式空白客户档案和人类顾问审阅边界一致，不虚报模拟业务记录。"
     },
     {
+      "path": "apps/web/src/extensions/consulting/ConsultingTaskPanel.tsx",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "a4bcb55b192949540c273d0f8912aad7ebd6927b76957f97dc7ea5288fba8991",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "5375b9018044ef9c7e22f93124ce8c93e170b85649a2fef6fb9e29b2e3c7ce10",
+      "reason": "行业报告、来源和接管恢复停止使用真实后端回执，核对报告完整字节和内容指纹后展示与下载。"
+    },
+    {
       "path": "apps/web/src/extensions/consulting/current-model-verification.test.ts",
       "kind": "added",
       "before": null,
@@ -190,6 +251,28 @@
       "reason": "工作区隔离持久模型验证请求，防止失败、未知、刷新或多页面重试产生重复付费调用。"
     },
     {
+      "path": "apps/web/src/extensions/consulting/dispatch-attempt.ts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "745ae4567e626e8215b18ef2f26045e1bef132684f9e9ca1963bc92e331d1cf1",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "6cdd6b8a44801db043bf4a2cb31ea73eb9af00889e46109907b2f90c7bffd782",
+      "reason": "只持久化有身份边界的请求标识与指纹，未知响应保留原标识，避免重载后重复派单且不缓存用户目标正文。"
+    },
+    {
+      "path": "apps/web/src/extensions/consulting/task-client.ts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "7438008ce7f9a89b15121d71ef22eefe63fec35ad0ca76fc3b06740e3e2f1b7e",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "faab244775ffaae35aac1a7dfc9051d55fa9e578ae298a59dbfb593a4d03057c",
+      "reason": "咨询行业任务状态、可用动作及报告完整性核验集中表达，拒绝错误线程、回执或正文。"
+    },
+    {
       "path": "apps/web/src/lib/product.ts",
       "kind": "modified",
       "before": {
@@ -202,6 +285,17 @@
       },
       "canonicalGitDiffSha256": "acb3150500250b7c69a48adac6103a4dadfa59e4dc237327cc1e90208c25cffc",
       "reason": "向客户端暴露正式工作区事实与产品配置，保持默认安装来源可追溯。"
+    },
+    {
+      "path": "apps/web/src/lib/thread-note-attempt.ts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "40bd3ea827ffea1cd2ebda7f5ed05e6b990c81c466479228bf3c66ddc37b0b5c",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "9fe4ee3b4cb5773254879ac81df763cdceddf52f3257ba2caa0d7e000b671135",
+      "reason": "任务留言按身份和内容摘要保存不含正文的恢复标识，使响应未知及刷新重传沿用同一幂等键，避免重复追加事件。"
     },
     {
       "path": "apps/web/src/lib/trpc.test.ts",
@@ -286,6 +380,31 @@
       },
       "canonicalGitDiffSha256": "9c2d70f02a91cb812594aae3c0632b63c9fd4df14624341dbcf66b7ddb8a64bb",
       "reason": "首页使用独立安装事实和可复核产物计数，保持正式资格检查与客户数据状态如实展示。"
+    },
+    {
+      "path": "apps/web/src/pages/p2/P2.tsx",
+      "kind": "modified",
+      "before": {
+        "sha256": "6e88605374bdc651f90a0d51c6fbe136aa42e332fff0a26e151f3fa07420250e",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "972ae6c9e777f97e6ad7d0cbe32677a2fc29391eb33793cab30b6714def04132",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "2fb1e68dbd597eda16d0d41ed90e802d9cbb032a98d12fcb11f80e21e165f7ee",
+      "reason": "任务页展示服务端实际错误与受控恢复动作，报告完成仅表述内部草稿待人审，保持线程身份切换与断线状态一致。"
+    },
+    {
+      "path": "apps/web/src/pages/p2/task-detail-state.test.ts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "3f55be293d0e29a40be533ce73ae9a93dd442442a12b1b3a3d8243dc6f170b91",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "7eda0d019ab267cded67d384757e596501da78a02f0c3e4f34234903c2454467",
+      "reason": "实际渲染任务页断言真实错误、权限、延迟响应、报告篡改与真实动作回执，防止界面虚构成功状态。"
     },
     {
       "path": "apps/web/tsconfig.json",

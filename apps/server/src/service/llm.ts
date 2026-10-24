@@ -14,6 +14,7 @@ import {
 import { bundlesRoot } from "@workloom/base/bundles";
 import { join } from "node:path";
 import { createConsultingUiLlmCall } from "../industry/consulting/llm.js";
+import type { ConsultingTaskContext } from "../industry/consulting/execution-context.js";
 
 export type LlmCall = (prompt: string, signal?: AbortSignal) => Promise<string>;
 
@@ -57,6 +58,7 @@ export function routedLlmCall(deps: {
   gateway: pg.Pool;
   scope: { tenantId: string; workspaceId: string };
   scene: string;
+  taskContext?: ConsultingTaskContext;
   plan?: PlanId;
   industry?: string | null;
   /** 行业异步解析（工作区 industry 列查询有 IO；惰性求值并缓存） */
@@ -75,11 +77,15 @@ export function routedLlmCall(deps: {
         // Callers can visibly mark a rule fallback; consulting cannot silently claim a real task.
         throw new Error(industry === "consulting" ? "CONSULTING_REAL_MODEL_REQUIRED" : "LLM_MOCK_MODE");
       }
+      // A failed active-bundle verification is not a generic industry choice.
+      // It must not redirect Eagle's credential into an unbounded shared pool.
+      if (deps.industryResolver && !industry) throw new Error("MODEL_INDUSTRY_UNRESOLVED");
       if (industry === "consulting") {
         // Eagle owns this deployment adapter. Its UI and agent workflow use the
         // same bounded Flash provider, rather than treating one DeepSeek key as
         // authorization for every model in the shared multi-vendor catalog.
-        consultingCall ??= createConsultingUiLlmCall({ gateway: deps.gateway, scope: deps.scope, scene: deps.scene });
+        consultingCall ??= createConsultingUiLlmCall({ gateway: deps.gateway, scope: deps.scope, scene: deps.scene,
+          ...(deps.taskContext ? { taskContext: deps.taskContext } : {}) });
         return consultingCall(prompt, signal);
       }
       const policy = modelPolicyFor(industry);

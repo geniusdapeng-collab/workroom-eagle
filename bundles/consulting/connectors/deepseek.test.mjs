@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { chmodSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDeepSeekClient, DeepSeekError, inputTokenUpperBound, getDeepSeekClientForTask, getDeepSeekBudgetStatus, DEEPSEEK_MAX_INPUT_BYTES } from './deepseek.mjs';
@@ -172,7 +172,8 @@ test('corrupt or policy-changed persistent ledger cannot be silently replaced', 
   const dir = mkdtempSync(join(tmpdir(), 'eagle-budget-'));
   const file = join(dir, 'ledger.json');
   try {
-    writeFileSync(file, '{corrupt');
+    // Keep the storage boundary valid so this case isolates malformed JSON.
+    writeFileSync(file, '{corrupt', { mode: 0o600 });
     assert.throws(() => client(fetch, { budgetFile: file }).getBudget(), /BUDGET_LEDGER_INVALID/);
     assert.equal(readFileSync(file, 'utf8'), '{corrupt');
   } finally { rmSync(dir, { recursive: true }); }
@@ -204,6 +205,63 @@ test('wall-clock budget and web-request count are checked before I/O', async () 
   clock += 60001;
   await assert.rejects(api.fetchPage({ url: 'https://example.com/' }), /BUDGET_TIME/);
   assert.equal(calls, 1);
+});
+
+test('search and fetch share one total eight-operation ceiling across clients and restarts', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'eagle-combined-web-budget-'));
+  const file = join(dir, 'ledger.json');
+  let calls = 0;
+  const request = async (url) => { calls++; return response(url.endsWith('/search') ? { results: [] } : { content: '# Public source' }); };
+  try {
+    const first = client(request, { budgetFile: file });
+    for (let index = 0; index < 4; index++) await first.search({ query: `official source ${index}` });
+    const restarted = client(request, { budgetFile: file });
+    for (let index = 0; index < 4; index++) await restarted.fetchPage({ url: `https://example.gov.cn/source-${index}` });
+    await assert.rejects(restarted.search({ query: 'ninth web operation' }), /BUDGET_WEB_CALLS/);
+    await assert.rejects(client(request, { budgetFile: file }).fetchPage({ url: 'https://example.gov.cn/ninth' }), /BUDGET_WEB_CALLS/);
+    assert.equal(calls, 8);
+    assert.equal(restarted.getBudget().searchAttempts + restarted.getBudget().fetchAttempts, 8);
+    assert.equal(restarted.getBudget().frozen, false);
+  } finally { rmSync(dir, { recursive: true }); }
+});
+
+test('budget directory symlinks and readable, linked or symbolic ledgers stop before provider I/O', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'eagle-private-ledger-'));
+  let calls = 0;
+  const request = async () => { calls++; return response(good()); };
+  try {
+    const outside = join(root, 'outside'); mkdirSync(outside, { mode: 0o700 });
+    const redirected = join(root, 'redirected'); symlinkSync(outside, redirected);
+    assert.throws(() => client(request, { budgetFile: join(redirected, 'ledger.json') }), /BUDGET_STORAGE_UNSAFE/);
+    assert.deepEqual(readdirSync(outside), []);
+    const file = join(root, 'ledger.json');
+    await client(request, { budgetFile: file }).complete({ prompt: 'original private budget' });
+    const original = readFileSync(file, 'utf8'); calls = 0;
+    chmodSync(file, 0o644);
+    assert.throws(() => client(request, { budgetFile: file }), /BUDGET_STORAGE_UNSAFE/);
+    rmSync(file); writeFileSync(join(outside, 'external.json'), original, { mode: 0o600 });
+    symlinkSync(join(outside, 'external.json'), file);
+    assert.throws(() => client(request, { budgetFile: file }), /BUDGET_STORAGE_UNSAFE/);
+    rmSync(file); linkSync(join(outside, 'external.json'), file);
+    assert.throws(() => client(request, { budgetFile: file }), /BUDGET_STORAGE_UNSAFE/);
+    assert.equal(calls, 0);
+    assert.equal(readFileSync(join(outside, 'external.json'), 'utf8'), original);
+  } finally { rmSync(root, { recursive: true }); }
+});
+
+test('per-task production budget refuses symbolic parent directories before creating external files', () => {
+  const root = mkdtempSync(join(tmpdir(), 'eagle-private-budget-parent-'));
+  const saved = { support: process.env.WORKLOOM_SUPPORT_DIR, budget: process.env.WORKLOOM_CONSULTING_BUDGET_FILE };
+  try {
+    const support = join(root, 'support'); const outside = join(root, 'outside');
+    mkdirSync(support, { mode: 0o700 }); mkdirSync(outside, { mode: 0o700 }); symlinkSync(outside, join(support, 'consulting'));
+    process.env.WORKLOOM_SUPPORT_DIR = support; delete process.env.WORKLOOM_CONSULTING_BUDGET_FILE;
+    assert.throws(() => getDeepSeekClientForTask('tenant:workspace:private-budget'), /BUDGET_STORAGE_UNSAFE/);
+    assert.deepEqual(readdirSync(outside), []);
+  } finally {
+    for (const [name, value] of Object.entries({ WORKLOOM_SUPPORT_DIR: saved.support, WORKLOOM_CONSULTING_BUDGET_FILE: saved.budget })) { if (value === undefined) delete process.env[name]; else process.env[name] = value; }
+    rmSync(root, { recursive: true });
+  }
 });
 
 test('production uses per-task durable quotas; finishing 40 calls cannot disable the next business task', async () => {
@@ -238,6 +296,22 @@ test('credentials cannot be sent as prompt text, search query or fetched URL', a
   await assert.rejects(api.search({ query: 'unit-test-key' }), /SECRET_IN_INPUT/);
   await assert.rejects(api.fetchPage({ url: 'https://example.com/?token=unit-test-key' }), /SECRET_IN_INPUT/);
   assert.equal(calls, 0);
+});
+
+test('supplier credential echoes are rejected before provider results or ledger receipts can persist them', async () => {
+  for (const kind of ['complete', 'search', 'fetch']) {
+    const dir = mkdtempSync(join(tmpdir(), 'eagle-provider-secret-output-'));
+    const file = join(dir, 'ledger.json');
+    try {
+      const api = client(async () => response(kind === 'complete' ? good({ id: 'unit-test-key', choices: [{ finish_reason: 'stop', message: { content: 'unexpected unit-test-key' } }] })
+        : kind === 'search' ? { results: [{ title: 'unit-test-key', url: 'https://example.gov.cn/report' }] }
+          : { title: 'Official', content: 'unexpected unit-test-key' }), { budgetFile: file });
+      await assert.rejects(kind === 'complete' ? api.complete({ prompt: 'public source analysis' })
+        : kind === 'search' ? api.search({ query: 'public official data' }) : api.fetchPage({ url: 'https://example.gov.cn/report' }), /SECRET_IN_OUTPUT/);
+      assert.equal(api.getBudget().frozen, true);
+      assert.equal(readFileSync(file, 'utf8').includes('unit-test-key'), false);
+    } finally { rmSync(dir, { recursive: true }); }
+  }
 });
 
 test('JSON workflow output explicitly enables the official JSON response mode; UI prose does not', async () => {

@@ -1,7 +1,7 @@
 /**
  * P2 任务页·主线执行（F4：Quest 会话页；PRD P2-①②③ 逐条对账）
  *  - 行动消息流（P2E2）= 该线程事件流子序列投影（P2-⑤：ts 升序；回执三态/命中规则/计量逐事件渲染）
- *  - 失败步红框 + 转人工/降级重试/回滚三入口（E3.1）；无回执标「未核实」不宣称完成（L3.6/E3.7）
+ *  - 失败步展示服务端实际原因；恢复动作由行业服务提供，未知结果不盲目重发
  *  - ThreadInspector 右栏：进度 x/y · 参与成员 · 计量（档/窗口/积分/降级链）· 围栏判定，≤5s 轮询（F3.4）；
  *    断线显「连接中断·重连中」不伪造进度
  *  - 审批卡内联（ApprovalCardMsg 语义：diff + 命中规则版本 + 三手势 → approvals.decide 写回）
@@ -9,7 +9,7 @@
  *  - 权限态：只读成员不显示输入栏（E2.6，隐藏非置灰）
  * 状态变体：p2 执行中 / p2_review 待审查 / p2_done 已完成 / p2_error 错误（?demo= 强制走查）
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { ensureDemoLogin, trpc } from "../../lib/trpc";
 import { COMMON_STATUS_TEXT, MODEL_TIER_TEXT, MODEL_WINDOW_TEXT, RULE_RESULT_TEXT, THREAD_MODE_TEXT, actionText, actorText, approvalGestureText, dictText, payloadText, shortId } from "../../lib/display";
@@ -31,11 +31,16 @@ import {
 } from "../../components/hud";
 import { Icon, clientChineseText } from "@workloom/ui";
 import { clientNaturalText } from "../../lib/clientText";
+import { operationFailure } from "../../lib/ui-state";
+import { ConsultingTaskPanel } from "../../extensions/consulting/ConsultingTaskPanel";
 
 interface ThreadRow {
   id: string; title: string; mode: string; status: string;
   progress_done: number; progress_total: number; agent_id: string | null;
   created_by: string; created_at: string;
+  updated_at?: string;
+  error?: string | null; current_action?: string | null; plan_version?: number;
+  executionSource?: "consulting-report" | "generic";
 }
 interface Ev {
   event_id: string;
@@ -70,8 +75,14 @@ function receiptOf(ev: Ev): ReceiptState {
 }
 
 export default function P2() {
-  const { canAction } = useNavigationAccess();
   const { threadId = "" } = useParams();
+  const { identityKey } = useNavigationAccess();
+  // A late response from a previous identity/thread must never paint into the next one.
+  return <ThreadPage key={`${identityKey}:${threadId}`} threadId={threadId} />;
+}
+
+function ThreadPage({ threadId }: { threadId: string }) {
+  const { canAction } = useNavigationAccess();
   const [params] = useSearchParams();
   const demo = params.get("demo");
   /** X-02：来自对话框卡片的审批锚点（?apr=）——高亮并滚动到该审批卡 */
@@ -86,36 +97,42 @@ export default function P2() {
   const [composer, setComposer] = useState("");
   const [banner, setBanner] = useState<{ level: "alert" | "warn" | "info"; text: string } | null>(null);
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  const [readError, setReadError] = useState<string | null>(null);
+  const [followUpBusy, setFollowUpBusy] = useState(false);
+  const alive = useRef(true);
+  const readSequence = useRef(0);
+  const followUpGuard = useRef(false);
 
   const load = useCallback(async () => {
+    if (!alive.current) return;
+    const sequence = ++readSequence.current;
     try {
       await ensureDemoLogin();
+      if (!alive.current) return;
       const [th, list, ap] = await Promise.all([
         trpc.threads.get.query({ threadId }) as Promise<ThreadRow | null>,
         trpc.threads.list.query() as Promise<ThreadRow[]>,
         trpc.approvals.list.query() as Promise<ApprovalRow[]>,
       ]);
-      setThread(th);
-      setThreads(list);
-      if (th) {
-        const ev = (await trpc.threads.events.query({ threadId })) as Ev[];
-        setEvents(ev);
-        // 本线程相关审批（event_id ∈ 线程事件链）
-        const ids = new Set(ev.map((e) => e.event_id));
-        setApprovals(ap.filter((a) => ids.has(a.event_id)));
-      }
-      setOffline(false);
-    } catch {
-      setOffline(true); // 断线：显「重连中」，保留最后已知进度（不伪造）
+      const ev = th ? await trpc.threads.events.query({ threadId }) as Ev[] : [];
+      if (!alive.current || sequence !== readSequence.current) return;
+      setThread(th); setThreads(list); setEvents(ev);
+      const ids = new Set(ev.map((event) => event.event_id));
+      setApprovals(ap.filter((approval) => ids.has(approval.event_id)));
+      setOffline(false); setReadError(null);
+    } catch (error) {
+      if (!alive.current || sequence !== readSequence.current) return;
+      setOffline(true); setReadError(operationFailure(error, "任务读取"));
     } finally {
-      setReady(true);
+      if (alive.current && sequence === readSequence.current) setReady(true);
     }
   }, [threadId]);
 
   useEffect(() => {
+    alive.current = true;
     void load();
     const t = setInterval(() => void load(), 5000); // F3.4 ≤5s 轮询
-    return () => clearInterval(t);
+    return () => { alive.current = false; readSequence.current++; clearInterval(t); };
   }, [load]);
 
   /* ---------- 计量与围栏聚合（ThreadInspector） ---------- */
@@ -136,6 +153,7 @@ export default function P2() {
   const hasWrite = events.some((e) => e.decision.effect === "write" && e.receipt?.synced === true);
   const isDone = thread?.status === "completed";
   const isFailed = demo === "p2_error" || thread?.status === "failed";
+  const consultingTask = thread?.executionSource === "consulting-report";
   const canApprove = canAction("approval.decide");
   const canDispatch = canAction("task.dispatch");
 
@@ -167,15 +185,42 @@ export default function P2() {
 
   /* ---------- 追问（P2E6：沿用线程上下文；threads.run 续跑，replay 幂等 H-5） ---------- */
   const followUp = useCallback(async () => {
-    if (!composer.trim() || !thread) return;
-    setBanner({ level: "info", text: "追问已沿用当前任务上下文并进入队列，正在执行…" });
-    setComposer("");
+    if (!composer.trim() || !thread || followUpGuard.current || offline) return;
+    followUpGuard.current = true; setFollowUpBusy(true);
+    setBanner({ level: "info", text: "正在提交请求；执行结果尚未确认。" });
     try {
-      await trpc.threads.run.mutate({ threadId: thread.id, goal: composer, ...(thread.agent_id ? { presetKey: thread.agent_id } : {}) });
+      const result = await trpc.threads.run.mutate({ threadId: thread.id, goal: composer, ...(thread.agent_id ? { presetKey: thread.agent_id } : {}) }) as { status?: string; error?: string };
+      if (alive.current) {
+        setComposer("");
+        setBanner({ level: result.status === "failed" ? "warn" : "info", text: clientChineseText(clientNaturalText(result.error,
+          `任务已返回：${dictText(COMMON_STATUS_TEXT, result.status)}。请以任务状态与回执为准。`),
+          `任务已返回：${dictText(COMMON_STATUS_TEXT, result.status)}。请以任务状态与回执为准。`) });
+      }
+    } catch (error) {
+      if (alive.current) setBanner({ level: "alert", text: `${operationFailure(error, "请求提交")} 输入已保留，先核对原任务状态。` });
     } finally {
+      followUpGuard.current = false;
+      if (alive.current) setFollowUpBusy(false);
       await load();
     }
-  }, [composer, thread, load]);
+  }, [composer, thread, offline, load]);
+
+  const runExisting = useCallback(async () => {
+    if (!thread || consultingTask || offline || followUpGuard.current || !canDispatch) return;
+    followUpGuard.current = true; setFollowUpBusy(true);
+    try {
+      const result = await trpc.threads.run.mutate({ threadId: thread.id }) as { status?: string; error?: string };
+      if (alive.current) setBanner({ level: result.status === "failed" ? "warn" : "info", text: clientChineseText(clientNaturalText(result.error,
+        `任务状态已返回：${dictText(COMMON_STATUS_TEXT, result.status)}。请以实际回执为准。`),
+        `任务状态已返回：${dictText(COMMON_STATUS_TEXT, result.status)}。请以实际回执为准。`) });
+    } catch (error) {
+      if (alive.current) setBanner({ level: "alert", text: `${operationFailure(error, "执行请求")} 请先核对原任务，不会自动重新执行。` });
+    } finally {
+      followUpGuard.current = false;
+      if (alive.current) setFollowUpBusy(false);
+      await load();
+    }
+  }, [thread, consultingTask, offline, canDispatch, load]);
 
   /* ---------- 左栏：会话列表（P2E1 状态点浏览，单击切换） ---------- */
   const left = (
@@ -219,13 +264,16 @@ export default function P2() {
             <div className="mt-1.5 text-body text-ink3">
               {offline ? "连接中断 · 重连中（保留最后已知进度）" : `状态 ${dictText(COMMON_STATUS_TEXT, thread.status)} · 预计剩余 —`}
             </div>
+            {thread.current_action && <div className="mt-2 break-words text-body text-ink2">当前动作：{clientNaturalText(thread.current_action, "当前动作说明暂不可用")}</div>}
+            <div className="mt-1 text-body text-ink3">执行来源：{consultingTask ? "公开资料受控报告流程" : thread.executionSource === "generic" ? "通用任务执行流程" : "服务端尚未提供"}</div>
           </div>
           <div className="rounded-lg border border-line bg-card p-3">
-            <div className="mb-1.5 text-body font-bold text-holo">模型调用计量</div>
-            <div className="font-orb text-h2 font-bold text-ink">{meter.credits} <span className="text-body text-ink3">积分</span></div>
+            <div className="mb-1.5 text-body font-bold text-holo">平台积分计量</div>
+            <div className="font-orb text-h2 font-bold text-ink">{meter.credits} <span className="text-body text-ink3">平台积分</span></div>
             <div className="mt-0.5 text-body text-ink3">
               {meter.tiers.map((tier) => dictText(MODEL_TIER_TEXT, tier)).join(" / ")} · {dictText(MODEL_WINDOW_TEXT, meter.window)}
             </div>
+            {consultingTask && <p className="mt-2 text-body text-ink3">模型由供应商按实际用量计费，平台积分不代表模型费用；用量见执行回执。</p>}
           </div>
           <div className="rounded-lg border border-line bg-card p-3">
             <div className="mb-1.5 text-body font-bold text-holo">安全规则判定</div>
@@ -260,13 +308,15 @@ export default function P2() {
               <span className="font-mono text-body text-ink3">{shortId(thread.id)}</span>
               <span className="text-body text-ink2">{thread.title}</span>
               <span className="flex-1" />
-              {canDispatch && thread.status !== "completed" && thread.status !== "failed" && (
+              {canDispatch && !consultingTask && !offline && thread.status !== "completed" && thread.status !== "failed" && thread.status !== "cancelled" && (
                 <button
                   type="button"
-                  onClick={() => void trpc.threads.run.mutate({ threadId: thread.id, goal: thread.title, ...(thread.agent_id ? { presetKey: thread.agent_id } : {}) }).then(load)}
-                  className="cursor-pointer rounded-md border border-gline bg-gold/8 px-3 py-1 text-body font-bold text-gold hover:bg-gold/15"
+                  disabled={followUpBusy}
+                  aria-busy={followUpBusy || undefined}
+                  onClick={() => void runExisting()}
+                  className="cursor-pointer rounded-md border border-gline bg-gold/8 px-3 py-1 text-body font-bold text-gold hover:bg-gold/15 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Icon name="play" size={14} className="inline" /> 执行或从中断处继续
+                  <Icon name="play" size={14} className="inline" /> {followUpBusy ? "正在提交执行请求…" : "执行或从中断处继续"}
                 </button>
               )}
             </>
@@ -274,30 +324,33 @@ export default function P2() {
         </div>
 
         {offline && (
-          <div className="mb-3"><BannerAlert level="warn">连接中断，正在重连；当前显示最后一次成功获取的进度，不会把旧数据当作最新结果。</BannerAlert></div>
+          <div className="mb-3"><BannerAlert level="warn" actionLabel="重试读取任务" onAction={() => void load()}>{readError} {thread ? "当前显示最后一次成功获取的进度，不会把旧数据当作最新结果。" : "任务内容暂不可用；读取失败不能说明任务不存在。"}</BannerAlert></div>
         )}
         {banner && (
           <div className="mb-3"><BannerAlert level={banner.level} actionLabel="知道了" onAction={() => setBanner(null)}>{banner.text}</BannerAlert></div>
         )}
 
-        {/* p2_error：探针失效停止一切点击 + 三入口（E3.1/L3.3） */}
-        {isFailed && (
+        {consultingTask && thread && <ConsultingTaskPanel key={thread.id} threadId={thread.id} canAct={canDispatch} onChanged={load} />}
+        {isFailed && !consultingTask && (
           <div className="mb-3 rounded-lg border border-alert/55 bg-alert/8 p-3.5">
-            <div className="mb-2 flex items-center gap-1.5 text-body font-bold text-alert"><Icon name="brake" size={15} />渠道连接检查失败 · 已暂停所有外部操作</div>
-            {canDispatch && <div className="wl-action-row flex flex-wrap gap-2">
-              <button type="button" onClick={() => setBanner({ level: "info", text: "已标记为需要人工介入，并开启人工接管通道。" })}
-                className="cursor-pointer rounded-md border border-alert/60 bg-alert/10 px-3 py-1.5 text-body font-bold text-alert">转人工</button>
-              <button type="button" onClick={() => thread && void trpc.threads.run.mutate({ threadId: thread.id, goal: thread.title, ...(thread.agent_id ? { presetKey: thread.agent_id } : {}) }).then(load)}
-                className="cursor-pointer rounded-md border border-warn/50 bg-warn/10 px-3 py-1.5 text-body font-bold text-warn">降级重试</button>
-              <button type="button" onClick={() => setBanner({ level: "info", text: "回滚会生成一组反向补偿事件，原始账本记录不会被覆盖。" })}
-                className="cursor-pointer rounded-md border border-holo/40 bg-holo/8 px-3 py-1.5 text-body font-bold text-holo">回滚</button>
-            </div>}
+            <div className="mb-2 flex items-center gap-1.5 text-body font-bold text-alert"><Icon name="warning" size={15} />任务执行未完成</div>
+            <p className="break-words text-body text-ink2">{clientNaturalText(thread?.error, "服务端尚未提供具体失败原因，请重试读取任务或核对事件回执。")}</p>
+            {thread?.current_action && <p className="mt-1 break-words text-body text-ink2">当前动作：{clientNaturalText(thread.current_action, "当前动作说明暂不可用")}</p>}
+            {canDispatch && <>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {["转人工", "恢复执行", "停止任务"].map(label => <button key={label} type="button" disabled title="本任务未接入受控恢复动作"
+                  className="rounded border border-line px-3 py-1.5 text-body text-ink3 disabled:cursor-not-allowed disabled:opacity-60">{label}</button>)}
+              </div>
+              <p className="mt-2 text-body text-ink3">本任务未接入受控恢复动作；未核实步骤不会盲目重发。停止任务须有服务端确认，并保留已生成草稿和历史记录。</p>
+            </>}
           </div>
         )}
 
         <div className="flex-1 space-y-3">
           {!ready ? (
             <><Skeleton count={2} height={44} label="会话摘要正在加载" /><Skeleton count={4} label="会话内容正在加载" /></>
+          ) : readError && !thread ? (
+            <EmptyState icon={<Icon name="warning" size={24} />} title="任务暂时无法读取" hint="请使用上方重试入口核对原任务状态" />
           ) : !thread ? (
             <EmptyState icon={<Icon name="tasks" size={24} />} title="这个任务不存在，或已被清理" hint="从左侧会话列表选择一条任务线程" />
           ) : events.length === 0 ? (
@@ -405,7 +458,7 @@ export default function P2() {
               ))}
 
               {/* 完成后态 p2_done：交付卡 + 决策链路时间轴；无对外变更明示「仅只读分析」（E3.7） */}
-              {isDone && (
+              {isDone && !consultingTask && (
                 <div className="rounded-msg border border-go/40 bg-go/5 p-4">
                   <div className="mb-1.5 flex items-center gap-1.5 text-h2 font-black text-go"><Icon name="check" size={17} />交付完成 · 变更报告</div>
                   {/* N-16：模拟回执必须一眼可辨——"演示完成的交付"与"真实完成的交付"不得同外观 */}
@@ -443,8 +496,8 @@ export default function P2() {
         </div>
 
         {/* P2E6 线程内追问（只读成员不显示输入栏 E2.6；沿用线程上下文 F3.6） */}
-        {canDispatch && thread && (
-          <div className="mt-4">
+        {canDispatch && thread && !consultingTask && thread.status !== "failed" && thread.status !== "cancelled" && (
+          <fieldset className="mt-4" disabled={followUpBusy || offline}>
             <DispatchBar
               state={composer ? "typing" : "empty"}
               value={composer}
@@ -452,7 +505,7 @@ export default function P2() {
               onChange={setComposer}
               onSubmit={() => void followUp()}
             />
-          </div>
+          </fieldset>
         )}
       </div>
       <RejectDialog

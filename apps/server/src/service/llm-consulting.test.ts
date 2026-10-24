@@ -19,6 +19,20 @@ function noModelWork() {
   expect(state.sharedPool).not.toHaveBeenCalled(); expect(state.sharedRoute).not.toHaveBeenCalled(); expect(state.sharedSink).not.toHaveBeenCalled();
 }
 describe("consulting industry selection precedes shared multi-vendor routing", () => {
+  it("an unresolved active bundle refuses before any shared provider or alternate model work", async () => {
+    vi.stubEnv("LLM_PROVIDER", "deepseek");
+    state.sharedPool.mockReturnValue(new Map());
+    state.sharedRoute.mockResolvedValue({ kind: "answered", text: "free unexpected shared-pool fixture" });
+    const call = routedLlmCall({ gateway: {} as pg.Pool, scope: { tenantId: "tenant", workspaceId: "workspace" },
+      scene: "intent-classify", taskContext: { requestId: "fixture-stable-request" }, industryResolver: async () => null });
+    const error = await call!("public consulting question").then(() => null, value => value as Error);
+    expect({ message: error?.message ?? null, poolCalls: state.sharedPool.mock.calls.length,
+      routeCalls: state.sharedRoute.mock.calls.length }).toEqual({
+      message: "MODEL_INDUSTRY_UNRESOLVED", poolCalls: 0, routeCalls: 0,
+    });
+    expect(state.assemble).not.toHaveBeenCalled(); expect(state.complete).not.toHaveBeenCalled();
+  });
+
   it("resolves the actual workspace bundle and preserves the same bounded context across its calls", async () => {
     vi.stubEnv("LLM_PROVIDER", "deepseek");
     const scope = { tenantId: "tenant", workspaceId: "workspace" };
