@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "workloom.repository/v1",
+  "logicalId": "workroom-eagle",
+  "productId": "workroom-eagle",
+  "lane": "industry",
+  "primaryPlatform": "github",
+  "github": {
+    "repository": "geniusdapeng-collab/workroom-eagle",
+    "url": "https://github.com/geniusdapeng-collab/workroom-eagle",
+    "branch": "main"
+  },
+  "cnb": {
+    "repository": "workloom-ai/workroom-eagle",
+    "url": "https://cnb.cool/workloom-ai/workroom-eagle",
+    "branch": "main"
+  },
+  "mirrorPolicy": {
+    "platform": "cnb",
+    "mode": "deferred",
+    "automaticProductSync": false,
+    "configBackupBranchPrefix": "workloom/config-backup/"
+  },
+  "baseSync": {
+    "receive": "subscribed",
+    "reflux": "proposal-only",
+    "pathPrefix": "",
+    "extraExclude": [],
+    "uiRolloutWave": "W1"
+  },
+  "registry": {
+    "repository": "geniusdapeng-collab/workloom-im",
+    "path": "sync/repository-registry.json"
+  }
+}

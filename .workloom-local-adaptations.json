@@ -47,10 +47,10 @@
         "mode": 420
       },
       "after": {
-        "sha256": "c0d881eeb046cc5fcb3bafbd4ec63ee4d256396d0edf0466251185db21010dbf",
+        "sha256": "c82fcd7bd6a6f93f0e813b5226369093e1c8ae0e023a2d5fada1f8fa2dbc358d",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "f0043e24c8e8e19bb77b34a5f8f89132a349d7998fb287c237dd2332f27098d4",
+      "canonicalGitDiffSha256": "fd464fbe46ae8ec2f8d59cbd0625239ff9b0559d6a9c6251e66f790564353311",
       "reason": "保留原共享UI制品身份和完整性，显式追加同版本同SHA512离线镜像传输记录。"
     },
     {
@@ -476,10 +476,10 @@
         "mode": 420
       },
       "after": {
-        "sha256": "0e2568fcc7f7f130dec8370d50faf82d88d79cc2aff6a6a3d74465bcac8ffff2",
+        "sha256": "0828f8c692e328dde57b0ff3af08b4abbef148b1d6d91252f6d0e429f4c160d1",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "8672eb0a7318405b217cfa120bf7600b5a951ad51548b9dea5651fb617ba8072",
+      "canonicalGitDiffSha256": "c733024cbc82a31563e0bc60261323fa3e648370a0d68e4bd995af015dfaf719",
       "reason": "保留原治理状态与UI规则，识别同字节离线传输和逐文件核验的治理适配。"
     },
     {
