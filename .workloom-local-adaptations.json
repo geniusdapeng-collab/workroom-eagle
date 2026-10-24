@@ -506,10 +506,10 @@
       "kind": "added",
       "before": null,
       "after": {
-        "sha256": "c2c761f446730c2b15e6e0783b638fd142bbf7894b42b31904351760d90bb03b",
+        "sha256": "94044f74b6bdec8b4a83ae5c4bc49f64c61760e744dd6a6d8490cd5582b6dac3",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "f742209a78eb93797e97f9625b8c7c067a12de73e2864892189a069b36a77678",
+      "canonicalGitDiffSha256": "624f1ecf7592e46387774ef188470f7a590932ff74f3967bba90a7e2f24709a9",
       "reason": "记录公开研究与授权资料的真实CLI/MCP调用顺序、稳定提交标识、费用及文件回读边界。"
     },
     {
