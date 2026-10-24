@@ -8,7 +8,7 @@
   "task": {
     "id": "T-2026-1024-0001",
     "issue": "https://github.com/geniusdapeng-collab/workroom-eagle/issues/25",
-    "reason": "修复正常客户端派单未接行业报告流程、真实错误遗漏与假恢复反馈；保留此前逐文件适配及两份原始基座状态，为本次必要客户端行为追加可复算文件边界。"
+    "reason": "修复正常客户端派单、公开资料报告和受控恢复，并补齐任务留言真实事件回执；保留此前逐文件适配与两份原始基座状态，为必要客户端行为登记可复算边界。"
   },
   "files": [
     {
@@ -19,10 +19,10 @@
         "mode": 420
       },
       "after": {
-        "sha256": "324943e150053b254cd8438fe2d3c98d11d5c8bb670003ad83630a6d7235e552",
+        "sha256": "8e9d0123f1dc8a7e02b1d0d4223509d9b38e8685be9eac3b7820bd2dca1a0e6f",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "9bd135239fe56aaf1110a0462c97a0e19506b5884507c2203603c528e0bb4029",
+      "canonicalGitDiffSha256": "c90cfdd344d00e2a265e305946a65c197cb6c71566a2b1512d30187d17a5cef2",
       "reason": "CI完整拉取Git基线并运行实际来源、安装与正式默认门禁，使适配补丁可复算。"
     },
     {
@@ -133,10 +133,10 @@
       "kind": "added",
       "before": null,
       "after": {
-        "sha256": "c96da5cb25cf97188db75eb63f7bcefd889eabb8c2174d0f1a789d0cb5cc389e",
+        "sha256": "c6d6459c2e0151525c194aa69b2447e2a357e46b5a9034729c141a60bc721a84",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "8f22d9290f0d601f2d1ad1eb9cb8f42a877ed01bf5dcdc2857e462ca919f7bae",
+      "canonicalGitDiffSha256": "979d23c84cdc6d202bacc1cd915d67128f47c46d6180fa93a8cefa5fe9ab412e",
       "reason": "实际渲染助手断言咨询队列、双击、刷新未知提交恢复、身份切换与原线程报告跳转，保留其他行业立即执行语义。"
     },
     {
@@ -147,10 +147,10 @@
         "mode": 420
       },
       "after": {
-        "sha256": "619b6bae23a45271b187ec1f39fa790df318dfaa14c816aea5478668d32d2e69",
+        "sha256": "3e266a6fe23611e9cd0bf3466b427be270c92ae5f2fa37160b911f54b3483a3e",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "93b4de123f385103c398302f3ee694fa6ab9efc094cc9dd35778935c4cc558cb",
+      "canonicalGitDiffSha256": "0d954288a9f95563f762ed69efc344da0e0ca17fd4187ba255500b0f63f91b9a",
       "reason": "咨询派单立即返回队列卡片并沿用持久请求标识，回读真实错误、来源与报告入口，刷新和双击不重复购买模型调用。"
     },
     {
@@ -285,6 +285,17 @@
       },
       "canonicalGitDiffSha256": "acb3150500250b7c69a48adac6103a4dadfa59e4dc237327cc1e90208c25cffc",
       "reason": "向客户端暴露正式工作区事实与产品配置，保持默认安装来源可追溯。"
+    },
+    {
+      "path": "apps/web/src/lib/thread-note-attempt.ts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "sha256": "40bd3ea827ffea1cd2ebda7f5ed05e6b990c81c466479228bf3c66ddc37b0b5c",
+        "mode": 420
+      },
+      "canonicalGitDiffSha256": "9fe4ee3b4cb5773254879ac81df763cdceddf52f3257ba2caa0d7e000b671135",
+      "reason": "任务留言按身份和内容摘要保存不含正文的恢复标识，使响应未知及刷新重传沿用同一幂等键，避免重复追加事件。"
     },
     {
       "path": "apps/web/src/lib/trpc.test.ts",

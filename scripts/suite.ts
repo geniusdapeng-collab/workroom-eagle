@@ -2016,38 +2016,14 @@ p("套件数据自我隔离：他工作区视角查不到套件事件", async ()
 });
 
 p("前后端契约对账：web 全部 trpc 调用点均有后端挂载", async () => {
-  const { readFileSync, readdirSync, statSync } = await import("node:fs");
-  const { join } = await import("node:path");
-  const root = new URL("../", import.meta.url).pathname; // 仓库根（scripts/ 的上一级）
-  const walk = (dir: string): string[] =>
-    readdirSync(dir).flatMap((f) => {
-      const fp = join(dir, f);
-      return statSync(fp).isDirectory() ? walk(fp) : (fp.endsWith(".tsx") || fp.endsWith(".ts") ? [fp] : []);
-    });
-  const calls = new Set<string>();
-  for (const f of walk(join(root, "apps/web/src"))) {
-    for (const m of readFileSync(f, "utf-8").matchAll(/trpc\.([a-zA-Z]+)\.([a-zA-Z]+)/g)) {
-      calls.add(`${m[1]}.${m[2]}`);
-    }
-  }
-  // 契约面 = trpc/ 目录全部路由文件（v3.0 起 credits/modelFeedback 等独立路由文件同样纳入对账）
-  const procs = new Set<string>();
-  for (const rf of readdirSync(join(root, "apps/server/src/trpc")).filter((f) => f.endsWith(".ts"))) {
-    const routerSrc = readFileSync(join(root, "apps/server/src/trpc", rf), "utf-8");
-    for (const rm of routerSrc.matchAll(/(\w+)Router = router\(\{([\s\S]*?)\n\}\)/g)) {
-      for (const pm of (rm[2] as string).matchAll(/^  (\w+):/gm)) {
-        procs.add(`${rm[1]}.${pm[1]}`);
-      }
-    }
-  }
-  // service 子模块（D28：serviceRouter 挂载于 apps/server/src/service/router.ts，kb/tickets/stats）
-  try {
-    const serviceSrc = readFileSync(join(root, "apps/server/src/service/router.ts"), "utf-8");
-    for (const rm of serviceSrc.matchAll(/(\w+)Router = router\(\{/g)) {
-      procs.add(`service.${(rm[1] as string).replace(/Router$/, "")}`);
-    }
-  } catch { /* 无子模块时跳过 */ }
-  const missing = [...calls].filter((c) => !procs.has(c));
+  const { fileURLToPath } = await import("node:url");
+  const { appRouter } = await import("../apps/server/src/trpc/router.js");
+  const { auditTrpcContract } = await import("./trpc-contract.mjs");
+  const contract = auditTrpcContract({
+    router: appRouter,
+    sourceRoot: fileURLToPath(new URL("../apps/web/src/", import.meta.url)),
+  });
+  const missing = [...new Set(contract.missing.map((reference) => reference.path))];
   eq(missing.length, 0, `悬空调用：${missing.join(",")}`);
 });
 

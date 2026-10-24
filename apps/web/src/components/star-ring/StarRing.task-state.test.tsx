@@ -5,13 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StarRing } from "./StarRing";
 import { webcrypto } from "node:crypto";
 
-const api = vi.hoisted(() => ({ identityKey: "workspace:OWNER", bundleId: "consulting", dispatch: vi.fn(), dispatchRequest: vi.fn(), get: vi.fn(), taskView: vi.fn(), navigate: vi.fn() }));
+const api = vi.hoisted(() => ({ identityKey: "workspace:OWNER", bundleId: "consulting", pathname: "/tasks", dispatch: vi.fn(), dispatchRequest: vi.fn(), note: vi.fn(), run: vi.fn(), get: vi.fn(), taskView: vi.fn(), navigate: vi.fn() }));
 vi.mock("../../lib/trpc", () => ({
   ensureDemoLogin: vi.fn(async () => {}),
-  trpc: { threads: { dispatch: { mutate: api.dispatch }, dispatchRequest: { query: api.dispatchRequest }, get: { query: api.get } },
+  trpc: { threads: { dispatch: { mutate: api.dispatch }, dispatchRequest: { query: api.dispatchRequest }, note: { mutate: api.note }, run: { mutate: api.run }, get: { query: api.get } },
     consulting: { taskView: { query: api.taskView } } },
 }));
-vi.mock("react-router", async original => ({ ...(await original<typeof import("react-router")>()), useNavigate: () => api.navigate, useLocation: () => ({ pathname: "/tasks" }) }));
+vi.mock("react-router", async original => ({ ...(await original<typeof import("react-router")>()), useNavigate: () => api.navigate, useLocation: () => ({ pathname: api.pathname }) }));
 vi.mock("../../shell/NavigationAccess", () => ({ useNavigationAccess: () => ({ identityKey: api.identityKey, status: "ready", bundle: { bundleId: api.bundleId }, canAction: () => true }) }));
 vi.mock("../AIFeedback", () => ({ AIFeedback: () => null }));
 
@@ -46,17 +46,94 @@ beforeEach(() => {
   vi.resetAllMocks(); localStorage.clear();
   api.identityKey = "workspace:OWNER";
   api.bundleId = "consulting";
+  api.pathname = "/tasks";
   vi.stubGlobal("crypto", webcrypto);
   Object.defineProperty(window, "matchMedia", { configurable: true, writable: true,
     value: vi.fn(() => ({ matches: false, media: "(max-width: 820px)", onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent: () => true })) });
   HTMLElement.prototype.scrollTo = vi.fn();
   api.dispatch.mockResolvedValue(reply()); api.get.mockResolvedValue(detail()); api.taskView.mockResolvedValue(null);
   api.dispatchRequest.mockImplementation(async ({ requestId }: { requestId: string }) => ({ kind: "not-found", requestId }));
+  api.note.mockResolvedValue({ threadId: "T-note-ui", receipt: { eventId: "E-880001", hash: "a".repeat(64), synced: true } });
   host = document.createElement("div"); document.body.append(host); root = createRoot(host);
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("助手任务卡与持久派单标识", () => {
+  it("线程留言携带稳定UUID，验证真实线程事件回执后才显示已生效且不派活", async () => {
+    api.pathname = "/tasks/T-note-ui";
+    await render(); await submit("留言：保留原始统计口径，由顾问复核");
+    expect(api.note).toHaveBeenCalledWith({ threadId: "T-note-ui", text: "留言：保留原始统计口径，由顾问复核",
+      idempotencyKey: expect.stringMatching(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i) });
+    expect(host.textContent).toContain("已给任务"); expect(host.textContent).toContain("已生效");
+    expect(api.dispatch).not.toHaveBeenCalled(); expect(api.run).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { receipt: undefined }, { receipt: { eventId: "E-880001", hash: "a".repeat(64), synced: false } },
+    { receipt: { eventId: "", hash: "a".repeat(64), synced: true } },
+    { receipt: { eventId: "E-880001", hash: "bad-hash", synced: true } },
+    { threadId: "T-another-ui", receipt: { eventId: "E-880001", hash: "a".repeat(64), synced: true } },
+  ])("线程留言缺失/错误事件回执不宣称已生效，保留原输入 $receipt", async patch => {
+    api.pathname = "/tasks/T-note-ui"; api.note.mockResolvedValue({ threadId: "T-note-ui", ...patch });
+    await render(); await submit("留言：原始证据仍待复核");
+    expect(host.textContent).not.toContain("已给任务"); expect(host.textContent).not.toContain("已生效");
+    expect(host.querySelector<HTMLInputElement>("input[data-workloom-assistant-input]")!.value).toBe("留言：原始证据仍待复核");
+    expect(api.dispatch).not.toHaveBeenCalled(); expect(api.run).not.toHaveBeenCalled();
+  });
+
+  it("线程留言网络响应未知后同文本沿用原UUID，刷新也不另造键或重发", async () => {
+    api.pathname = "/tasks/T-note-ui"; api.note.mockRejectedValueOnce(new Error("network response lost"));
+    await render(); await submit("留言：应复核原始凭证");
+    const first = api.note.mock.calls[0]![0].idempotencyKey;
+    expect(first).toMatch(/^[a-f0-9-]{36}$/i);
+    await act(async () => root.unmount()); root = createRoot(host); await render();
+    expect(api.note).toHaveBeenCalledTimes(1);
+    await submit("留言：应复核原始凭证");
+    expect(api.note.mock.calls[1]![0].idempotencyKey).toBe(first);
+    expect(host.textContent).toContain("已给任务");
+    const persisted = Array.from({ length: localStorage.length }, (_, i) => localStorage.getItem(localStorage.key(i)!)).join(" ");
+    expect(persisted).not.toContain("应复核原始凭证");
+  });
+
+  it("线程留言明确无权限时保留输入、不改成派单或推进", async () => {
+    api.pathname = "/tasks/T-note-ui";
+    api.note.mockRejectedValue(Object.assign(new Error("forbidden"), { data: { code: "FORBIDDEN" } }));
+    await render(); await submit("留言：待主管核对");
+    expect(host.textContent).toContain("当前角色没有执行此操作的权限");
+    expect(host.textContent).not.toContain("已生效");
+    expect(host.querySelector<HTMLInputElement>("input[data-workloom-assistant-input]")!.value).toBe("留言：待主管核对");
+    expect(api.dispatch).not.toHaveBeenCalled(); expect(api.run).not.toHaveBeenCalled();
+  });
+
+  it("留言恢复标识无法保存或已损坏时在提交前拒绝，不临时换键重试", async () => {
+    api.pathname = "/tasks/T-note-ui"; await render();
+    const storage = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("quota"); });
+    await submit("留言：仅保存证据链");
+    expect(api.note).not.toHaveBeenCalled(); expect(host.textContent).not.toContain("已生效");
+    storage.mockRestore();
+    api.note.mockRejectedValueOnce(new Error("network response lost"));
+    await submit("留言：仅保存证据链");
+    const noteKey = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)!).find(key => key.startsWith("workloom.thread-note.v1:"))!;
+    localStorage.setItem(noteKey, "not-json");
+    await submit("留言：仅保存证据链");
+    expect(api.note).toHaveBeenCalledTimes(1); expect(host.textContent).not.toContain("已生效");
+    expect(api.dispatch).not.toHaveBeenCalled(); expect(api.run).not.toHaveBeenCalled();
+  });
+
+  it("留言摘要迟到且身份已经切换时不再用新身份提交旧留言", async () => {
+    api.pathname = "/tasks/T-note-ui";
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("identity-race-note-fixture"));
+    const pending = deferred<ArrayBuffer>();
+    const digestCall = vi.spyOn(crypto.subtle, "digest").mockReturnValueOnce(pending.promise);
+    await render(); await type("留言：旧身份的待审证据");
+    await act(async () => sendButton().click());
+    await vi.waitFor(() => expect(digestCall).toHaveBeenCalledTimes(1));
+    api.identityKey = "other-workspace:OWNER"; await render();
+    await act(async () => pending.resolve(digest));
+    expect(api.note).not.toHaveBeenCalled(); expect(api.dispatch).not.toHaveBeenCalled(); expect(api.run).not.toHaveBeenCalled();
+    expect(host.textContent).not.toContain("旧身份的待审证据");
+  });
+
   it("咨询派单只入后台队列并立即展示可跟进卡片，不让HTTP等待完整报告执行", async () => {
     api.dispatch.mockResolvedValue({ ...reply(), status: "queued", executionSource: "consulting-report" });
     api.get.mockResolvedValue({ ...detail(), status: "queued", error: null, current_action: "等待后台调度", executionSource: "consulting-report" });

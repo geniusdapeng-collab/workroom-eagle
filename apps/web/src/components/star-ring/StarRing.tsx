@@ -44,11 +44,12 @@ import { COMMON_STATUS_TEXT, dictText, THREAD_MODE_TEXT } from "../../lib/displa
 import { sharedLayoutPixels } from "../../lib/useAskRail";
 import { useNavigationAccess } from "../../shell/NavigationAccess";
 import { operationFailure } from "../../lib/ui-state";
+import { beginThreadNote, finishThreadNote } from "../../lib/thread-note-attempt";
 import {
   beginDispatchAttempt, finishSettledDispatch, readDispatchAttempt, updateDispatchAttempt,
   type DispatchAttempt,
 } from "../../extensions/consulting/dispatch-attempt";
-import { consultingTaskStatusText, type ConsultingTaskView } from "../../extensions/consulting/task-client";
+import { consultingTaskStatusText, hasTaskReceipt, type ConsultingTaskView } from "../../extensions/consulting/task-client";
 
 /** 路由 → 情境快捷钮（前缀匹配；越靠上越优先） */
 const CONTEXT_CHIPS: Array<[prefix: string, chips: string[]]> = [
@@ -551,9 +552,6 @@ function ScopedStarRing({ identityKey, accessReady, queueTasks }: { identityKey:
       const secretary = trpc.service as unknown as {
         secretary: { chat: { mutate: (i: { text: string }) => Promise<{ reply: string }> } };
       };
-      const threads = trpc.threads as unknown as {
-        note: { mutate: (i: { threadId: string; text: string }) => Promise<{ eventId: string; threadId: string }> };
-      };
       // ① 我的域：记事 / 提醒 / 查任务 / 找人（原小织面板，铁律：不替用户做业务决策）
       if (intent === "personal") {
         const r = await secretary.secretary.chat.mutate({ text });
@@ -566,10 +564,14 @@ function ScopedStarRing({ identityKey, accessReady, queueTasks }: { identityKey:
       // ② 留言：只写账本，不派活、不回答、不推进
       if (intent === "note") {
         if (ctxThreadId) {
-          const r = await threads.note.mutate({ threadId: ctxThreadId, text });
+          const noteAttempt = await beginThreadNote(identityKey, ctxThreadId, text);
+          if (!alive.current) return;
+          const r = await trpc.threads.note.mutate({ threadId: ctxThreadId, text, idempotencyKey: noteAttempt.idempotencyKey });
+          if (r.threadId !== ctxThreadId || !hasTaskReceipt(r.receipt)) throw new Error("任务留言尚无可核验的事件回执。");
+          finishThreadNote(identityKey, ctxThreadId, noteAttempt);
           pushMsg({
-            role: "agent", intent, action: INTENT_LABEL.note, receipt: "synced", refId: r.eventId,
-            text: `已给任务${clientIdentifierText(ctxThreadId)}留言，写入事件账本（${clientIdentifierText(r.eventId)}）；留言只留痕，不触发执行。`,
+            role: "agent", intent, action: INTENT_LABEL.note, receipt: "synced", refId: r.receipt.eventId,
+            text: `已给任务${clientIdentifierText(ctxThreadId)}留言，写入事件账本（${clientIdentifierText(r.receipt.eventId)}）；留言只留痕，不触发执行。`,
             linkTo: `/tasks/${encodeURIComponent(ctxThreadId)}`,
           });
           return;

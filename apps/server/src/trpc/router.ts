@@ -27,6 +27,7 @@ import { registerAskKbSearch } from "@workloom/runtime";
 import { loadGoalArchive, registerIndustryQuestPlanner, registerIndustryThreadExecutor, resolveDispatchPresetKey, runQuestForThread } from "../runtime/thread-runner.js";
 import { claimDispatchRequest, dispatchFingerprint, readDispatchRequest, settleDispatchRequest, type DispatchResult } from "../runtime/thread-dispatch-request.js";
 import { assertThreadInputSafe } from "../runtime/thread-input.js";
+import { threadNoteProcedure } from "./thread-note.js";
 import {
   actionProcedure,
   capabilityActionProcedure,
@@ -1063,6 +1064,7 @@ async function resolveRunnableAgent(
 
 /** threads router：list（L7.1 越权返回空）/ dispatch（Quest 接口；H-10 越版 403+留痕） */
 const threadsRouter = router({
+  note: threadNoteProcedure,
   list: protectedProcedure.query(async ({ ctx }) => {
     const scope = scopeOf(ctx.identity);
     const app = getAppPool();
