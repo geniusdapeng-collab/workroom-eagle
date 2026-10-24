@@ -113,6 +113,70 @@ describe("consulting workflow state and evidence boundaries (unit fixtures, no p
     expect(artifact.content).toContain("\n\n## 发现、依据与反证\n\n");
     expect(artifact.content).not.toContain("\\n");
   });
+  it("shows only exact captured source content to analysis, preserves frozen dossier identity and accounts for the actual prompt bytes", async () => {
+    const captured = JSON.parse(await readFile(new URL("../../../../../acceptance/consulting/regressions/public-source-citation-escaping.json", import.meta.url), "utf8"));
+    const originalSources = JSON.stringify(captured.sources);
+    const source = captured.sources.find((item: { id: string }) => item.id === "PUBLIC_2")!;
+    const quote = source.content.slice(0, 70);
+    expect(quote).toContain("\\");
+    const control = { summary: "明确标注的离线控制，只验证逐字引用与资料可见边界，不是真实行业结论。",
+      findings: [{ claim: "本夹具只验证来源正文的逐字引用，不对制造业经营状况下结论。", evidence: [{ sourceId: source.id, quote }], counterEvidence: "仅为离线控制，不能当作实际报告或岗位能力证明。" }],
+      recommendations: [{ action: "保留原始失败产物和原文回执供人类排障复核。", basis: [source.id], owner: "夹具审查者", verification: "原始文件及资料散列和字节均保持不变。" }],
+      missingEvidence: [], humanReviewRequired: true };
+    const f = await fixture(async () => JSON.stringify(control), captured.sources);
+    const queued = await f.workflow.submit(scope, "unit-owner", { ...single, goal: captured.goal, employeeKey: "diagnosis-analyst" });
+    const done = await f.workflow.advance(scope, "unit-owner", { runId: queued.id, idempotencyKey: "captured-exact-content-control" });
+    expect(done.status).toBe("draft_ready"); expect(f.prompts).toHaveLength(1);
+    const actual = f.prompts[0]!;
+    const serializedSources = /原始授权资料[^\n]*?：(\[.*\])\n全部前序产物全文/u.exec(actual.prompt)?.[1];
+    expect(serializedSources).toBeDefined();
+    const visible = JSON.parse(serializedSources!);
+    expect(visible).toEqual(captured.sources.map(({ id, content }: { id: string; content: string }) => ({ id, content })));
+    expect(visible.every((item: Record<string, unknown>) => !Object.hasOwn(item, "title"))).toBe(true);
+    expect(actual.system).toContain("quote只能来自同一sourceId的content");
+    expect(actual.system).toContain("包括Markdown反斜杠在内逐字复制");
+    expect(actual.system).toContain("title、搜索摘要和未选入的全文不是可引用正文");
+    expect(actual.system).toContain("缺少正文证据时列入missingEvidence");
+    expect(actual.system).toContain("数量、排序、负责人、验收、回退、人审和格式");
+    expect(actual.system).toContain("无法满足的要求必须列入missingEvidence，不得暗示已完成");
+    expect(actual.system).toContain("收益必须使用基线与试点的差值");
+    expect(actual.system).toContain("工时与金额必须分开");
+    expect(done.sources).toEqual(captured.sources); expect(done.sourceDigest).toBe(captured.sourceDigest);
+    expect(JSON.stringify(captured.sources)).toBe(originalSources);
+    for (const proof of captured.sourceProvenance) {
+      const content = done.sources.find((item) => item.id === proof.id)!.content;
+      expect(sha256(content)).toBe(proof.excerptSha256); expect(Buffer.byteLength(content)).toBe(proof.excerptBytes);
+    }
+    expect(done.completed[0]!.inputDisclosure).toMatchObject({ systemAndPromptUtf8Bytes: Buffer.byteLength(actual.system! + actual.prompt), inputSha256: sha256(`${actual.system}\0${actual.prompt}`) });
+  });
+  it("retains the original captured public response as evidence mismatch and cannot revalidate or repurchase it", async () => {
+    const captured = JSON.parse(await readFile(new URL("../../../../../acceptance/consulting/regressions/public-source-citation-escaping.json", import.meta.url), "utf8"));
+    expect(sha256(captured.rawResponse)).toBe(captured.rawResponseSha256);
+    const f = await fixture(async () => captured.rawResponse, captured.sources);
+    const run = await f.workflow.submit(scope, "unit-owner", { ...single, goal: captured.goal, employeeKey: "diagnosis-analyst" });
+    const blocked = await f.workflow.advance(scope, "unit-owner", { runId: run.id, idempotencyKey: "original-public-evidence-failure" });
+    expect(blocked.status).toBe("blocked"); expect(blocked.error?.code).toBe("EVIDENCE_MISMATCH"); expect(blocked.completed).toHaveLength(0);
+    expect(await readFile(blocked.failureEvidence!.rejectedArtifact!.path, "utf8")).toContain(captured.rawResponse);
+    await f.workflow.advance(scope, "unit-owner", { runId: run.id, idempotencyKey: "another-key-cannot-repurchase" });
+    await expect(f.workflow.revalidate(scope, "unit-owner", { runId: run.id, idempotencyKey: "cannot-accept-title-or-unescaped-quote" })).rejects.toMatchObject({ code: "REVALIDATION_NOT_ALLOWED" });
+    expect(f.prompts).toHaveLength(1); expect(sha256(captured.rawResponse)).toBe(captured.rawResponseSha256);
+  });
+  it.each([0, 1, 2, 3, 4])("keeps captured headline or unescaped evidence quote %i outside the exact-content whitelist", async (index) => {
+    const captured = JSON.parse(await readFile(new URL("../../../../../acceptance/consulting/regressions/public-source-citation-escaping.json", import.meta.url), "utf8"));
+    const original = JSON.parse(captured.rawResponse);
+    const evidence = original.findings.flatMap((item: { evidence: Array<{ sourceId: string; quote: string }> }) => item.evidence)[index];
+    const candidate = { ...original, findings: [{ ...original.findings[0], evidence: [evidence] }] };
+    expect(() => validateArtifact(JSON.stringify(candidate), captured.sources)).toThrow(/产物引用不在本任务档案原文中/);
+  });
+  it("limits planner instructions to responsibilities and acceptance while retaining original quantities, periods and human review constraints", async () => {
+    const f = await fixture(); const goal = "审视未来30天收入120万元与现金安全目标，保留人类顾问最终审阅。";
+    const run = await f.workflow.submit(scope, "unit-owner", { ...single, goal, employeeKey: undefined });
+    expect(run.status).toBe("queued"); expect(f.prompts).toHaveLength(1);
+    expect(f.prompts[0]!.prompt).toContain(`目标：${goal}`);
+    expect(f.prompts[0]!.system).toContain("不计算、不写派生数值");
+    expect(f.prompts[0]!.system).toContain("原目标中的数量、周期和人审约束必须逐项保留");
+    expect(f.prompts[0]!.system).toContain("资料数字和前序意见均须独立核对");
+  });
   it("a lost completion COMMIT acknowledgement reads back the original receipt without overwriting accepted Markdown or appending failure", async () => {
     const f = await fixture(); const queued = await f.workflow.submit(scope, "unit-owner", single);
     const workflow = new ConsultingWorkflow({ store: lostCommitAcknowledgement(f.store, "consulting.analysis.read"), workforce: async () => catalog,

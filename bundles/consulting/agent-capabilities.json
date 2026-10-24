@@ -105,6 +105,118 @@
       }
     },
     {
+      "id": "consulting.task.dispatch",
+      "version": "1.0.0",
+      "title": "提交公开研究报告任务",
+      "description": "沿用正式任务派遣入口；先保存UUID requestId，默认排队交正常调度器执行。只用于公开地区/行业研究，不接收客户私密档案或外发指令。提交回执不代表报告完成，运输中断后只读原requestId，不换号重购。",
+      "operation": "execute",
+      "risk": "moderate",
+      "dataMode": "real",
+      "idempotencyField": "requestId",
+      "transport": {
+        "kind": "trpc",
+        "path": "threads.dispatch",
+        "method": "mutation",
+        "timeoutMs": 120000
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "goalRef": { "type": ["string", "null"], "minLength": 1, "maxLength": 120 },
+          "presetKey": { "type": ["string", "null"], "minLength": 1, "maxLength": 80 },
+          "runImmediately": { "type": "boolean", "default": false }
+        },
+        "required": ["requestId", "title"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.task.dispatch_request",
+      "version": "1.0.0",
+      "title": "找回原公开研究提交",
+      "description": "按原UUID只读提交认领和当前线程状态；不会重做意图分类、重新派遣或执行。dispatching或not-found不等于可换号重购；保留原标识与错误核验。",
+      "operation": "receipt",
+      "risk": "low",
+      "dataMode": "real",
+      "transport": { "kind": "trpc", "path": "threads.dispatchRequest", "method": "query" },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          }
+        },
+        "required": ["requestId"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.task.view",
+      "version": "1.0.0",
+      "title": "读取公开研究任务与来源回执",
+      "description": "读取原咨询线程的六步进度、政府官网来源URL/日期/全文与摘录散列、真实最后事件与可用控制动作。draft_ready仍是内部待审稿，须另回读报告文件。",
+      "operation": "receipt",
+      "risk": "low",
+      "dataMode": "real",
+      "receiptField": "lastReceipt",
+      "transport": { "kind": "trpc", "path": "consulting.taskView", "method": "query" },
+      "inputSchema": {
+        "type": "object",
+        "properties": { "threadId": { "type": "string", "pattern": "^T-[A-Za-z0-9_-]{1,110}$" } },
+        "required": ["threadId"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.task.report",
+      "version": "1.0.0",
+      "title": "回读公开研究Markdown报告",
+      "description": "服务端回读实际本机报告并核对sha256、UTF-8字节数和真实报告事件；保留原content/hash/receipt。文件未就绪或被修改即失败，不以任务状态代替交付。",
+      "operation": "receipt",
+      "risk": "low",
+      "dataMode": "real",
+      "receiptField": "receipt",
+      "transport": { "kind": "trpc", "path": "consulting.taskReport", "method": "query" },
+      "inputSchema": {
+        "type": "object",
+        "properties": { "threadId": { "type": "string", "pattern": "^T-[A-Za-z0-9_-]{1,110}$" } },
+        "required": ["threadId"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "consulting.task.action",
+      "version": "1.0.0",
+      "title": "继续、转人工或停止原公开研究任务",
+      "description": "只控制原任务后续自动步骤，须使用稳定幂等键和服务端actionReceipt。继续复用原资料与流程；转人工暂停后续步骤；停止保留草稿/历史/费用，不代表撤销已发生动作。未知调用不可借继续重购。",
+      "operation": "execute",
+      "risk": "moderate",
+      "dataMode": "real",
+      "receiptField": "actionReceipt",
+      "transport": { "kind": "trpc", "path": "consulting.taskAction", "method": "mutation", "timeoutMs": 120000 },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "threadId": { "type": "string", "pattern": "^T-[A-Za-z0-9_-]{1,110}$" },
+          "action": { "type": "string", "enum": ["resume", "handoff", "cancel"] },
+          "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 160 },
+          "reason": { "type": "string", "maxLength": 500 }
+        },
+        "required": ["threadId", "action", "idempotencyKey"],
+        "additionalProperties": false
+      }
+    },
+    {
       "id": "consulting.dossier.put",
       "version": "1.0.0",
       "title": "建立企业授权资料档案",

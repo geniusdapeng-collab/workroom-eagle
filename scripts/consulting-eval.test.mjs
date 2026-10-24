@@ -34,6 +34,29 @@ test('completion status or matching keyword alone cannot fake evaluation success
   }
 });
 
+test('every finding and recommendation needs nonempty authorized evidence rather than vacuous arrays', () => {
+  for (const change of [
+    ({ run }) => { run.completed[0].artifact.findings[0].evidence = []; },
+    ({ run }) => { delete run.completed[0].artifact.findings[0].evidence; },
+    ({ run }) => { run.completed[0].artifact.findings[0].evidence = null; },
+    ({ run }) => { run.completed[0].artifact.recommendations[0].basis = []; },
+    ({ run }) => { delete run.completed[0].artifact.recommendations[0].basis; },
+    ({ run }) => { run.completed[0].artifact.recommendations[0].basis = null; },
+  ]) {
+    const data = fixture(); change(data);
+    assert.throws(() => checkArtifact(data.run, data.task, data.files), /evidence|basis/);
+  }
+});
+
+test('matching empty or whitespace event IDs are not immutable event receipts', () => {
+  for (const eventId of ['', '   ']) {
+    const data = fixture();
+    data.run.completed[0].eventId = eventId;
+    data.files[0].receipt.eventId = eventId;
+    assert.throws(() => checkArtifact(data.run, data.task, data.files), /immutable event receipt missing/);
+  }
+});
+
 test('task-specific arithmetic expectations fail independently of structural validity', () => {
   const data = fixture();
   assert.throws(() => checkArtifact(data.run, { ...data.task, expectAny: ['25[%％]'] }, data.files), /predeclared content check failed/);

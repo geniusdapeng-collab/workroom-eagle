@@ -19,6 +19,7 @@ const DATA_MODES = new Set(["real", "simulated", "provided-unverified", "unverif
 const CAPABILITY_ID = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/u;
 const TRPC_PATH = /^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*)+$/u;
 const BUNDLE_NAME = /^[a-z0-9][a-z0-9-]*$/u;
+const TOP_LEVEL_FIELD = /^[A-Za-z][A-Za-z0-9_]*$/u;
 const MAX_INPUT_BYTES = 8 * 1024 * 1024;
 
 export class CapabilityError extends Error {
@@ -44,6 +45,20 @@ async function jsonFile(file) {
 
 function object(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function explicitField(value) {
+  return typeof value === "string" && TOP_LEVEL_FIELD.test(value)
+    && !["constructor", "prototype", "__proto__"].includes(value);
+}
+
+function idempotencyField(descriptor) {
+  return descriptor.idempotencyField ?? "idempotencyKey";
+}
+
+function synchronizedReceipt(value) {
+  return object(value) && value.synced === true
+    && typeof value.eventId === "string" && value.eventId.trim().length > 0;
 }
 
 function validateDescriptor(item, bundleId) {
@@ -103,8 +118,20 @@ function validateDescriptor(item, bundleId) {
   if (item.operation === "execute" && !Array.isArray(item.inputSchema.required)) {
     reject("CATALOG_INVALID", item.id + " 执行能力必须声明必填字段");
   }
-  if (item.operation === "execute" && !item.inputSchema.required.includes("idempotencyKey")) {
-    reject("CATALOG_INVALID", item.id + " 执行能力必须要求 idempotencyKey");
+  if (item.idempotencyField !== undefined && (item.operation !== "execute" || !explicitField(item.idempotencyField))) {
+    reject("CATALOG_INVALID", item.id + " idempotencyField 必须是执行能力的一个明确顶层字段名");
+  }
+  if (item.operation === "execute") {
+    const field = idempotencyField(item);
+    const schema = item.inputSchema.properties?.[field];
+    if (!item.inputSchema.required.includes(field) || schema?.type !== "string"
+        || !Number.isSafeInteger(schema.minLength) || schema.minLength < 8) {
+      reject("CATALOG_INVALID", item.id + " 执行能力必须要求至少 8 字符的字符串 " + field);
+    }
+  }
+  if (item.receiptField !== undefined && (!explicitField(item.receiptField)
+      || !["execute", "receipt"].includes(item.operation) || item.dataMode !== "real")) {
+    reject("CATALOG_INVALID", item.id + " receiptField 必须是实模式执行或回读能力的一个明确顶层字段名");
   }
   return Object.freeze(item);
 }
@@ -178,7 +205,8 @@ function schemaIssue(value, schema, at) {
       if (!Object.hasOwn(value, key)) return at + "." + key + " 缺失";
     }
     for (const [key, child] of Object.entries(value)) {
-      const property = schema.properties?.[key];
+      const properties = object(schema.properties) ? schema.properties : null;
+      const property = properties && Object.hasOwn(properties, key) ? properties[key] : undefined;
       if (!property && schema.additionalProperties === false) return at + "." + key + " 不允许";
       if (property) {
         const issue = schemaIssue(child, property, at + "." + key);
@@ -195,9 +223,10 @@ export function validateInput(descriptor, input) {
   if (bytes > MAX_INPUT_BYTES) reject("INPUT_TOO_LARGE", "输入超过 8 MiB");
   const issue = schemaIssue(value, descriptor.inputSchema, "input");
   if (issue) reject("INVALID_INPUT", issue);
+  const field = idempotencyField(descriptor);
   if (descriptor.operation === "execute"
-      && (typeof value.idempotencyKey !== "string" || value.idempotencyKey.trim().length < 8)) {
-    reject("INVALID_INPUT", "execute 必须提供至少 8 字符的 idempotencyKey");
+      && (typeof value[field] !== "string" || value[field].trim().length < 8)) {
+    reject("INVALID_INPUT", "execute 必须提供至少 8 字符的 " + field);
   }
   return value;
 }
@@ -336,7 +365,15 @@ async function localCall(catalog, transport, input) {
 }
 
 function envelope(descriptor, raw) {
-  if (object(raw) && raw.schemaVersion === RESULT_SCHEMA) {
+  // Read only the reviewed top-level field. Missing proof is never inferred
+  // from a task status, a different receipt, or a locally invented event ID.
+  const declaredReceipt = descriptor.receiptField === undefined ? null : raw?.[descriptor.receiptField];
+  const fullEnvelope = object(raw) && raw.schemaVersion === RESULT_SCHEMA;
+  if (descriptor.receiptField !== undefined && !(fullEnvelope && raw.status === "failed")
+      && !synchronizedReceipt(declaredReceipt)) {
+    reject("REMOTE_INVALID", "服务端声明的 " + descriptor.receiptField + " 缺少真实已同步事件回执", 7);
+  }
+  if (fullEnvelope) {
     if (raw.capabilityId !== descriptor.id || raw.operation !== descriptor.operation
         || !["succeeded", "pending", "failed"].includes(raw.status)
         || !DATA_MODES.has(raw.dataMode)) {
@@ -345,14 +382,17 @@ function envelope(descriptor, raw) {
     if (descriptor.dataMode !== "real" && raw.dataMode === "real") {
       reject("REMOTE_INVALID", "未核实数据不得升级标记为 real", 7);
     }
+    // A real failure has no successful action/report receipt. Keep its original
+    // blocked state and error instead of replacing it with a missing-proof error.
+    if (raw.status === "failed") return raw;
     if (descriptor.operation === "execute" && raw.status === "succeeded"
-        && (raw.receipt?.synced !== true || typeof raw.receipt?.eventId !== "string" || !raw.receipt.eventId)) {
+        && !synchronizedReceipt(declaredReceipt ?? raw.receipt)) {
       reject("REMOTE_INVALID", "执行成功必须附服务端已同步事件回执", 7);
     }
-    return raw;
+    return declaredReceipt ? { ...raw, receipt: declaredReceipt } : raw;
   }
-  const receipt = object(raw?.receipt) ? raw.receipt : null;
-  const proven = descriptor.dataMode === "real" && receipt?.synced === true;
+  const receipt = declaredReceipt ?? (object(raw?.receipt) ? raw.receipt : null);
+  const proven = descriptor.dataMode === "real" && synchronizedReceipt(receipt);
   return {
     schemaVersion: RESULT_SCHEMA,
     capabilityId: descriptor.id,
@@ -362,6 +402,7 @@ function envelope(descriptor, raw) {
     result: raw,
     ...(["execute", "receipt"].includes(descriptor.operation)
       ? { receipt: {
+        ...(receipt ?? {}),
         eventId: typeof receipt?.eventId === "string" ? receipt.eventId : undefined,
         synced: proven,
         sourceVerified: false,
@@ -405,7 +446,7 @@ export function mcpTools(catalog) {
       title: item.title,
       readOnlyHint: item.operation !== "execute",
       destructiveHint: item.operation === "execute" && item.risk === "review",
-      idempotentHint: item.operation !== "execute" || item.inputSchema.required?.includes("idempotencyKey") === true,
+      idempotentHint: item.operation !== "execute" || item.inputSchema.required?.includes(idempotencyField(item)) === true,
       openWorldHint: item.transport.kind !== "local",
     },
   }));

@@ -38,14 +38,18 @@ export function checkArtifact(run, task, files) {
     check(done.model?.requestId && done.model?.reservationId && !requests.has(done.model.requestId), 'missing/duplicate provider request receipt');
     requests.add(done.model.requestId);
     check(done.model?.usage?.totalTokens > 0 && done.model.usage.totalTokens === done.model.usage.promptTokens + done.model.usage.completionTokens, 'actual provider usage missing');
-    check(typeof done.eventId === 'string' && /^[a-f0-9]{64}$/.test(done.hash), 'immutable event receipt missing');
+    check(typeof done.eventId === 'string' && done.eventId.trim().length > 0 && /^[a-f0-9]{64}$/.test(done.hash), 'immutable event receipt missing');
     const artifact = done.artifact;
     check(artifact?.humanReviewRequired === true && artifact?.findings?.length > 0 && artifact?.recommendations?.length > 0, 'substantive draft structure missing');
     for (const finding of artifact.findings) {
       check(typeof finding.counterEvidence === 'string' && finding.counterEvidence.length >= 2, 'counter evidence missing');
-      for (const ref of finding.evidence ?? []) check(sources.get(ref.sourceId)?.content.includes(ref.quote) && ref.quote.length >= 2, 'source quote is not present in authorized original');
+      check(Array.isArray(finding.evidence) && finding.evidence.length > 0, 'finding evidence is empty or missing');
+      for (const ref of finding.evidence) check(typeof ref?.sourceId === 'string' && typeof ref.quote === 'string'
+        && ref.quote.length >= 2 && sources.get(ref.sourceId)?.content.includes(ref.quote), 'source quote is not present in authorized original');
     }
-    for (const recommendation of artifact.recommendations) check(recommendation.owner && recommendation.verification && recommendation.basis?.every((id) => sources.has(id)), 'action ownership, verification or source basis missing');
+    for (const recommendation of artifact.recommendations) check(recommendation.owner && recommendation.verification
+      && Array.isArray(recommendation.basis) && recommendation.basis.length > 0
+      && recommendation.basis.every((id) => typeof id === 'string' && sources.has(id)), 'action ownership, verification or source basis missing');
     const file = files.find((f) => f.stepId === step.id);
     check(file?.receipt?.synced === true && file.receipt.eventId === done.eventId, 'artifact receipt not bound to same step event');
     check(typeof file.content === 'string' && digest(file.content) === done.file.sha256 && file.sha256 === done.file.sha256 && Buffer.byteLength(file.content) === done.file.bytes, 'artifact content/hash/readback mismatch');

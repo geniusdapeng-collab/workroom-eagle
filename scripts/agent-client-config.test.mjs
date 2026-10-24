@@ -14,6 +14,9 @@ test("installed configuration uses the exact runtime paths and loopback instance
   assert.deepEqual(server.env, { WORKLOOM_PRODUCT_ROOT: root, WORKLOOM_BASE_URL: "http://127.0.0.1:18997" });
   assert.match(config.codexToml, /tool_timeout_sec = 130/u);
   assert.doesNotMatch(JSON.stringify(config), /ACCESS_TOKEN|SESSION_SECRET|API_KEY/u);
+  assert.match(config.instruction, /task\.dispatch.*UUID requestId/u);
+  assert.match(config.instruction, /dispatch_request.*task\.view.*task\.report/u);
+  assert.match(config.instruction, /不换键或换号重购/u);
 });
 
 test("installed configuration refuses remote, credential-bearing and ambiguous endpoints", () => {
