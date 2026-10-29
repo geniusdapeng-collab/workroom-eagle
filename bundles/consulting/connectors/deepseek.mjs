@@ -33,7 +33,7 @@ export const TOKENIZER_PROOF = Object.freeze({
 });
 const LIMITS = Object.freeze({ maxLlmCalls: 40, maxLlmTokens: 300000, maxCostCny: 120, maxWallClockMin: 45, maxSearchCalls: 8, maxFetchCalls: 8 });
 export const DEEPSEEK_BUDGET_LIMITS = LIMITS;
-export const DEEPSEEK_MAX_INPUT_BYTES = 64000;
+export const DEEPSEEK_MAX_INPUT_BYTES = 100000;
 const MAX_OUTPUT_TOKENS = 4096;
 // Peak uncached Flash: USD 0.3 / 1M input, 1.2 / 1M output.
 // Use the higher rate for ALL reserved tokens and a conservative 10 CNY/USD

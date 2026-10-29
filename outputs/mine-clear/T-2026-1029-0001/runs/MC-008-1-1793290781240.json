@@ -1,0 +1,40 @@
+{
+  "schema": "workloom.evidence-run/v1",
+  "id": "MC-008-1-1793290781240",
+  "command": "node_modules/.bin/vitest run apps/server/src/industry/consulting/arithmetic.test.ts -t \"accepts correctly rounded displays\" --testTimeout 30000",
+  "exec": {
+    "file": "node_modules/.bin/vitest",
+    "args": [
+      "run",
+      "apps/server/src/industry/consulting/arithmetic.test.ts",
+      "-t",
+      "accepts correctly rounded displays",
+      "--testTimeout",
+      "30000"
+    ]
+  },
+  "actor": "codex-primary-2026-10-30",
+  "role": "repair",
+  "subject": {
+    "card_id": "MC-008",
+    "assertion_index": 1
+  },
+  "commit": "9f4b1552a731c1873fb18c41e72a230bfe0a129d",
+  "working_tree_dirty": false,
+  "started_at": "2026-10-29T16:19:41.240Z",
+  "finished_at": "2026-10-29T16:19:42.482Z",
+  "exit_code": 0,
+  "signal": null,
+  "validation": {
+    "ok": true,
+    "errors": []
+  },
+  "result": "pass",
+  "outputs": [
+    {
+      "path": "evidence/MC-008-1-1793290781240.txt",
+      "sha256": "68e5233ebf8c3dee08a04b86a22374619c6b8c0bc15fc953ca5ba1870931ed73",
+      "commit": "9f4b1552a731c1873fb18c41e72a230bfe0a129d"
+    }
+  ]
+}

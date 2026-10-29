@@ -1,0 +1,40 @@
+{
+  "schema": "workloom.evidence-run/v1",
+  "id": "MC-005-0-1793290898392",
+  "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"only citable source IDs\"",
+  "exec": {
+    "file": "node_modules/.bin/vitest",
+    "args": [
+      "run",
+      "apps/server/src/industry/consulting/workflow.test.ts",
+      "-t",
+      "only citable source IDs",
+      "--testTimeout",
+      "30000"
+    ]
+  },
+  "actor": "codex-independent-acceptance-2026-10-30",
+  "role": "acceptance",
+  "subject": {
+    "card_id": "MC-005",
+    "assertion_index": 0
+  },
+  "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad",
+  "working_tree_dirty": false,
+  "started_at": "2026-10-29T16:21:38.392Z",
+  "finished_at": "2026-10-29T16:21:40.054Z",
+  "exit_code": 0,
+  "signal": null,
+  "validation": {
+    "ok": true,
+    "errors": []
+  },
+  "result": "pass",
+  "outputs": [
+    {
+      "path": "evidence/MC-005-0-1793290898392.txt",
+      "sha256": "732e7bbb36d0fc454e0c4c5184169788ca7ddd17d04d9df7deb373ed104b2a23",
+      "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+    }
+  ]
+}

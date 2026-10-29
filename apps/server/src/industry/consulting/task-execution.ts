@@ -439,8 +439,25 @@ export class ConsultingTaskService {
       const content = await this.compileReport(scope, state, run, workflow);
       const file = await vault.write(scope, input.threadId, "report", sha256(content), content);
       await vault.read(scope, input.threadId, file);
+      const qualityDecision = run.completed.at(-1)?.artifact.reviewDecision;
+      const qualityNeedsHuman = run.steps.at(-1)?.employeeKey === "quality-officer" && qualityDecision !== "approved";
       ({ state } = await this.update(scope, input.threadId, "consulting.task.report.ready", (next) => {
-        controlError(next); return { ...next, reportFile: file, phase: "draft_ready", error: null, operation: null };
+        controlError(next);
+        return {
+          ...next,
+          reportFile: file,
+          phase: "draft_ready",
+          ...(qualityNeedsHuman
+            ? {
+              control: "human_required",
+              error: {
+                code: "QUALITY_REVIEW_REQUIRED",
+                message: "独立质检未批准当前草稿；报告文件已保留，须由人类顾问按质检意见处理。",
+              },
+            }
+            : { error: null }),
+          operation: null,
+        };
       }, { file, runId: run.id, sourceDigest: selection.sourceDigest }));
       return this.outcome(state);
     } catch (error) {

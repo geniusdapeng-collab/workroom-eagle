@@ -1,0 +1,40 @@
+{
+  "schema": "workloom.evidence-run/v1",
+  "id": "MC-003-2-1793290758819",
+  "command": "node_modules/.bin/vitest run apps/server/src/industry/consulting/workflow.test.ts -t \"defines quality approval\" --testTimeout 30000",
+  "exec": {
+    "file": "node_modules/.bin/vitest",
+    "args": [
+      "run",
+      "apps/server/src/industry/consulting/workflow.test.ts",
+      "-t",
+      "defines quality approval",
+      "--testTimeout",
+      "30000"
+    ]
+  },
+  "actor": "codex-primary-2026-10-30",
+  "role": "repair",
+  "subject": {
+    "card_id": "MC-003",
+    "assertion_index": 2
+  },
+  "commit": "9f4b1552a731c1873fb18c41e72a230bfe0a129d",
+  "working_tree_dirty": false,
+  "started_at": "2026-10-29T16:19:18.820Z",
+  "finished_at": "2026-10-29T16:19:20.721Z",
+  "exit_code": 0,
+  "signal": null,
+  "validation": {
+    "ok": true,
+    "errors": []
+  },
+  "result": "pass",
+  "outputs": [
+    {
+      "path": "evidence/MC-003-2-1793290758819.txt",
+      "sha256": "da7bc4b4fcfc2b42c0eeafdb534655c188d6e5ff57808c853a649814d85dbfc5",
+      "commit": "9f4b1552a731c1873fb18c41e72a230bfe0a129d"
+    }
+  ]
+}

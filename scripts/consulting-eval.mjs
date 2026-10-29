@@ -12,6 +12,13 @@ const root = resolve(import.meta.dirname, '..');
 const digest = (text) => createHash('sha256').update(text).digest('hex');
 const check = (condition, message) => { if (!condition) throw new Error(message); };
 
+export function capabilityForMethod(catalog, method) {
+  const capabilityId = `consulting.${method}`;
+  return [...catalog.entries.values()].find((descriptor) =>
+    descriptor.transport.kind === 'trpc'
+      && (descriptor.id === capabilityId || descriptor.transport.path === capabilityId));
+}
+
 export function checkArtifact(run, task, files) {
   check(run?.status === 'draft_ready', `task did not reach draft_ready: ${run?.status ?? 'missing'} / ${run?.error?.code ?? ''}`);
   check(run.humanReviewRequired === true, 'human final review flag missing');
@@ -25,6 +32,8 @@ export function checkArtifact(run, task, files) {
     check(run.steps.at(-1).employeeKey === task.requiredLast, 'independent quality gate missing');
     check(typeof run.rationale === 'string' && run.rationale.length >= 8, 'planner rationale missing');
     check(run.planModel?.provider === 'deepseek' && run.planModel?.requestId && run.planModel?.usage?.totalTokens > 0, 'real planner model receipt missing');
+    check(run.completed.at(-1)?.artifact?.reviewDecision === 'approved',
+      `independent quality gate did not approve: ${run.completed.at(-1)?.artifact?.reviewDecision ?? 'missing'}`);
   }
   const sources = new Map(run.sources.map((s) => [s.id, s]));
   const fullText = [];
@@ -79,17 +88,20 @@ export function checkBudgetBindings(run, ledger) {
 
 function parse(argv) {
   const values = {};
+  let withRouting = false;
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
-    if (!['--environment', '--base-url', '--out', '--run-id', '--budget-file', '--transport', '--client-state-file'].includes(key) || !argv[i + 1]) throw new Error(`unknown/missing argument ${key}`);
+    if (key === '--with-routing') { withRouting = true; continue; }
+    if (!['--environment', '--base-url', '--out', '--run-id', '--budget-file', '--transport', '--client-state-file', '--only'].includes(key) || !argv[i + 1]) throw new Error(`unknown/missing argument ${key}`);
     values[key] = argv[++i];
   }
-  check(['sandbox', 'client-runtime'].includes(values['--environment']), '--environment must be sandbox or client-runtime');
+  check(['sandbox', 'sandbox-all', 'client-runtime'].includes(values['--environment']), '--environment must be sandbox, sandbox-all or client-runtime');
   check(values['--out'] && values['--budget-file'], '--out and --budget-file are required');
   const url = new URL(values['--base-url'] ?? 'http://127.0.0.1:8787');
   check(['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) && ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password && !url.search && !url.hash && url.pathname === '/', 'evaluation target must be a plain loopback origin');
   if (values['--environment'] === 'client-runtime') check(values['--client-state-file'], 'installed client receipt is required for client-runtime');
-  return { environment: values['--environment'], baseUrl: url.origin, out: resolve(values['--out']), runId: values['--run-id'] ?? `eval-${Date.now()}-${randomUUID().slice(0, 8)}`, budgetFile: resolve(values['--budget-file']), transport: values['--transport'] ?? 'cli', clientStateFile: values['--client-state-file'] };
+  const only = values['--only'] ? values['--only'].split(',').map((item) => item.trim()).filter(Boolean) : null;
+  return { environment: values['--environment'], baseUrl: url.origin, out: resolve(values['--out']), runId: values['--run-id'] ?? `eval-${Date.now()}-${randomUUID().slice(0, 8)}`, budgetFile: resolve(values['--budget-file']), transport: values['--transport'] ?? 'cli', clientStateFile: values['--client-state-file'], withRouting, only };
 }
 
 function safeError(error) {
@@ -107,7 +119,7 @@ function transportEnvironment(overrides = {}) {
 
 function cliTransport(config, catalog) {
   return async (method, input, envOverride) => {
-    const descriptor = [...catalog.entries.values()].find((d) => d.transport.kind === 'trpc' && d.transport.path === `consulting.${method}`);
+    const descriptor = capabilityForMethod(catalog, method);
     check(descriptor, `shipped capability not found: consulting.${method}`);
     return new Promise((resolveCall, reject) => {
       const child = spawn(process.execPath, [join(root, 'scripts/workloom-agent.mjs'), 'invoke', descriptor.id, '--input-file', '-', '--base-url', config.baseUrl], { cwd: root, env: transportEnvironment(envOverride), stdio: ['pipe', 'pipe', 'pipe'] });
@@ -175,7 +187,7 @@ async function mcpTransport(config, catalog) {
   child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`);
   const available = await request('tools/list', {});
   const invoke = async (method, input) => {
-    const descriptor = [...catalog.entries.values()].find((d) => d.transport.kind === 'trpc' && d.transport.path === `consulting.${method}`);
+    const descriptor = capabilityForMethod(catalog, method);
     check(descriptor && available.tools.some((t) => t.name === toolName(descriptor)), `shipped MCP tool missing consulting.${method}`);
     const out = await request('tools/call', { name: toolName(descriptor), arguments: input });
     if (out.isError) {
@@ -203,7 +215,7 @@ async function main(argv) {
   const plan = JSON.parse(planText);
   const catalog = await loadCatalog(root, 'consulting');
   check(plan.singleTasks.length === 22 && new Set(plan.singleTasks.map((t) => t.employeeKey)).size === 22, 'evaluation plan does not cover all 22 employees');
-  const report = { schemaVersion: 'eagle.consulting-evaluation-report/v1', runId: config.runId, environment: config.environment, baseUrl: config.baseUrl, transport: config.transport, startedAt: new Date().toISOString(), planSha256: digest(planText), dataClassification: plan.dataClassification, disclosure: plan.disclosure, revisionDisclosure: plan.revisionDisclosure ?? null, statisticalLimit: plan.statisticalLimit, status: 'running', tasks: [], negativeTests: [], budget: null, fingerprint: {} };
+  const report = { schemaVersion: 'eagle.consulting-evaluation-report/v1', runId: config.runId, environment: config.environment, baseUrl: config.baseUrl, transport: config.transport, startedAt: new Date().toISOString(), planSha256: digest(planText), dataClassification: plan.dataClassification, disclosure: plan.disclosure, revisionDisclosure: plan.revisionDisclosure ?? null, statisticalLimit: plan.statisticalLimit, status: 'running', tasks: [], routingTasks: [], negativeTests: [], budget: null, fingerprint: {} };
   await mkdir(join(config.out, 'transcripts'), { recursive: true });
   await mkdir(join(config.out, 'artifacts'), { recursive: true });
   const writeReport = () => writeFile(join(config.out, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
@@ -236,8 +248,49 @@ async function main(argv) {
     try { await cli('catalog', {}, { WORKLOOM_ACCESS_TOKEN: '', WORKLOOM_DESKTOP_SESSION_SECRET: '', WORKLOOM_KEYCHAIN_ACCESS: '0' }); negative = false; } catch (error) { negative = /UNAUTHORIZED|FORBIDDEN/.test(error.message); }
     report.negativeTests.push({ id: 'NO-CREDENTIAL', precondition: 'access token and installation session secret removed from this child; Keychain lookup disabled', expected: 'access rejected, no model call', passed: negative });
     check(negative, 'no-credential negative probe did not fail closed');
+    if (config.withRouting) {
+      for (const task of plan.routingTasks ?? []) {
+        const input = { requestId: randomUUID(), title: task.goal, runImmediately: false };
+        const budgetBefore = unwrap(await invoke('catalog', {})).budget;
+        const first = unwrap(await invoke('task.dispatch', input));
+        const budgetAfter = unwrap(await invoke('catalog', {})).budget;
+        if (Array.isArray(task.allowedOutcomes)) {
+          check(task.allowedOutcomes.some((expected) =>
+            expected.kind === first.kind
+            && (expected.mode === undefined || expected.mode === first.mode)
+            && (expected.status === undefined || expected.status === first.status)),
+          `${task.id}: unsafe/unexpected outcome ${JSON.stringify({ kind: first.kind, mode: first.mode ?? null, status: first.status ?? null })}`);
+        } else {
+          check(first.kind === task.expectedKind, `${task.id}: kind ${first.kind ?? 'missing'} != ${task.expectedKind}`);
+          if (task.expectedMode !== null) check(first.mode === task.expectedMode, `${task.id}: mode ${first.mode ?? 'missing'} != ${task.expectedMode}`);
+          if (task.expectedStatus !== null) check(first.status === task.expectedStatus, `${task.id}: status ${first.status ?? 'missing'} != ${task.expectedStatus}`);
+        }
+        check(first.via === 'llm', `${task.id}: real classifier did not produce the route (via=${first.via ?? 'missing'})`);
+        const repeated = unwrap(await invoke('task.dispatch', input));
+        const budgetAfterRepeat = unwrap(await invoke('catalog', {})).budget;
+        check(JSON.stringify(repeated) === JSON.stringify(first), `${task.id}: repeated dispatch changed the recovered result`);
+        check(budgetAfterRepeat.llmAttempts === budgetAfter.llmAttempts,
+          `${task.id}: idempotent repeat purchased another model call`);
+        report.routingTasks.push({
+          id: task.id,
+          status: 'passed',
+          precondition: 'real consulting member identity, real DeepSeek classifier, scheduler disabled, stable UUID reused',
+          expected: task.why,
+          actual: { kind: first.kind, mode: first.mode ?? null, via: first.via, status: first.status ?? null, threadId: first.threadId ?? null },
+          modelCalls: budgetAfter.llmAttempts - budgetBefore.llmAttempts,
+          idempotencyPassed: true,
+        });
+      }
+    }
     const stage = plan.environments[config.environment];
-    const tasks = [...plan.singleTasks.filter((task) => stage.singleEmployeeKeys === 'all' || stage.singleEmployeeKeys.includes(task.employeeKey)), plan.complexTask];
+    let tasks = [...plan.singleTasks.filter((task) => stage.singleEmployeeKeys === 'all' || stage.singleEmployeeKeys.includes(task.employeeKey)), plan.complexTask];
+    if (config.only) {
+      const known = new Set(tasks.map((task) => task.id));
+      const missing = config.only.filter((id) => !known.has(id));
+      check(missing.length === 0, `unknown --only task: ${missing.join(',')}`);
+      tasks = tasks.filter((task) => config.only.includes(task.id));
+      check(tasks.length > 0, '--only selected no tasks');
+    }
     for (const task of tasks) {
       const record = { id: task.id, employeeKey: task.employeeKey ?? null, status: 'running', precondition: 'isolated, explicitly marked evaluation-only dossier; real provider and one shared persisted budget', goal: task.goal, expected: task.employeeKey ? 'one selected employee, substantive cited internal draft, real model usage, real event/file receipt' : 'one real model plan plus six ordered distinct employees, persistent dependency receipts, independent final quality review', steps: [], startedAt: new Date().toISOString() };
       report.tasks.push(record);
@@ -295,8 +348,8 @@ async function main(argv) {
       process.stdout.write(`${JSON.stringify({ id: task.id, status: record.status, error: record.error ?? null, llmAttempts: report.budget.llmAttempts, actualTokens: report.budget.actualTokens })}\n`);
       if (report.budget.frozen) throw new Error(`BUDGET_FROZEN: ${report.budget.freezeReason}`);
     }
-    report.status = report.tasks.every((t) => t.status === 'passed') && report.negativeTests.every((t) => t.passed) ? 'passed' : 'failed';
-    report.coverage = { tasksPlanned: tasks.length, tasksExecuted: report.tasks.length, tasksPassed: report.tasks.filter((t) => t.status === 'passed').length, employeesPlanned: tasks.filter((t) => t.employeeKey).length, employeeClaims: 'one observed task each, not a statistical competency certification', complexRunsPlanned: 1, complexRunsPassed: report.tasks.filter((t) => !t.employeeKey && t.status === 'passed').length };
+    report.status = report.tasks.every((t) => t.status === 'passed') && report.routingTasks.every((t) => t.status === 'passed') && report.negativeTests.every((t) => t.passed) ? 'passed' : 'failed';
+    report.coverage = { tasksPlanned: tasks.length, tasksExecuted: report.tasks.length, tasksPassed: report.tasks.filter((t) => t.status === 'passed').length, employeesPlanned: tasks.filter((t) => t.employeeKey).length, employeeClaims: 'one observed task each, not a statistical competency certification', complexRunsPlanned: 1, complexRunsPassed: report.tasks.filter((t) => !t.employeeKey && t.status === 'passed').length, routingTasksPlanned: config.withRouting ? (plan.routingTasks ?? []).length : 0, routingTasksPassed: report.routingTasks.filter((t) => t.status === 'passed').length };
   } catch (error) { report.status = 'failed'; report.error = safeError(error); }
   finally { close(); report.finishedAt = new Date().toISOString(); await writeReport(); }
   process.stdout.write(`${JSON.stringify({ report: join(config.out, 'report.json'), status: report.status, coverage: report.coverage ?? null })}\n`);

@@ -1,0 +1,58 @@
+{
+  "id": "MC-004",
+  "kind": "problem",
+  "level": "L1",
+  "severity": "P0",
+  "batch": 0,
+  "title": "工单幂等键仅按工作区唯一，跨用户可回读他人原单",
+  "state": "open",
+  "evidence": [
+    {
+      "type": "code",
+      "ref": "apps/server/src/service/ticket.ts:123@c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "sha256": "64abebc690ef0da1b8cfd69e789601ddff5495442c107536746b64ea18753e19",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "冲突分支只按 workspace_id + idempotency_key 回查并直接返回原工单，未核对 c_user_id、kind、title、payload"
+    },
+    {
+      "type": "log",
+      "ref": "evidence/baseline-cross-user-idempotency.log",
+      "sha256": "03398e3c2bd682d8c190bbe5ecf99a3c957f83f08a0acb58e83efcff74c77595",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "基线真实 PG 契约测试两项均以 200 代替预期 409"
+    }
+  ],
+  "root_cause": {
+    "file": "apps/server/src/service/ticket.ts",
+    "line": 123,
+    "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+    "symbol": "createTicketOn"
+  },
+  "trigger_path": "用户 A 以某键创建工单后，用户 B 在同一工作区使用同一键调用 /tickets 或 /chat confirm；唯一约束冲突后服务端回查原单并将其作为幂等重放返回。",
+  "fix_plan": "保持现有 (workspace_id,idempotency_key) 数据约束；冲突时同时核对原 c_user_id、kind、title 与 canonical payload，任一不同返回不泄露内容的 409，只有同用户同请求重放 deduped。",
+  "assertions": [
+    {
+      "kind": "sample",
+      "given": "用户 A、B 在同一工作区使用相同幂等键",
+      "expect": "B 得 409，响应不含 A 的工单、标题、房间或回执",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/service/contract.test.ts -t \"同工作区跨用户\"",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/service/contract.test.ts", "-t", "同工作区跨用户", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    },
+    {
+      "kind": "property",
+      "given": "同一用户相同键但 kind/title/payload 任一变化",
+      "expect": "返回 409；同用户同请求才允许 deduped 回放",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/service/contract.test.ts -t \"同工作区跨用户|确认工单同键\"",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/service/contract.test.ts", "-t", "同工作区跨用户|确认工单同键", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    }
+  ],
+  "regression": {
+    "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/service/contract.test.ts -t \"同工作区跨用户|确认工单同键\""
+  },
+  "fixed_by": null,
+  "verified_by": null,
+  "verified_at": null,
+  "verification_evidence": null
+}

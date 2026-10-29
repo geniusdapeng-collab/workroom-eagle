@@ -1,0 +1,808 @@
+{
+  "schemaVersion": "eagle.deepseek-budget/v1",
+  "policy": {
+    "maxLlmCalls": 40,
+    "maxLlmTokens": 300000,
+    "maxCostCny": 120,
+    "maxWallClockMin": 45,
+    "maxSearchCalls": 8,
+    "maxFetchCalls": 8
+  },
+  "startedAt": 1793289244036,
+  "llmAttempts": 37,
+  "searchAttempts": 0,
+  "fetchAttempts": 0,
+  "actualTokens": 134592,
+  "reservedTokens": 0,
+  "actualCostCny": 1.6151039999999997,
+  "reservedCostCny": 0,
+  "frozen": false,
+  "freezeReason": null,
+  "reservations": [
+    {
+      "id": "8fd8baf7-e542-4a81-82ee-50e64cc3afd4",
+      "kind": "llm",
+      "tokens": 3016,
+      "estimatedCostCny": 0.036192,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289244465,
+      "actualTokens": 459,
+      "estimatedActualCostCny": 0.005508,
+      "settledAt": 1793289245128,
+      "receipt": {
+        "requestId": "ca479c22-fd53-45c3-8ccc-c506e7332124",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 423,
+          "completionTokens": 36,
+          "totalTokens": 459
+        }
+      }
+    },
+    {
+      "id": "74312a37-bc4d-4d41-a32a-eeef3dd44202",
+      "kind": "llm",
+      "tokens": 3037,
+      "estimatedCostCny": 0.036444000000000004,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289245647,
+      "actualTokens": 451,
+      "estimatedActualCostCny": 0.005412,
+      "settledAt": 1793289246283,
+      "receipt": {
+        "requestId": "06b27433-0f2e-40fc-a836-8d54922fce24",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 426,
+          "completionTokens": 25,
+          "totalTokens": 451
+        }
+      }
+    },
+    {
+      "id": "666a7840-7f21-46b6-a3b2-94fe46b3cd45",
+      "kind": "llm",
+      "tokens": 4246,
+      "estimatedCostCny": 0.050952000000000004,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289246519,
+      "actualTokens": 319,
+      "estimatedActualCostCny": 0.0038280000000000002,
+      "settledAt": 1793289247416,
+      "receipt": {
+        "requestId": "0d8e646b-c444-4414-b44d-a66e7a0060cf",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 288,
+          "completionTokens": 31,
+          "totalTokens": 319
+        }
+      }
+    },
+    {
+      "id": "20a80dbc-7a5e-4a1f-9633-a69afb202e29",
+      "kind": "llm",
+      "tokens": 3070,
+      "estimatedCostCny": 0.03684,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289248207,
+      "actualTokens": 465,
+      "estimatedActualCostCny": 0.00558,
+      "settledAt": 1793289249254,
+      "receipt": {
+        "requestId": "dbfb57b2-7088-44ce-9e75-ec807d161319",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 432,
+          "completionTokens": 33,
+          "totalTokens": 465
+        }
+      }
+    },
+    {
+      "id": "10ce7842-328d-4e4e-a89d-b7ecf9b86f46",
+      "kind": "llm",
+      "tokens": 3064,
+      "estimatedCostCny": 0.036768,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289249957,
+      "actualTokens": 466,
+      "estimatedActualCostCny": 0.005592,
+      "settledAt": 1793289250615,
+      "receipt": {
+        "requestId": "1dee259d-10e6-4813-b1d5-1491e65a3586",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 433,
+          "completionTokens": 33,
+          "totalTokens": 466
+        }
+      }
+    },
+    {
+      "id": "c9c26811-857e-4aca-9b1d-ad0c56b1a10d",
+      "kind": "llm",
+      "tokens": 3064,
+      "estimatedCostCny": 0.036768,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289251947,
+      "actualTokens": 465,
+      "estimatedActualCostCny": 0.00558,
+      "settledAt": 1793289252689,
+      "receipt": {
+        "requestId": "63c032fb-afee-4732-8fa9-123215f016f3",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 433,
+          "completionTokens": 32,
+          "totalTokens": 465
+        }
+      }
+    },
+    {
+      "id": "ba225969-a9e3-4e8a-8803-316bdc5bd0b1",
+      "kind": "llm",
+      "tokens": 4203,
+      "estimatedCostCny": 0.050436,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289252867,
+      "actualTokens": 354,
+      "estimatedActualCostCny": 0.004248,
+      "settledAt": 1793289254285,
+      "receipt": {
+        "requestId": "01db6afc-f33b-4b0f-b051-c422486835c1",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 278,
+          "completionTokens": 76,
+          "totalTokens": 354
+        }
+      }
+    },
+    {
+      "id": "0d01c83a-9bac-4862-9653-0e8b5c7ad66e",
+      "kind": "llm",
+      "tokens": 3126,
+      "estimatedCostCny": 0.037512000000000004,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289254952,
+      "actualTokens": 477,
+      "estimatedActualCostCny": 0.005724,
+      "settledAt": 1793289255666,
+      "receipt": {
+        "requestId": "02724fdf-9a06-4e92-9f76-77ebb07ec7a4",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 442,
+          "completionTokens": 35,
+          "totalTokens": 477
+        }
+      }
+    },
+    {
+      "id": "5610049e-2c8c-4fb6-a418-a7b897d1bbc5",
+      "kind": "llm",
+      "tokens": 11969,
+      "estimatedCostCny": 0.143628,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289256368,
+      "actualTokens": 3352,
+      "estimatedActualCostCny": 0.040224,
+      "settledAt": 1793289266463,
+      "receipt": {
+        "requestId": "5b8edf8b-1202-45ce-ae26-018859a0678f",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 1628,
+          "completionTokens": 1724,
+          "totalTokens": 3352
+        }
+      }
+    },
+    {
+      "id": "b2ae4efd-140a-4dd9-b9a3-fd910a525b7f",
+      "kind": "llm",
+      "tokens": 14029,
+      "estimatedCostCny": 0.168348,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289267536,
+      "actualTokens": 3362,
+      "estimatedActualCostCny": 0.040344,
+      "settledAt": 1793289274724,
+      "receipt": {
+        "requestId": "b9a24f1d-298f-4217-9f22-5a4e367c1aa9",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2175,
+          "completionTokens": 1187,
+          "totalTokens": 3362
+        }
+      }
+    },
+    {
+      "id": "06323152-9675-4813-be42-1f628107f38d",
+      "kind": "llm",
+      "tokens": 12987,
+      "estimatedCostCny": 0.155844,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289275547,
+      "actualTokens": 3092,
+      "estimatedActualCostCny": 0.037104,
+      "settledAt": 1793289282980,
+      "receipt": {
+        "requestId": "45ec2448-3a21-44fe-b551-7ebc41caab7d",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 1888,
+          "completionTokens": 1204,
+          "totalTokens": 3092
+        }
+      }
+    },
+    {
+      "id": "307d24e9-c3ae-412a-852e-16b062878e3e",
+      "kind": "llm",
+      "tokens": 13982,
+      "estimatedCostCny": 0.16778400000000002,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289283862,
+      "actualTokens": 3705,
+      "estimatedActualCostCny": 0.04446,
+      "settledAt": 1793289293053,
+      "receipt": {
+        "requestId": "8d7fd1e8-b191-41f4-b974-63f132fb5bf0",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2141,
+          "completionTokens": 1564,
+          "totalTokens": 3705
+        }
+      }
+    },
+    {
+      "id": "fcee2311-4c2f-43b2-8052-b5974598e16e",
+      "kind": "llm",
+      "tokens": 13631,
+      "estimatedCostCny": 0.163572,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289294278,
+      "actualTokens": 3653,
+      "estimatedActualCostCny": 0.043836,
+      "settledAt": 1793289305097,
+      "receipt": {
+        "requestId": "7c7de0c3-0941-4e16-b1c2-00d2e6f7aeeb",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2030,
+          "completionTokens": 1623,
+          "totalTokens": 3653
+        }
+      }
+    },
+    {
+      "id": "bd33f8fb-be8b-4b87-a2e6-efbabb9577de",
+      "kind": "llm",
+      "tokens": 12617,
+      "estimatedCostCny": 0.151404,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289306143,
+      "actualTokens": 2861,
+      "estimatedActualCostCny": 0.034332,
+      "settledAt": 1793289312195,
+      "receipt": {
+        "requestId": "efebc35a-52f2-41f6-b01e-edb778514a02",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 1816,
+          "completionTokens": 1045,
+          "totalTokens": 2861
+        }
+      }
+    },
+    {
+      "id": "1a2bf9e8-5f24-46af-bf2c-1f28c41f2475",
+      "kind": "llm",
+      "tokens": 13436,
+      "estimatedCostCny": 0.16123200000000001,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289313117,
+      "actualTokens": 3144,
+      "estimatedActualCostCny": 0.037728,
+      "settledAt": 1793289319819,
+      "receipt": {
+        "requestId": "51cab6a8-ef31-4e72-83c7-651d8a3d55e5",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2090,
+          "completionTokens": 1054,
+          "totalTokens": 3144
+        }
+      }
+    },
+    {
+      "id": "d649c116-5509-468c-8efd-359ed0991d5c",
+      "kind": "llm",
+      "tokens": 13839,
+      "estimatedCostCny": 0.166068,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289320660,
+      "actualTokens": 3554,
+      "estimatedActualCostCny": 0.042648,
+      "settledAt": 1793289329602,
+      "receipt": {
+        "requestId": "caab030a-7dcf-400e-9e79-56b887118c6d",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2083,
+          "completionTokens": 1471,
+          "totalTokens": 3554
+        }
+      }
+    },
+    {
+      "id": "467a866f-e14c-44d9-8521-4f4d32b57ee1",
+      "kind": "llm",
+      "tokens": 13357,
+      "estimatedCostCny": 0.160284,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289330466,
+      "actualTokens": 3728,
+      "estimatedActualCostCny": 0.044736,
+      "settledAt": 1793289342253,
+      "receipt": {
+        "requestId": "851fce00-1526-4d69-b9d5-575b2362cc35",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2007,
+          "completionTokens": 1721,
+          "totalTokens": 3728
+        }
+      }
+    },
+    {
+      "id": "3af34986-28e9-48b3-a144-dd8325f40b45",
+      "kind": "llm",
+      "tokens": 13428,
+      "estimatedCostCny": 0.161136,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289343088,
+      "actualTokens": 3505,
+      "estimatedActualCostCny": 0.04206,
+      "settledAt": 1793289352509,
+      "receipt": {
+        "requestId": "690ddfa5-8703-44da-9f54-db5547497423",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 1962,
+          "completionTokens": 1543,
+          "totalTokens": 3505
+        }
+      }
+    },
+    {
+      "id": "1d4c170a-7df5-485f-9de6-0d10871440f0",
+      "kind": "llm",
+      "tokens": 13082,
+      "estimatedCostCny": 0.156984,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289353568,
+      "actualTokens": 3426,
+      "estimatedActualCostCny": 0.041112,
+      "settledAt": 1793289362800,
+      "receipt": {
+        "requestId": "a48950b7-8e2a-46e0-ba3d-8174fed69cab",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 1958,
+          "completionTokens": 1468,
+          "totalTokens": 3426
+        }
+      }
+    },
+    {
+      "id": "1753a624-9ea5-4954-831c-74dd2484c50d",
+      "kind": "llm",
+      "tokens": 13481,
+      "estimatedCostCny": 0.161772,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289363741,
+      "actualTokens": 3461,
+      "estimatedActualCostCny": 0.041532,
+      "settledAt": 1793289372110,
+      "receipt": {
+        "requestId": "dd9b20a4-4250-4adc-89e1-efc9b569cc02",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2046,
+          "completionTokens": 1415,
+          "totalTokens": 3461
+        }
+      }
+    },
+    {
+      "id": "7cf01203-75f9-445e-8b76-50ef7d6762d4",
+      "kind": "llm",
+      "tokens": 14425,
+      "estimatedCostCny": 0.1731,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289373018,
+      "actualTokens": 3508,
+      "estimatedActualCostCny": 0.042096,
+      "settledAt": 1793289379973,
+      "receipt": {
+        "requestId": "d8943deb-9872-4196-bba4-bf30b01a30e1",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2277,
+          "completionTokens": 1231,
+          "totalTokens": 3508
+        }
+      }
+    },
+    {
+      "id": "7f57e14a-d349-44ca-9f9e-2246d1a43748",
+      "kind": "llm",
+      "tokens": 13416,
+      "estimatedCostCny": 0.160992,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289380876,
+      "actualTokens": 3517,
+      "estimatedActualCostCny": 0.042204,
+      "settledAt": 1793289390258,
+      "receipt": {
+        "requestId": "1b550020-c33c-4e7b-a025-84b98b25b6f1",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2015,
+          "completionTokens": 1502,
+          "totalTokens": 3517
+        }
+      }
+    },
+    {
+      "id": "b5916605-0810-4faf-90e4-faf7880acd83",
+      "kind": "llm",
+      "tokens": 13498,
+      "estimatedCostCny": 0.161976,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289391152,
+      "actualTokens": 3337,
+      "estimatedActualCostCny": 0.040044,
+      "settledAt": 1793289399715,
+      "receipt": {
+        "requestId": "38af22f7-33c5-433f-8642-bcc2be65c504",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 1985,
+          "completionTokens": 1352,
+          "totalTokens": 3337
+        }
+      }
+    },
+    {
+      "id": "ebdbeff5-72cd-4273-a432-856d449dc527",
+      "kind": "llm",
+      "tokens": 13689,
+      "estimatedCostCny": 0.164268,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289400742,
+      "actualTokens": 3673,
+      "estimatedActualCostCny": 0.044076000000000004,
+      "settledAt": 1793289409218,
+      "receipt": {
+        "requestId": "360683b6-e4a6-4a88-9978-e817fc3ed922",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2129,
+          "completionTokens": 1544,
+          "totalTokens": 3673
+        }
+      }
+    },
+    {
+      "id": "967993c5-0453-46cc-9841-7bca667831d8",
+      "kind": "llm",
+      "tokens": 15906,
+      "estimatedCostCny": 0.190872,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289410082,
+      "actualTokens": 3759,
+      "estimatedActualCostCny": 0.045108,
+      "settledAt": 1793289417434,
+      "receipt": {
+        "requestId": "e9930519-bfff-486e-907b-4cb347ef5ed4",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2561,
+          "completionTokens": 1198,
+          "totalTokens": 3759
+        }
+      }
+    },
+    {
+      "id": "bb0d09a9-e038-4585-8f64-dbfb140788ba",
+      "kind": "llm",
+      "tokens": 17202,
+      "estimatedCostCny": 0.206424,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289418354,
+      "actualTokens": 4799,
+      "estimatedActualCostCny": 0.057588,
+      "settledAt": 1793289428505,
+      "receipt": {
+        "requestId": "17e4e486-bc79-465d-9540-3d72aa8db3ac",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2838,
+          "completionTokens": 1961,
+          "totalTokens": 4799
+        }
+      }
+    },
+    {
+      "id": "d8a97488-f442-482f-920f-da4a95d31225",
+      "kind": "llm",
+      "tokens": 13794,
+      "estimatedCostCny": 0.165528,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289429384,
+      "actualTokens": 3535,
+      "estimatedActualCostCny": 0.04242,
+      "settledAt": 1793289437412,
+      "receipt": {
+        "requestId": "f796fd63-7a44-46f8-969b-e291554a0b36",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2084,
+          "completionTokens": 1451,
+          "totalTokens": 3535
+        }
+      }
+    },
+    {
+      "id": "5d3c8375-8c5c-4c26-96da-b37c184cec93",
+      "kind": "llm",
+      "tokens": 13042,
+      "estimatedCostCny": 0.156504,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289438508,
+      "actualTokens": 3082,
+      "estimatedActualCostCny": 0.036984,
+      "settledAt": 1793289446038,
+      "receipt": {
+        "requestId": "cbe62a46-8d50-4cc2-a3f1-d52b6a5da4e8",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 1886,
+          "completionTokens": 1196,
+          "totalTokens": 3082
+        }
+      }
+    },
+    {
+      "id": "156439aa-48bd-4119-b300-3e8bb5af0e1a",
+      "kind": "llm",
+      "tokens": 13891,
+      "estimatedCostCny": 0.166692,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289447059,
+      "actualTokens": 3790,
+      "estimatedActualCostCny": 0.04548,
+      "settledAt": 1793289458078,
+      "receipt": {
+        "requestId": "928d874c-b237-4a3e-a441-837ed61138ba",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2076,
+          "completionTokens": 1714,
+          "totalTokens": 3790
+        }
+      }
+    },
+    {
+      "id": "86baeaa1-71bc-4a4e-a9a9-e4e9067fa4b8",
+      "kind": "llm",
+      "tokens": 13890,
+      "estimatedCostCny": 0.16668,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289459034,
+      "actualTokens": 3840,
+      "estimatedActualCostCny": 0.04608,
+      "settledAt": 1793289470476,
+      "receipt": {
+        "requestId": "81259291-e875-4583-9f73-efdbe74c3752",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2064,
+          "completionTokens": 1776,
+          "totalTokens": 3840
+        }
+      }
+    },
+    {
+      "id": "b1969fdb-0338-4d32-8722-7097dced6d7f",
+      "kind": "llm",
+      "tokens": 12583,
+      "estimatedCostCny": 0.150996,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289471365,
+      "actualTokens": 2921,
+      "estimatedActualCostCny": 0.035052,
+      "settledAt": 1793289478842,
+      "receipt": {
+        "requestId": "7efd49ff-0e8f-4574-8ebc-29ecdec02632",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 1809,
+          "completionTokens": 1112,
+          "totalTokens": 2921
+        }
+      }
+    },
+    {
+      "id": "5e997c00-51f2-43c0-9486-1a9cd300b19b",
+      "kind": "llm",
+      "tokens": 16307,
+      "estimatedCostCny": 0.195684,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289479107,
+      "actualTokens": 4192,
+      "estimatedActualCostCny": 0.050304,
+      "settledAt": 1793289487090,
+      "receipt": {
+        "requestId": "7c69273d-11bf-4e2f-9fd7-05886bc5b0b9",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 2689,
+          "completionTokens": 1503,
+          "totalTokens": 4192
+        }
+      }
+    },
+    {
+      "id": "75cf5c10-f6dd-4d09-8ddb-24d31f8475c2",
+      "kind": "llm",
+      "tokens": 22199,
+      "estimatedCostCny": 0.266388,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289487671,
+      "actualTokens": 5602,
+      "estimatedActualCostCny": 0.067224,
+      "settledAt": 1793289495319,
+      "receipt": {
+        "requestId": "5b8e770a-75d3-47e2-a646-b1553c5dc60f",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 4099,
+          "completionTokens": 1503,
+          "totalTokens": 5602
+        }
+      }
+    },
+    {
+      "id": "eb1e8498-a01d-4add-af11-3336b24fb8d7",
+      "kind": "llm",
+      "tokens": 28415,
+      "estimatedCostCny": 0.34098,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289496071,
+      "actualTokens": 6921,
+      "estimatedActualCostCny": 0.083052,
+      "settledAt": 1793289502801,
+      "receipt": {
+        "requestId": "8de53fe8-2fd6-4deb-9e8a-e1dd1a34a23e",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 5657,
+          "completionTokens": 1264,
+          "totalTokens": 6921
+        }
+      }
+    },
+    {
+      "id": "1fb4fa71-8294-4570-b4e9-933275a8fdeb",
+      "kind": "llm",
+      "tokens": 33981,
+      "estimatedCostCny": 0.407772,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289503281,
+      "actualTokens": 8387,
+      "estimatedActualCostCny": 0.100644,
+      "settledAt": 1793289510665,
+      "receipt": {
+        "requestId": "3a4e88c1-2b04-4207-9457-b3265856cf04",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 6984,
+          "completionTokens": 1403,
+          "totalTokens": 8387
+        }
+      }
+    },
+    {
+      "id": "9ac7773e-977e-4cea-866d-635feb70d147",
+      "kind": "llm",
+      "tokens": 43421,
+      "estimatedCostCny": 0.521052,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289511195,
+      "actualTokens": 11881,
+      "estimatedActualCostCny": 0.142572,
+      "settledAt": 1793289524238,
+      "receipt": {
+        "requestId": "7bb7189e-e451-40fb-9fad-55b35587c882",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 9189,
+          "completionTokens": 2692,
+          "totalTokens": 11881
+        }
+      }
+    },
+    {
+      "id": "c92d0e5c-f03c-4712-8c36-a71053f499a8",
+      "kind": "llm",
+      "tokens": 54304,
+      "estimatedCostCny": 0.651648,
+      "pid": 81868,
+      "status": "settled",
+      "reservedAt": 1793289524960,
+      "actualTokens": 13549,
+      "estimatedActualCostCny": 0.162588,
+      "settledAt": 1793289534477,
+      "receipt": {
+        "requestId": "633d1f2b-5616-4c94-8d40-3242f620de34",
+        "model": "deepseek-flash",
+        "usage": {
+          "promptTokens": 11855,
+          "completionTokens": 1694,
+          "totalTokens": 13549
+        }
+      }
+    }
+  ],
+  "tokenizerProof": {
+    "source": "https://cdn.deepseek.com/api-docs/deepseek_v4_tokenizer.zip",
+    "artifactSha256": "e7310d1dafe0a86d8a5629fe78a7c763760f651db9b8682718a1781dcd6fe495",
+    "reviewedOn": "2026-10-24",
+    "modelVersion": "DeepSeek-V4.1-Flash-1017",
+    "algorithm": "ByteLevel BPE; empty normalizer; no added prefix; all 256 byte symbols in vocabulary",
+    "framingAllowance": 1024
+  }
+}

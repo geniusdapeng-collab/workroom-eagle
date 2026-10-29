@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { checkArtifact, checkBudgetBindings } from './consulting-eval.mjs';
+import { capabilityForMethod, checkArtifact, checkBudgetBindings } from './consulting-eval.mjs';
 import { TOKENIZER_PROOF } from '../bundles/consulting/connectors/deepseek.mjs';
 
 function fixture() {
@@ -67,12 +67,22 @@ test('evaluation matrix explicitly covers all employees, stays isolated and fits
   assert.equal(plan.dataClassification, 'evaluation-fixture-only');
   assert.equal(plan.singleTasks.length, 22);
   assert.equal(new Set(plan.singleTasks.map((t) => t.employeeKey)).size, 22);
+  assert.equal(plan.routingTasks.length, 6);
+  assert.equal(new Set(plan.routingTasks.map((task) => task.id)).size, plan.routingTasks.length);
   assert.ok(Buffer.byteLength(JSON.stringify(plan.sources)) <= 4000);
-  assert.equal(plan.environments.sandbox.expectedMaxLlmCalls + plan.environments['client-runtime'].expectedMaxLlmCalls + plan.revisionDisclosure.initialFailedLlmCalls, 40);
+  assert.ok(plan.environments.sandbox.expectedMaxLlmCalls <= plan.budget.maxLlmCalls);
+  assert.ok(plan.environments['sandbox-all'].fullRoundMaxLlmCalls <= plan.budget.maxLlmCalls);
+  assert.ok(plan.environments['client-runtime'].fullRoundMaxLlmCalls <= plan.budget.maxLlmCalls);
   for (const task of plan.singleTasks) {
     assert.ok(task.sourceIds.every((id) => plan.sources.some((source) => source.id === id)));
     for (const pattern of task.expectAny) assert.doesNotThrow(() => new RegExp(pattern, 'u'));
   }
+});
+
+test('evaluation resolves a capability by its public ID even when the tRPC path differs', () => {
+  const descriptor = { id: 'consulting.task.dispatch', transport: { kind: 'trpc', path: 'threads.dispatch' } };
+  const catalog = { entries: new Map([[descriptor.id, descriptor]]) };
+  assert.equal(capabilityForMethod(catalog, 'task.dispatch'), descriptor);
 });
 
 test('live claims must bind every model receipt to the same settled budget and official tokenizer proof', () => {

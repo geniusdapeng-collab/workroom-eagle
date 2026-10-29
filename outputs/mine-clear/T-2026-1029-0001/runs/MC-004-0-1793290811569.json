@@ -1,0 +1,40 @@
+{
+  "schema": "workloom.evidence-run/v1",
+  "id": "MC-004-0-1793290811569",
+  "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/service/contract.test.ts -t \"同工作区跨用户\"",
+  "exec": {
+    "file": "node_modules/.bin/vitest",
+    "args": [
+      "run",
+      "apps/server/src/service/contract.test.ts",
+      "-t",
+      "同工作区跨用户",
+      "--testTimeout",
+      "30000"
+    ]
+  },
+  "actor": "codex-primary-2026-10-30",
+  "role": "repair",
+  "subject": {
+    "card_id": "MC-004",
+    "assertion_index": 0
+  },
+  "commit": "9f4b1552a731c1873fb18c41e72a230bfe0a129d",
+  "working_tree_dirty": false,
+  "started_at": "2026-10-29T16:20:11.569Z",
+  "finished_at": "2026-10-29T16:20:16.041Z",
+  "exit_code": 0,
+  "signal": null,
+  "validation": {
+    "ok": true,
+    "errors": []
+  },
+  "result": "pass",
+  "outputs": [
+    {
+      "path": "evidence/MC-004-0-1793290811569.txt",
+      "sha256": "25a9af4058ed83d6058dfe710ebe2340498d782e34abacd0344ce35e2a7f0b31",
+      "commit": "9f4b1552a731c1873fb18c41e72a230bfe0a129d"
+    }
+  ]
+}

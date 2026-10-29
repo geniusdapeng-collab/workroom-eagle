@@ -1,0 +1,65 @@
+{
+  "id": "MC-002",
+  "kind": "problem",
+  "level": "L1",
+  "severity": "P1",
+  "batch": 1,
+  "title": "岗位绑定专项技能后，模型提示遗漏岗位目标和硬约束",
+  "state": "open",
+  "evidence": [
+    {
+      "type": "code",
+      "ref": "apps/server/src/industry/consulting/workflow.ts:56@c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "sha256": "401a9ea76c2b891fb4342bb5d352c4bfc5a20fd93543a47a29c0fab7dfb96229",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "system prompt 只拼接 employee.role 与输出格式"
+    },
+    {
+      "type": "code",
+      "ref": "apps/server/src/industry/consulting/workflow.ts:67@c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "sha256": "401a9ea76c2b891fb4342bb5d352c4bfc5a20fd93543a47a29c0fab7dfb96229",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "绑定技能时 methodFor 只返回技能全文，goals/constraints 完全不进入模型输入"
+    },
+    {
+      "type": "doc",
+      "ref": "evidence/complex-quality-officer-s6.md",
+      "sha256": "8e94cf9bfffb0c1beb643dcb1e32a7419af0d4d5a7e92be5799895542ee2632c",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "真实质检官虽绑定 red-team-review，却把缺少合规提示列为不通过，证明岗位 C-R7 边界的提示未进入执行输入"
+    }
+  ],
+  "root_cause": {
+    "file": "apps/server/src/industry/consulting/workflow.ts",
+    "line": 56,
+    "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+    "symbol": "analysisRequest/methodFor"
+  },
+  "trigger_path": "任意拥有 skills 的咨询员工执行单岗或复杂任务；技能正文进入 user prompt，但 employee.goals/constraints 未进入 system prompt，模型只看到岗位角色。",
+  "fix_plan": "analysisRequest 始终注入岗位 goals 与 constraints；技能全文继续作为方法材料，不再替代岗位边界。",
+  "assertions": [
+    {
+      "kind": "property",
+      "given": "财务资本顾问绑定 fin-statement-analysis 执行单岗任务",
+      "expect": "system prompt 同时包含岗位所有 goals、constraints 和输出契约，prompt 继续包含技能全文",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"employee's goals and constraints\"",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/workflow.test.ts", "-t", "employee's goals and constraints", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    },
+    {
+      "kind": "sample",
+      "given": "真实复杂任务第六步质检官",
+      "expect": "质检官输入含其 C-R2/C-R7 岗位边界，而不是仅有 red-team-review 技能正文",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"employee's goals and constraints\"",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/workflow.test.ts", "-t", "employee's goals and constraints", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    }
+  ],
+  "regression": {
+    "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"employee's goals and constraints\""
+  },
+  "fixed_by": null,
+  "verified_by": null,
+  "verified_at": null,
+  "verification_evidence": null
+}

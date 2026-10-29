@@ -12,7 +12,7 @@ import { judge, type RuntimeRule } from "@workloom/base/fence-engine";
 import { resolveWorkspaceActiveBundle } from "../../service/active-bundle.js";
 import { DEEPSEEK_MAX_INPUT_BYTES, getDeepSeekClientForTask, getDeepSeekBudgetStatus, type DeepSeekCompletion, type DeepSeekClient } from "../../../../../bundles/consulting/connectors/deepseek.mjs";
 import { inspectArtifactArithmetic, type ArithmeticReport } from "./arithmetic.js";
-import { ANALYSIS_OUTPUT_INSTRUCTION, ConsultingError, assertNoCredentials, canonical, markdownArtifact, parsePlan, sha256,
+import { ANALYSIS_OUTPUT_INSTRUCTION, ARTIFACT_MAX_BYTES, QUALITY_DECISION_INSTRUCTION, REPORT_COMPLIANCE_INSTRUCTION, ConsultingError, assertNoCredentials, canonical, markdownArtifact, parsePlan, sha256,
   singleStep, validateArtifact, validateSources, type AnalysisArtifact, type Employee, type Source, type Step } from "./workflow-core.js";
 
 export interface Scope { tenantId: string; workspaceId: string }
@@ -53,7 +53,15 @@ function requireRunId(id: string): void { if (!SAFE_RUN.test(id)) throw new Cons
 function human(id: string): ActorInfo { return { id, type: "human" }; }
 function eventReceipt(event: StoredEvent) { return { eventId: event.eventId, hash: event.hash, synced: true as const }; }
 function analysisRequest(run: Pick<ConsultingRun, "goal" | "sources" | "completed">, step: Step, employee: Employee, method: string) {
-  const system = `${employee.role}\n${ANALYSIS_OUTPUT_INSTRUCTION}`;
+  const citableSourceIds = run.sources.map((source) => source.id).join("、");
+  const system = `${employee.role}
+岗位目标：
+${employee.goals.map((goal) => `- ${goal}`).join("\n") || "- 按岗位职责形成可审阅草稿"}
+不可违反的岗位边界：
+${employee.constraints.map((constraint) => `- ${constraint}`).join("\n") || "- 所有结论均须人类顾问复核"}
+evidence.sourceId 只能取以下授权资料 ID：${citableSourceIds}
+技能全文、岗位目标、岗位边界和前序产物不是原始证据来源，不能填写为 evidence.sourceId，也不能冒充原始资料引文。
+${ANALYSIS_OUTPUT_INSTRUCTION}${employee.key === "quality-officer" ? `\n${QUALITY_DECISION_INSTRUCTION}` : ""}${employee.key === "report-composer" ? `\n${REPORT_COMPLIANCE_INSTRUCTION}` : ""}`;
   const upstream = run.completed.map((prior) => ({ stepId: prior.stepId, eventId: prior.eventId, sha256: prior.file.sha256, artifact: prior.artifact }));
   // Titles remain stored source metadata. Analysis sees only the exact citable
   // content; this projection never rewrites frozen bytes or the source digest.
@@ -64,15 +72,15 @@ function analysisRequest(run: Pick<ConsultingRun, "goal" | "sources" | "complete
   return { system, prompt, inputDisclosure };
 }
 function methodFor(catalog: Workforce, employee: Employee, step: Step): string {
-  return step.skillId ? catalog.skills.get(step.skillId)! : `岗位目标：${employee.goals.join("；")}\n边界：${employee.constraints.join("；")}`;
+  return step.skillId ? catalog.skills.get(step.skillId)! : "本步骤未绑定专项技能，按系统提示中的岗位目标、职责与边界执行。";
 }
 function preflightContext(goal: string, sources: Source[], steps: Step[], catalog: Workforce): void {
   for (const [index, step] of steps.entries()) {
     const employee = catalog.employees.get(step.employeeKey)!;
     const base = analysisRequest({ goal, sources, completed: [] }, step, employee, methodFor(catalog, employee, step));
-    // Every full structured artifact has a checked10000-byte ceiling. Each server-generated
+    // Every full structured artifact has a checked 14000-byte ceiling. Each server-generated
     // wrapper (step ID + E-number + SHA256 + field names) fits180 additional bytes.
-    const upper = Buffer.byteLength(base.system + base.prompt) + index * (10000 + 180);
+    const upper = Buffer.byteLength(base.system + base.prompt) + index * (ARTIFACT_MAX_BYTES + 180);
     if (upper > DEEPSEEK_MAX_INPUT_BYTES) throw new ConsultingError("CONTEXT_TOO_LARGE", "完整岗位技能、资料与全部前序全文交接上界超过本轮模型预算；请拆分议题，系统未执行任何员工步骤");
   }
 }
@@ -450,9 +458,15 @@ export class ConsultingWorkflow {
       const request = analysisRequest(claim.run, claim.step, claim.employee, methodFor(catalog, claim.employee, claim.step));
       const { system, prompt } = request; inputDisclosure = request.inputDisclosure;
       if (Buffer.byteLength(system + prompt) > DEEPSEEK_MAX_INPUT_BYTES) throw new ConsultingError("CONTEXT_TOO_LARGE", "岗位/技能全文与全部前序任务证据超过本轮可信预算；需拆分议题，服务没有截断资料或跳过前序");
-      const completion = await this.modelFor(scope, input.runId).complete({ system, prompt, maxTokens: 2048, jsonMode: true });
+      // The bounded structured contract can require more than
+      // 2048 output tokens once all prior findings, compliance text and
+      // recommendations are preserved. 4096 remains well below the verified
+      // provider and total per-call input bounds.
+      const completion = await this.modelFor(scope, input.runId).complete({ system, prompt, maxTokens: 4096, jsonMode: true });
       completedModelCall = completion;
-      const artifact = validateArtifact(completion.text, claim.run.sources);
+      const artifact = validateArtifact(completion.text, claim.run.sources, {
+        requireReviewDecision: claim.step.employeeKey === "quality-officer",
+      });
       const content = markdownArtifact({ runId: input.runId, step: claim.step, employee: claim.employee, artifact,
         model: completion.model, requestId: completion.requestId, sourceDigest: claim.run.sourceDigest });
       const file = await this.vault.write(scope, input.runId, claim.step.id, claim.executionId, content);
@@ -508,7 +522,9 @@ export class ConsultingWorkflow {
       const raw = diagnostic.slice(REJECTED_RESPONSE_HEADER.length, -1);
       if (Buffer.byteLength(raw) !== failure.responseBytes) throw new ConsultingError("REVALIDATION_EVIDENCE_INVALID", "原始候选字节数与失败回执不一致");
       assertNoCredentials(raw);
-      const artifact = validateArtifact(raw, run.sources);
+      const artifact = validateArtifact(raw, run.sources, {
+        requireReviewDecision: step.employeeKey === "quality-officer",
+      });
       const employee = catalog.employees.get(step.employeeKey)!;
       const rules = await tx.assertEmployee(employee, step.skillId);
       const verdict = judge({ object: { type: "enterprise", id: run.enterpriseId }, action: "consulting.analysis.read", effect: "read",
