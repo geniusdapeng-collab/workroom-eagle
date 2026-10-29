@@ -1,0 +1,88 @@
+{
+  "id": "MC-007",
+  "kind": "problem",
+  "level": "L4",
+  "severity": "P1",
+  "batch": 2,
+  "title": "结构化产物输出预算和字段数量过紧，长任务截断或拒收",
+  "state": "open",
+  "evidence": [
+    {
+      "type": "code",
+      "ref": "apps/server/src/industry/consulting/workflow.ts:453@c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "sha256": "401a9ea76c2b891fb4342bb5d352c4bfc5a20fd93543a47a29c0fab7dfb96229",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "分析步骤固定 maxTokens=2048，而完整 schema 允许 10000 UTF-8 字节结构化产物"
+    },
+    {
+      "type": "doc",
+      "ref": "evidence/complex-output-incomplete.json",
+      "sha256": "c47ae5199c451cc3568ca02aff1cab7ee0d0080fadfafb7f2423cd5a6777ea13",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "最终沙箱全量轮中复杂任务第四步真实返回 finish_reason=length/OUTPUT_INCOMPLETE，前 22 单岗与 6 路由均通过"
+    },
+    {
+      "type": "code",
+      "ref": "apps/server/src/industry/consulting/workflow-core.ts:30@c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "sha256": "8a37dccfeeb59ad4c3920256f13f04110f60cd07a0244404810d75611aa56e54",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "基线 findings 上限为 4、summary 500、action 400，无法容纳详细但总长不足 3000 字节的有效报告"
+    },
+    {
+      "type": "doc",
+      "ref": "evidence/complex-schema-five-findings-rejected.md",
+      "sha256": "7cf7b66e0b67e0aa4b0ad0c21ef6ba911cab44674544c1d754a821271555d7e3",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "有效真实输出因五个 findings 超过旧上限被拒，总 JSON 仅约 2.8KB"
+    }
+  ],
+  "root_cause": {
+    "file": "apps/server/src/industry/consulting/workflow.ts",
+    "line": 453,
+    "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+    "symbol": "ConsultingWorkflow.advance"
+  },
+  "trigger_path": "复杂任务后段需要保留多个前序发现、原文引用、反证、缺失证据与合规提示时，2048 输出 token 在 JSON 结束前截断；失败关闭正确，但任务无法形成草稿。",
+  "fix_plan": "把单车结构化分析的显式输出上限提高至 4096 token，在 14000 字节总契约内提高 summary/claim/counterEvidence/action/verification/missingEvidence 单项上限、允许 1–6 条 findings；针对真实观察到的 1295 字摘要和 12605 字符合法完整草稿保留余量。单次完整输入上限同步校准为 100000 UTF-8 字节，仍受共享 token/调用/时间预算与 finish_reason 完整性门禁约束。",
+  "assertions": [
+    {
+      "kind": "sample",
+      "given": "单岗结构化分析调用",
+      "expect": "向供应商声明的 max_tokens 为 4096",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"output budget\"",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/workflow.test.ts", "-t", "output budget", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    },
+    {
+      "kind": "property",
+      "given": "仍小于 10000 字节的详细合法产物",
+      "expect": "通过 schema 校验，不因原 500/400 字符细项上限拒绝",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"detailed but still byte-bounded\"",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/workflow.test.ts", "-t", "detailed but still byte-bounded", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    },
+    {
+      "kind": "sample",
+      "given": "真实全量轮产生 1295 字摘要与 12605 字符合法完整报告",
+      "expect": "总 JSON 高于旧 12000 且低于 14000 字节契约时通过，不再因旧上限拒绝",
+      "command": "node_modules/.bin/vitest run apps/server/src/industry/consulting/workflow.test.ts -t \"above the earlier 12000-byte ceiling\" --testTimeout 30000",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/workflow.test.ts", "-t", "above the earlier 12000-byte ceiling", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    },
+    {
+      "kind": "sample",
+      "given": "完整前序输入达到旧 80000 字节契约以上、但低于新的 100000 字节上界",
+      "expect": "连接器使用 100000 字节上界完成预占，禁止超限输入仍不发起供应商请求",
+      "command": "node --test bundles/consulting/connectors/deepseek.test.mjs",
+      "exec": { "file": "node", "args": ["--test", "bundles/consulting/connectors/deepseek.test.mjs"] },
+      "last_result": "not-run"
+    }
+  ],
+  "regression": {
+    "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"output budget|detailed but still byte-bounded\""
+  },
+  "fixed_by": null,
+  "verified_by": null,
+  "verified_at": null,
+  "verification_evidence": null
+}

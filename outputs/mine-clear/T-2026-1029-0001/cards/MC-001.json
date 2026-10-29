@@ -1,0 +1,65 @@
+{
+  "id": "MC-001",
+  "kind": "problem",
+  "level": "L2",
+  "severity": "P1",
+  "batch": 2,
+  "title": "咨询研究报告未注册行业岗位认领，真实派单落到兜底总参谋长",
+  "state": "open",
+  "evidence": [
+    {
+      "type": "code",
+      "ref": "apps/server/src/trpc/router.ts:3650@c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "sha256": "29ab530ea26155dc68c34e4fcb3c93dbbf25b744fb2a6da9faa6bb4b2e9e8589",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "组合根只注册酒店获客规划器和咨询线程执行器，没有注册 consulting 的 industryGoalClaim"
+    },
+    {
+      "type": "code",
+      "ref": "apps/server/src/runtime/thread-runner.ts:178@c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "sha256": "9910ffc8086ea4af5c52804fbba484d451847bff76531a04ee9a8dff547c8b53",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "没有 industryGoalClaim 时直接返回 undefined，随后按 ready[0] 兜底"
+    },
+    {
+      "type": "log",
+      "ref": "evidence/public-dispatch-server.log",
+      "sha256": "0b1ca5fb2295595d087032dcc37d38b91019909065b10bf503c506e9989f9393",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "真实公开研究报告派单日志显示 target 未命中并落到 chief-of-staff fallback"
+    }
+  ],
+  "root_cause": {
+    "file": "apps/server/src/trpc/router.ts",
+    "line": 3650,
+    "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+    "symbol": "composition root"
+  },
+  "trigger_path": "正式工作区提交“温州制造业数字化转型现状研究报告”任务；通用语义表无匹配，咨询行业 claim 未注册，resolveDispatchPreset 返回 ready[0]=chief-of-staff 且 selection=fallback。",
+  "fix_plan": "在咨询行业模块实现目标到员工键的确定性认领，并在组合根通过 registerIndustryGoalClaim 接入；未知目标仍保持显式 fallback。",
+  "assertions": [
+    {
+      "kind": "sample",
+      "given": "目标“做一个温州市制造业数字化转型现状研究报告”",
+      "expect": "选择 intel-researcher，selection 不是 arbitrary fallback",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/dispatch-routing.test.ts",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/dispatch-routing.test.ts", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    },
+    {
+      "kind": "property",
+      "given": "财务、应收、运营、组织、合规、数字化、质检和跨部门目标",
+      "expect": "每个领域只认领其对应岗位，未知目标不伪造认领",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/dispatch-routing.test.ts",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/dispatch-routing.test.ts", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    }
+  ],
+  "regression": {
+    "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/dispatch-routing.test.ts"
+  },
+  "fixed_by": null,
+  "verified_by": null,
+  "verified_at": null,
+  "verification_evidence": null
+}

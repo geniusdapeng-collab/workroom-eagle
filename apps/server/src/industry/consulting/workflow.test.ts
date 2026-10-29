@@ -54,10 +54,11 @@ function completion(text: string, index: number): DeepSeekCompletion {
 async function fixture(custom?: (input: { system?: string; prompt: string }, index: number) => Promise<string>, dossierSources = sources) {
   const store = new MemoryStore();
   const base = await mkdtemp(join(tmpdir(), "eagle-workflow-unit-")); dirs.push(base);
-  const prompts: Array<{ system?: string; prompt: string }> = [];
-  const client = { complete: async (input: { system?: string; prompt: string }) => {
+  const prompts: Array<{ system?: string; prompt: string; maxTokens?: number }> = [];
+  const client = { complete: async (input: { system?: string; prompt: string; maxTokens?: number }) => {
     prompts.push(input); const index = prompts.length;
-    const text = custom ? await custom(input, index) : JSON.stringify(input.system?.includes("任务分解器") ? planned() : analysis);
+    const text = custom ? await custom(input, index) : JSON.stringify(input.system?.includes("任务分解器") ? planned()
+      : input.system?.includes("质检官") ? { ...analysis, reviewDecision: "approved" } : analysis);
     return completion(text, index);
   }, getBudget: () => ({ fixture: true, llmAttempts: prompts.length }) } as unknown as DeepSeekClient;
   const workflow = new ConsultingWorkflow({ store, workforce: async () => catalog, model: () => client,
@@ -112,6 +113,65 @@ describe("consulting workflow state and evidence boundaries (unit fixtures, no p
     expect(artifact.content.startsWith("# 财务资本顾问 · 内部咨询草稿\n\n> ")).toBe(true);
     expect(artifact.content).toContain("\n\n## 发现、依据与反证\n\n");
     expect(artifact.content).not.toContain("\\n");
+  });
+  it("injects the selected employee's goals and constraints even when a skill is bound", async () => {
+    const f = await fixture();
+    const queued = await f.workflow.submit(scope, "unit-owner", single);
+    await f.workflow.advance(scope, "unit-owner", { runId: queued.id, idempotencyKey: "employee-boundaries-request" });
+    const employee = catalog.employees.get("finance-advisor")!;
+    const actual = f.prompts[0]!;
+    expect(actual.prompt).toContain(catalog.skills.get("fin-statement-analysis"));
+    for (const goal of employee.goals) expect(actual.system).toContain(goal);
+    for (const constraint of employee.constraints) expect(actual.system).toContain(constraint);
+  });
+  it("lists the only citable source IDs and excludes bound skill text from evidence sources", async () => {
+    const f = await fixture();
+    const queued = await f.workflow.submit(scope, "unit-owner", single);
+    await f.workflow.advance(scope, "unit-owner", { runId: queued.id, idempotencyKey: "allowed-source-ids-request" });
+    const actual = f.prompts[0]!;
+    expect(actual.system).toContain("evidence.sourceId 只能取以下授权资料 ID：ledger");
+    expect(actual.system).toContain("技能全文、岗位目标、岗位边界和前序产物不是原始证据来源");
+    expect(actual.system).toContain("引文实际出现在哪份资料，就只能把该资料ID写为来源");
+  });
+  it("requires report composers to carry a usable compliance notice for regulated advice", async () => {
+    const f = await fixture();
+    const queued = await f.workflow.submit(scope, "unit-owner", { ...single, employeeKey: "report-composer", idempotencyKey: "report-compliance-request" });
+    await f.workflow.advance(scope, "unit-owner", { runId: queued.id, idempotencyKey: "report-compliance-advance" });
+    expect(f.prompts[0]!.system).toContain("C-R7 校验记录：① 已检查“本内部草稿不构成法律/税务意见”；② 已检查“落地前请咨询执业律师/税务师等持牌专业人士复核”；③ 已检查“相关法规可能变化，须在实施日核验最新有效版本”。");
+    expect(f.prompts[0]!.system).toContain("命中 C-R2 必审，提交人类顾问复核");
+    expect(f.prompts[0]!.system).toContain("显式公式和计算过程");
+    expect(f.prompts[0]!.system).toContain("具体命中类目与理由");
+    expect(f.prompts[0]!.system).toContain("员工-专业前提-stepId-验收");
+    expect(f.prompts[0]!.system).toContain("90天分阶段里程碑、首批验证节点、回退条件");
+    expect(f.prompts[0]!.system).toContain("客户自述与未核实事实清单");
+    expect(f.prompts[0]!.system).toContain("待验证假设");
+    expect(f.prompts[0]!.system).toContain("独立合规段");
+    expect(f.prompts[0]!.system).toContain("不得把月度值乘 12 与年度值直接对照");
+    expect(f.prompts[0]!.system).toContain("具体岗位名称");
+    expect(f.prompts[0]!.system).toContain("基于客户自述，未核实");
+    expect(f.prompts[0]!.system).toContain("独立合规段（劳动法/岗位调整）：本建议不构成劳动法律意见；任何岗位调整落地前须咨询执业劳动法律师并履行法定程序；劳动法规可能变化，须在实施日核验最新有效版本。");
+    expect(f.prompts[0]!.system).toContain("C-R7 校验记录");
+    expect(f.prompts[0]!.system).toContain("分子、分母、统计周期、数据来源与基线");
+    expect(f.prompts[0]!.system).toContain("受控引证（非建议）");
+    expect(f.prompts[0]!.system).toContain("把四项断言分别作为四条 evidence.quote");
+    expect(f.prompts[0]!.system).toContain("四项错误词不得出现在该 claim 或其他字段");
+  });
+  it("defines quality approval as readiness for human review rather than completed customer release", async () => {
+    const f = await fixture(async (input) => JSON.stringify(input.system?.includes("质检官")
+      ? { ...analysis, reviewDecision: "approved" }
+      : analysis));
+    const queued = await f.workflow.submit(scope, "unit-owner", { ...single, employeeKey: "quality-officer", idempotencyKey: "quality-baseline-request" });
+    await f.workflow.advance(scope, "unit-owner", { runId: queued.id, idempotencyKey: "quality-baseline-advance" });
+    expect(f.prompts[0]!.system).toContain("approved 表示可提交人类顾问复核");
+    expect(f.prompts[0]!.system).toContain("不得仅因外部签字");
+    expect(f.prompts[0]!.system).toContain("不得仅因表达未使用指定表格或复选框格式");
+    expect(f.prompts[0]!.system).toContain("不得把自身额外改进建议升级为重写要求");
+    expect(f.prompts[0]!.system).toContain("“同义反复”“语义冗余”“表述重复”");
+    expect(f.prompts[0]!.system).toContain("必须判 approved");
+    expect(f.prompts[0]!.system).toContain("必须认定风险隔离成立");
+    expect(f.prompts[0]!.system).toContain("不得再要求一个名称不同、必须另起标题或额外重复的合规段");
+    expect(f.prompts[0]!.system).toContain("不得把前序 s1–s5 正文填写为 sourceId");
+    expect(f.prompts[0]!.system).toContain("属于受控引证，不构成风险残留");
   });
   it("shows only exact captured source content to analysis, preserves frozen dossier identity and accounts for the actual prompt bytes", async () => {
     const captured = JSON.parse(await readFile(new URL("../../../../../acceptance/consulting/regressions/public-source-citation-escaping.json", import.meta.url), "utf8"));
@@ -218,6 +278,16 @@ describe("consulting workflow state and evidence boundaries (unit fixtures, no p
     const invalid = planned(); invalid.steps[5]!.employeeKey = "chief-of-staff";
     expect(() => parsePlan(JSON.stringify(invalid), catalog.employees)).toThrow(/质检官/);
   });
+  it("repairs a hallucinated cross-employee skill without discarding an otherwise valid plan", () => {
+    const candidate = planned();
+    candidate.steps[3]!.employeeKey = "org-hr-counselor";
+    candidate.steps[3]!.skillId = "org-process-reeng";
+    candidate.steps[3]!.objective = "分析订单变更流程、权责界面与组织沟通责任缺口";
+    const repaired = parsePlan(JSON.stringify(candidate), catalog.employees);
+    const employee = catalog.employees.get("org-hr-counselor")!;
+    expect(employee.skills).toContain(repaired.steps[3]!.skillId);
+    expect(repaired.steps[3]!.skillId).not.toBe("org-process-reeng");
+  });
   it("all six steps require actual predecessor files and carry their hashes; repeated calls never charge twice", async () => {
     const f = await fixture(); let run = await f.workflow.submit(scope, "unit-owner", { ...single, employeeKey: undefined });
     for (let i = 1; i <= 6; i++) {
@@ -231,7 +301,11 @@ describe("consulting workflow state and evidence boundaries (unit fixtures, no p
   });
   it("supplies every earlier complete artifact to report and red-team steps rather than receipt indexes alone", async () => {
     const f = await fixture(async (input, index) => JSON.stringify(input.system?.includes("任务分解器") ? planned()
-      : { ...analysis, summary: `前序步骤${index - 1}的完整独特正文-${"完整上下文".repeat(35)}` }));
+      : {
+        ...analysis,
+        summary: `前序步骤${index - 1}的完整独特正文-${"完整上下文".repeat(35)}`,
+        ...(input.system?.includes("质检官") ? { reviewDecision: "approved" } : {}),
+      }));
     let run = await f.workflow.submit(scope, "unit-owner", { ...single, employeeKey: undefined });
     for (let i = 1; i <= 6; i++) {
       const before = [...run.completed];
@@ -243,7 +317,7 @@ describe("consulting workflow state and evidence boundaries (unit fixtures, no p
     expect(f.prompts.at(-1)!.prompt).toContain("全部前序产物全文");
     expect(run.completed.at(-1)!.inputDisclosure).toMatchObject({ mode: "all-prior-structured-artifacts-full", completePriorStepIds: ["s1", "s2", "s3", "s4", "s5"] });
     expect(run.completed.at(-1)!.inputDisclosure!.inputSha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(run.completed.at(-1)!.inputDisclosure!.systemAndPromptUtf8Bytes).toBeLessThanOrEqual(64000);
+    expect(run.completed.at(-1)!.inputDisclosure!.systemAndPromptUtf8Bytes).toBeLessThanOrEqual(100000);
   });
   it("rejects the captured actual client finance arithmetic error without another provider call", async () => {
     const captured = JSON.parse(await readFile(new URL("../../../../../acceptance/consulting/regressions/client-complex-finance.json", import.meta.url), "utf8"));
@@ -274,7 +348,7 @@ describe("consulting workflow state and evidence boundaries (unit fixtures, no p
   it("preflights the cumulative upper bound of every earlier full artifact rather than one predecessor", async () => {
     const f = await fixture();
     const expanded = { ...catalog, skills: new Map(catalog.skills) };
-    expanded.skills.set("red-team-review", "完整方法".repeat(1800));
+    expanded.skills.set("red-team-review", "完整方法".repeat(6000));
     const workflow = new ConsultingWorkflow({ store: f.store, workforce: async () => expanded, model: () => f.client,
       vault: new DraftVault(f.base), assertBundle: async () => undefined });
     const blocked = await workflow.submit(scope, "unit-owner", { ...single, employeeKey: undefined });
@@ -324,6 +398,71 @@ describe("consulting workflow state and evidence boundaries (unit fixtures, no p
     expect(blocked.status).toBe("blocked"); expect(blocked.completed).toHaveLength(0); expect(blocked.error?.code).toBe("ARTIFACT_SCHEMA_INVALID");
     expect(blocked.failureEvidence?.model?.requestId).toBe("fixture-request-1");
     expect(blocked.failureEvidence?.rejectedArtifact?.sha256).toMatch(/^[a-f0-9]{64}$/);
+  });
+  it("requires a machine-readable quality verdict only when this step is the independent quality gate", () => {
+    const approved = { ...analysis, reviewDecision: "approved" as const };
+    expect(validateArtifact(JSON.stringify(approved), sources)).toMatchObject({ reviewDecision: "approved" });
+    expect(() => validateArtifact(JSON.stringify(analysis), sources, { requireReviewDecision: true }))
+      .toThrow(/质检结论|reviewDecision/);
+    expect(() => validateArtifact(JSON.stringify({ ...analysis, reviewDecision: "passed" }), sources))
+      .toThrow(/ARTIFACT_SCHEMA_INVALID|产物缺少/);
+  });
+  it("accepts a detailed but still byte-bounded report after compliance and arithmetic requirements", () => {
+    const detailed = {
+      ...analysis,
+      summary: "审计".repeat(450),
+      findings: Array.from({ length: 5 }, (_, index) => ({
+        ...analysis.findings[0]!,
+        claim: `第${index + 1}项独立发现，保留资料依据与反证。`,
+      })),
+      recommendations: [{
+        ...analysis.recommendations[0]!,
+        action: "建议".repeat(300),
+        verification: "核验".repeat(250),
+      }],
+    };
+    expect(Buffer.byteLength(JSON.stringify(detailed))).toBeLessThan(10000);
+    expect(validateArtifact(JSON.stringify(detailed), sources).summary.length).toBe(900);
+  });
+  it("accepts the observed 1295-character report summary within the byte-bounded contract", () => {
+    const detailed = { ...analysis, summary: "摘要".repeat(648).slice(0, 1295) };
+    expect(Buffer.byteLength(JSON.stringify(detailed))).toBeLessThan(12000);
+    expect(validateArtifact(JSON.stringify(detailed), sources).summary).toHaveLength(1295);
+  });
+  it("states the observed day and percentage-point comparisons without endorsing the wrong arithmetic", async () => {
+    const f = await fixture();
+    const queued = await f.workflow.submit(scope, "unit-owner", single);
+    await f.workflow.advance(scope, "unit-owner", { runId: queued.id, idempotencyKey: "arithmetic-prompt-contract" });
+    expect(f.prompts[0]!.system).toContain("20天→28天为+8天、+40%，不得写成8/20=100%");
+    expect(f.prompts[0]!.system).toContain("差值为(b-a)个百分点");
+  });
+  it("accepts a complete report above the earlier 12000-byte ceiling within the reviewed 14000-byte bound", () => {
+    const detailed = {
+      ...analysis,
+      summary: "s".repeat(1295),
+      findings: Array.from({ length: 6 }, () => ({
+        claim: "c".repeat(600),
+        evidence: [{ sourceId: "ledger", quote: "不可假定全部逾期" }],
+        counterEvidence: "r".repeat(500),
+      })),
+      recommendations: [{
+        action: "a".repeat(800),
+        basis: ["ledger"],
+        owner: "主理人",
+        verification: "v".repeat(500),
+      }],
+      missingEvidence: Array.from({ length: 7 }, () => "m".repeat(350)),
+    };
+    const bytes = Buffer.byteLength(JSON.stringify(detailed));
+    expect(bytes).toBeGreaterThan(12000);
+    expect(bytes).toBeLessThan(14000);
+    expect(validateArtifact(JSON.stringify(detailed), sources).findings).toHaveLength(6);
+  });
+  it("reserves enough provider output budget for a detailed schema-bounded employee artifact", async () => {
+    const f = await fixture();
+    const queued = await f.workflow.submit(scope, "unit-owner", single);
+    await f.workflow.advance(scope, "unit-owner", { runId: queued.id, idempotencyKey: "analysis-output-budget" });
+    expect(f.prompts[0]!.maxTokens).toBe(4096);
   });
   it("accepts five to eight real source IDs as a recommendation basis and rejects every unknown source", () => {
     const authorized = Array.from({ length: 8 }, (_, index) => ({ ...sources[0]!, id: index ? `source-${index}` : "ledger" }));

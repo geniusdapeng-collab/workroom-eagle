@@ -13,10 +13,13 @@ export interface ArithmeticReport {
   checks: ArithmeticCheck[]; issues: ArithmeticCheck[];
   disclosure: string;
 }
-const UNITS: Record<string, { factor: number; dimension: string }> = {
+const UNITS: Record<string, { factor: number; dimension: string | null }> = {
   元: { factor: 1, dimension: "currency" }, 万元: { factor: 10000, dimension: "currency" }, 亿元: { factor: 100000000, dimension: "currency" },
   天: { factor: 1, dimension: "time" }, 日: { factor: 1, dimension: "time" }, 小时: { factor: 1 / 24, dimension: "time" },
   人天: { factor: 1, dimension: "labor" },
+  // A percentage-point difference is a difference between two dimensionless
+  // percentages: 8% - 3% = 5 percentage points = 0.05.
+  个百分点: { factor: 0.01, dimension: null }, 百分点: { factor: 0.01, dimension: null },
 };
 const normalize = (text: string) => text.replace(/[−–]/g, "-").replace(/×/g, "*").replace(/÷/g, "/").replace(/（/g, "(").replace(/）/g, ")").replace(/％/g, "%");
 const dimensions = (value: Dimension) => JSON.stringify(Object.entries(value).filter(([, n]) => n !== 0).sort(([a], [b]) => a.localeCompare(b)));
@@ -44,17 +47,17 @@ export function evaluateNumericExpression(source: string): Calculation {
         const value = Number(number[0].replace(/,/g, ""));
         if (!Number.isFinite(value) || Math.abs(value) > 1e15) bad("unsupported", "NUMBER_RANGE");
         at += number[0].length;
-        const suffix = /^(万元|亿元|人天|小时|元|天|日|%)/.exec(text.slice(at));
+        const suffix = /^(万元|亿元|人天|小时|个百分点|百分点|元|天|日|%)/.exec(text.slice(at));
         const unit = suffix ? UNITS[suffix[0]] : undefined;
         const factor = suffix?.[0] === "%" ? 0.01 : unit?.factor ?? 1;
-        tokens.push({ kind: "quantity", value: value * factor, dimension: unit ? { [unit.dimension]: 1 } : {} });
+        tokens.push({ kind: "quantity", value: value * factor, dimension: unit?.dimension ? { [unit.dimension]: 1 } : {} });
         if (suffix) at += suffix[0].length;
         continue;
       }
-      const unit = /^(万元|亿元|人天|小时|元|天|日)/.exec(rest);
+      const unit = /^(万元|亿元|人天|小时|个百分点|百分点|元|天|日)/.exec(rest);
       if (unit) {
         const definition = UNITS[unit[0]]!;
-        tokens.push({ kind: "quantity", value: definition.factor, dimension: { [definition.dimension]: 1 } });
+        tokens.push({ kind: "quantity", value: definition.factor, dimension: definition.dimension ? { [definition.dimension]: 1 } : {} });
         at += unit[0].length; continue;
       }
       if ("+-*/()".includes(text[at]!)) { tokens.push({ kind: text[at]! }); at++; continue; }
@@ -108,7 +111,7 @@ export function evaluateNumericExpression(source: string): Calculation {
 }
 
 function roundingTolerance(text: string, value: number): number {
-  const literal = /^[-+]?(\d+(?:\.\d+)?|\.\d+)\s*(万元|亿元|人天|小时|元|天|日|%)?$/.exec(text.trim());
+  const literal = /^[-+]?(\d+(?:\.\d+)?|\.\d+)\s*(万元|亿元|人天|小时|个百分点|百分点|元|天|日|%)?$/.exec(text.trim());
   if (!literal) return Math.max(1e-9, Math.abs(value) * 1e-10);
   const places = literal[1]!.split(".")[1]?.length ?? 0;
   const scale = literal[2] === "%" ? 0.01 : UNITS[literal[2] ?? ""]?.factor ?? 1;
@@ -133,7 +136,7 @@ export function inspectArithmeticText(text: string, path = "text"): ArithmeticCh
   const normalized = normalize(text); const checks: ArithmeticCheck[] = [];
   // Complete numeric runs only. Labels inside a formula (e.g. 收入1200-成本900)
   // cannot be reconstructed safely and remain outside this numeric grammar.
-  for (const match of normalized.matchAll(/[0-9.,+\-*/()%=\s元万亿天日小时人]+/gu)) {
+  for (const match of normalized.matchAll(/[0-9.,+\-*/()%=\s元万亿天日小时人个百分点]+/gu)) {
     const expression = match[0].trim();
     if (!expression.includes("=") || !/\d/u.test(expression)) continue;
     const start = (match.index ?? 0) + match[0].indexOf(expression);
@@ -157,6 +160,17 @@ export function inspectArithmeticText(text: string, path = "text"): ArithmeticCh
     if (level) { checks.push({ path, expression: match[0], status: "unsupported", reason: "UNBALANCED_PARENTHESES" }); continue; }
     const formula = normalized.slice(open + 1, end - 1).trim();
     if (formula.includes("=")) continue; // Explicit equation is handled above.
+    // A percentage followed by a delta annotation such as "8%（+5个百分点）"
+    // is not a derivation. Require an infix operator after any leading sign
+    // before interpreting the parenthesized material as a calculation.
+    if (!/[+\-*/]/u.test(formula.replace(/^[+-]/u, ""))) {
+      // Pure prose in parentheses is not a derivation, but record the
+      // unverifiable percentage context instead of silently certifying it.
+      if (!/\d|[%％]|元|万亿|天|小时|人/u.test(formula)) {
+        checks.push({ path, expression: match[0], status: "unsupported", reason: "UNSUPPORTED_DERIVATION_CONTEXT" });
+      }
+      continue;
+    }
     checks.push(compare(path, formula, `${match[1]}%`));
   }
   return checks;

@@ -10,7 +10,7 @@ describe("bounded numeric contradictions, not unrestricted financial verificatio
     }
   });
   it("checks known units and conversions instead of stripping units and inventing equivalence", () => {
-    for (const text of ["12万元−8万元=4万元", "3000元/人天×12人天=3.6万元", "48小时=2天", "1,200元-900元=300元"]) {
+    for (const text of ["12万元−8万元=4万元", "3000元/人天×12人天=3.6万元", "48小时=2天", "1,200元-900元=300元", "8%-3%=5个百分点", "8%-3%=+5个百分点"]) {
       const checks = inspectArithmeticText(text);
       expect(checks.length, text).toBeGreaterThan(0);
       expect(checks.every((item) => item.status === "checked"), text).toBe(true);
@@ -29,6 +29,7 @@ describe("bounded numeric contradictions, not unrestricted financial verificatio
     for (const text of ["1÷3=33.3%", "返工相对增加166.7%（5÷3）", "(28-24)/28=14.3%", "300/1200=25%", "0.1+0.2=0.3"]) {
       expect(inspectArithmeticText(text).every((item) => item.status === "checked"), text).toBe(true);
     }
+    expect(inspectArithmeticText("返工率由3%升至8%（+5个百分点）")).toEqual([]);
     expect(inspectArithmeticText("1÷3=33.1%")[0]!.status).toBe("mismatch");
   });
   it("fails closed for zero division, overflow and unit errors while bounding parser work", () => {

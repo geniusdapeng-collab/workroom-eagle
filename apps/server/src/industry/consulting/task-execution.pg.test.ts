@@ -109,7 +109,8 @@ describe.runIf(RUN_DB)("consulting native report: real isolated PG/RLS, control 
             findings: [{ claim: "当前资料仅提供行业公开线索，需要核对报告期间与统计范围。",
               evidence: [{ sourceId: sources[0]!.id, quote: sources[0]!.content.slice(0, 35) }], counterEvidence: "未取得企业经营流水与订单成本原件。" }],
             recommendations: [{ action: "由人类顾问逐项核对来源、口径和推断后再用于客户讨论。", basis: [sources[0]!.id], owner: "人类顾问",
-              verification: "原始正文、摘录范围、报告期间与推断均可逐项回溯。" }], missingEvidence: ["企业个体经营证据"], humanReviewRequired: true };
+              verification: "原始正文、摘录范围、报告期间与推断均可逐项回溯。" }], missingEvidence: ["企业个体经营证据"], humanReviewRequired: true,
+            ...(input.system?.includes("质检官") ? { reviewDecision: "approved" } : {}) };
         })();
         await hooks.afterModel?.(index); return completion(JSON.stringify(answer), `fixture-model-${threadId}-${index}`);
       },

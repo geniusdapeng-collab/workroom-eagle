@@ -1,0 +1,86 @@
+{
+  "id": "MC-008",
+  "kind": "problem",
+  "level": "L4",
+  "severity": "P1",
+  "batch": 2,
+  "title": "确定性算术校验误判百分比点差值与非公式括号说明",
+  "state": "open",
+  "evidence": [
+    {
+      "type": "code",
+      "ref": "apps/server/src/industry/consulting/arithmetic.ts:136@c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "sha256": "3c57dbf61a4da16fa1fd46f52796d6f88416152d87da7709522209fbf9b7db46",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "表达式字符集不包含“个百分点”，会把 8%-3%=+5个百分点 截成不带单位的错误等式。"
+    },
+    {
+      "type": "code",
+      "ref": "apps/server/src/industry/consulting/arithmetic.ts:150@c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "sha256": "3c57dbf61a4da16fa1fd46f52796d6f88416152d87da7709522209fbf9b7db46",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "百分号后接任意括号一律按公式推导比较，导致 8%（+5个百分点）被反向误判。"
+    },
+    {
+      "type": "doc",
+      "ref": "evidence/arithmetic-percentage-point-false-positive.md",
+      "sha256": "aaab3a7920543d990b2bc784113513bc757a9ad77882749c81b1ac92d25ccb24",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "真实复杂任务第六步候选完整保留；其中 8%-3%=+5个百分点 和 8%（+5个百分点）均被旧校验误判。"
+    }
+  ],
+  "root_cause": {
+    "file": "apps/server/src/industry/consulting/arithmetic.ts",
+    "line": 136,
+    "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+    "symbol": "inspectArithmeticText"
+  },
+  "trigger_path": "模型用合法中文单位表达两个百分比的差值，或在前一百分比后用括号附注百分点差值；旧校验把后者当作百分比推导公式，将正确内容判成 mismatch。",
+  "fix_plan": "把“个百分点/百分点”建模为 0.01 的无量纲差量，纳入扫描字符集；百分号后括号只有在去掉前导正负号后仍含中缀运算时才按公式核验。对确定算术错误仍保持 mismatch。",
+  "assertions": [
+    {
+      "kind": "sample",
+      "given": "8%-3%=5个百分点 与 8%-3%=+5个百分点",
+      "expect": "两项均实际通过算术校验，不产生 mismatch",
+      "command": "node_modules/.bin/vitest run apps/server/src/industry/consulting/arithmetic.test.ts -t \"checks known units\" --testTimeout 30000",
+      "exec": {
+        "file": "node_modules/.bin/vitest",
+        "args": [
+          "run",
+          "apps/server/src/industry/consulting/arithmetic.test.ts",
+          "-t",
+          "checks known units",
+          "--testTimeout",
+          "30000"
+        ]
+      },
+      "last_result": "not-run"
+    },
+    {
+      "kind": "property",
+      "given": "任一百分比后接纯百分点差量附注",
+      "expect": "不得反向解释为前一百分比由该附注推导；真正含除零、非有限或明确冲突的公式仍失败关闭",
+      "command": "node_modules/.bin/vitest run apps/server/src/industry/consulting/arithmetic.test.ts -t \"accepts correctly rounded displays\" --testTimeout 30000",
+      "exec": {
+        "file": "node_modules/.bin/vitest",
+        "args": [
+          "run",
+          "apps/server/src/industry/consulting/arithmetic.test.ts",
+          "-t",
+          "accepts correctly rounded displays",
+          "--testTimeout",
+          "30000"
+        ]
+      },
+      "last_result": "not-run"
+    }
+  ],
+  "regression": {
+    "command": "node_modules/.bin/vitest run apps/server/src/industry/consulting/arithmetic.test.ts --testTimeout 30000"
+  },
+  "fixed_by": null,
+  "verified_by": null,
+  "verified_at": null,
+  "verification_evidence": null,
+  "notes": ""
+}

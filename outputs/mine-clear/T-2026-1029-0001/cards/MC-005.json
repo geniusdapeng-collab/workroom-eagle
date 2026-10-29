@@ -1,0 +1,65 @@
+{
+  "id": "MC-005",
+  "kind": "problem",
+  "level": "L4",
+  "severity": "P1",
+  "batch": 2,
+  "title": "模型把绑定技能正文误作证据来源，行业专家真实任务被拒收",
+  "state": "open",
+  "evidence": [
+    {
+      "type": "code",
+      "ref": "apps/server/src/industry/consulting/workflow.ts:61@c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "sha256": "401a9ea76c2b891fb4342bb5d352c4bfc5a20fd93543a47a29c0fab7dfb96229",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "prompt 仅一般性说明引用来自 source content，没有列出唯一允许的 sourceId，也没有明确技能全文不能作为来源"
+    },
+    {
+      "type": "doc",
+      "ref": "evidence/industry-veteran-rejected-artifact.md",
+      "sha256": "d5e3026bd9e3a2b3a13e13cd812261fc2236c31792e10269e022073ae54c44e7",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "真实模型把 sourceId=ind-mfg-lean 填成技能 ID"
+    },
+    {
+      "type": "doc",
+      "ref": "evidence/industry-veteran-evidence-mismatch.json",
+      "sha256": "67b8f20beace8cd4579b145f5a9c8e26a12c4caf7ffb7837e2c5dfea14ca1cc3",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "真实客户端任务以 EVIDENCE_MISMATCH 阻断，请求、用量与 rejected artifact 均保留"
+    }
+  ],
+  "root_cause": {
+    "file": "apps/server/src/industry/consulting/workflow.ts",
+    "line": 61,
+    "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+    "symbol": "analysisRequest"
+  },
+  "trigger_path": "行业专家绑定 ind-mfg-lean 后执行单岗任务；模型把技能正文中的方法句当作 evidence，并填写技能 ID 为 sourceId，validateArtifact 正确拒绝但任务无法交付。",
+  "fix_plan": "每次分析提示显式列出唯一可引用 sourceId，并声明技能全文、岗位目标、岗位边界与前序产物均不是原始证据来源。",
+  "assertions": [
+    {
+      "kind": "sample",
+      "given": "单岗任务仅有 ledger 一份授权原始资料且绑定专项技能",
+      "expect": "system prompt 明确 evidence.sourceId 只能取 ledger，并明确技能正文不能作来源",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"only citable source IDs\"",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/workflow.test.ts", "-t", "only citable source IDs", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    },
+    {
+      "kind": "property",
+      "given": "任一咨询任务与任一技能组合",
+      "expect": "允许引用集合始终等于本次授权 sources.id，不包含技能/岗位/前序产物 ID",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"only citable source IDs\"",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/workflow.test.ts", "-t", "only citable source IDs", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    }
+  ],
+  "regression": {
+    "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"only citable source IDs\""
+  },
+  "fixed_by": null,
+  "verified_by": null,
+  "verified_at": null,
+  "verification_evidence": null
+}

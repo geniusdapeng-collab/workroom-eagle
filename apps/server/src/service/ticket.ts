@@ -104,6 +104,22 @@ export interface CreateTicketInput {
   kind: string; title: string; payload: Record<string, unknown>; idempotencyKey?: string;
 }
 
+function stableValue(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
+  if (Array.isArray(value)) return `[${value.map(stableValue).join(",")}]`;
+  return `{${Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, item]) => `${JSON.stringify(key)}:${stableValue(item)}`)
+    .join(",")}}`;
+}
+
+function sameIdempotentRequest(row: Record<string, unknown>, input: CreateTicketInput): boolean {
+  return String(row.c_user_id ?? "") === input.cUserId
+    && String(row.kind) === input.kind
+    && String(row.title) === input.title
+    && stableValue(row.payload ?? {}) === stableValue(input.payload);
+}
+
 /** 事务内建单（ON CONFLICT 幂等 + 'create' 事件；deduped 命中不落事件） */
 export async function createTicketOn(
   client: pg.PoolClient,
@@ -127,6 +143,13 @@ export async function createTicketOn(
     );
     row = cur.rows[0] as Record<string, unknown> | undefined;
     if (!row) throw new ServiceHttpError("幂等冲突但未查到原单（数据异常）", 500);
+    // The database uniqueness key intentionally remains workspace-scoped for
+    // compatibility. The replay authority must additionally bind the caller's
+    // opaque C user ID and the complete business request. Never reveal another
+    // user's ticket or silently reuse a key for a different request.
+    if (!sameIdempotentRequest(row, input)) {
+      throw new ServiceHttpError("幂等键已绑定到另一请求，请使用新的幂等键", 409);
+    }
     return { ticket: ticketOf(row), deduped: true };
   }
   await client.query(

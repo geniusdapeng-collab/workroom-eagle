@@ -1,0 +1,40 @@
+{
+  "schema": "workloom.evidence-run/v1",
+  "id": "MC-006-1-1793290905543",
+  "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"hallucinated cross-employee skill\"",
+  "exec": {
+    "file": "node_modules/.bin/vitest",
+    "args": [
+      "run",
+      "apps/server/src/industry/consulting/workflow.test.ts",
+      "-t",
+      "hallucinated cross-employee skill",
+      "--testTimeout",
+      "30000"
+    ]
+  },
+  "actor": "codex-independent-acceptance-2026-10-30",
+  "role": "acceptance",
+  "subject": {
+    "card_id": "MC-006",
+    "assertion_index": 1
+  },
+  "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad",
+  "working_tree_dirty": false,
+  "started_at": "2026-10-29T16:21:45.543Z",
+  "finished_at": "2026-10-29T16:21:48.382Z",
+  "exit_code": 0,
+  "signal": null,
+  "validation": {
+    "ok": true,
+    "errors": []
+  },
+  "result": "pass",
+  "outputs": [
+    {
+      "path": "evidence/MC-006-1-1793290905543.txt",
+      "sha256": "c72160a44afa8d723d5fa27f76fc366b06bd707673caac6e81eac1f2a66cdf93",
+      "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+    }
+  ]
+}

@@ -506,11 +506,11 @@
       "kind": "added",
       "before": null,
       "after": {
-        "sha256": "94044f74b6bdec8b4a83ae5c4bc49f64c61760e744dd6a6d8490cd5582b6dac3",
+        "sha256": "5efe112249839be7e188e98cb1e8dd017ffc3ff1e287e4aacbc671787ca617bf",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "624f1ecf7592e46387774ef188470f7a590932ff74f3967bba90a7e2f24709a9",
-      "reason": "记录公开研究与授权资料的真实CLI/MCP调用顺序、稳定提交标识、费用及文件回读边界。"
+      "canonicalGitDiffSha256": "b86820f83cc6b7028cf8d72ebb668f1d240b3f256395a8bf54ffa3b473d8d33a",
+      "reason": "记录公开研究与授权资料的真实CLI/MCP调用顺序、稳定提交标识、费用及文件回读边界，并同步14000字节草稿与100000字节完整输入上界。"
     },
     {
       "path": "package.json",
@@ -606,22 +606,22 @@
       "kind": "added",
       "before": null,
       "after": {
-        "sha256": "87f7ffb732c20e8fe2b93a601536749cc19f7a3dc8fa4634c03c1cf16aca04d2",
+        "sha256": "604e4e8e4c9cbad620eebbc5496135698040eb605d1b9138a272402649617485",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "3fd6761ff2c7ac7cc457c4f253b0cf9d585f4bcdeec843117e4197447c5eef48",
-      "reason": "验收器逐项要求非空来源引用和建议依据，拒绝空数组导致的虚假通过。"
+      "canonicalGitDiffSha256": "2186c4025e751fb9ba99d08d9ce9605005610df5129f2e05e6cd2d625128411d",
+      "reason": "验收器逐项要求非空来源引用和建议依据，新增六类真实路由与幂等预算断言，并拒绝空数组或仅关键词导致的虚假通过。"
     },
     {
       "path": "scripts/consulting-eval.test.mjs",
       "kind": "added",
       "before": null,
       "after": {
-        "sha256": "2fa8a7d71316929a76904e334551b27363eea87c989e45c68bdc65c7aaa48608",
+        "sha256": "1bdd1c9526edd01c4e9a4cbe787766729b72280b956b249c260e799479cfefed",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "69d8b6e033c5bd27c7432304eb1d590f57fc406839f8627bac30f628720c4f63",
-      "reason": "通过有效产物及空缺来源引用和建议依据反例验证验收器不会产生虚假通过。"
+      "canonicalGitDiffSha256": "42ff5594943817697d3ee37cb5c373d6c3bd87f7cff233595e2c7651407543f2",
+      "reason": "通过有效产物、空缺来源引用、建议依据及路由能力路径差异反例验证验收器不会产生虚假通过。"
     },
     {
       "path": "scripts/ui-offline-mirror.mjs",

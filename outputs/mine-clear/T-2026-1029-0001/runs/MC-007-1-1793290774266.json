@@ -1,0 +1,40 @@
+{
+  "schema": "workloom.evidence-run/v1",
+  "id": "MC-007-1-1793290774266",
+  "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"detailed but still byte-bounded\"",
+  "exec": {
+    "file": "node_modules/.bin/vitest",
+    "args": [
+      "run",
+      "apps/server/src/industry/consulting/workflow.test.ts",
+      "-t",
+      "detailed but still byte-bounded",
+      "--testTimeout",
+      "30000"
+    ]
+  },
+  "actor": "codex-primary-2026-10-30",
+  "role": "repair",
+  "subject": {
+    "card_id": "MC-007",
+    "assertion_index": 1
+  },
+  "commit": "9f4b1552a731c1873fb18c41e72a230bfe0a129d",
+  "working_tree_dirty": false,
+  "started_at": "2026-10-29T16:19:34.266Z",
+  "finished_at": "2026-10-29T16:19:36.159Z",
+  "exit_code": 0,
+  "signal": null,
+  "validation": {
+    "ok": true,
+    "errors": []
+  },
+  "result": "pass",
+  "outputs": [
+    {
+      "path": "evidence/MC-007-1-1793290774266.txt",
+      "sha256": "e20d483f5e4b9709fb901cdd8a25b7e22989374e19aad5859095559f704294b1",
+      "commit": "9f4b1552a731c1873fb18c41e72a230bfe0a129d"
+    }
+  ]
+}

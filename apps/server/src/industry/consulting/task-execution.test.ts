@@ -87,7 +87,13 @@ async function fixture(threadId = "T-UNIT-REPORT") {
   const base = await mkdtemp(join(tmpdir(), "eagle-task-execution-unit-")); dirs.push(base);
   const store = new MemoryTasks(); store.add(threadId); const workflowStore = new MemoryWorkflows(store);
   const calls = { search: 0, fetch: 0, complete: 0 };
-  const hooks: { afterFetch?: () => Promise<void>; afterModel?: (index: number) => Promise<void>; failModelAt?: number; bundleReady?: boolean } = {};
+  const hooks: {
+    afterFetch?: () => Promise<void>;
+    afterModel?: (index: number) => Promise<void>;
+    failModelAt?: number;
+    bundleReady?: boolean;
+    qualityDecision?: "approved" | "changes_requested" | "rejected";
+  } = {};
   const client = {
     search: async () => { calls.search++; return { results: [1, 2].map((i) => ({ title: `单元夹具官方资料${i}`,
       url: `https://unit${i}.wenzhou.gov.cn/research.html`, snippet: "这是单元夹具", summary: "不可作为真实温州经营数据", date: null, authority: 3 })),
@@ -114,7 +120,8 @@ async function fixture(threadId = "T-UNIT-REPORT") {
           findings: [{ claim: "单元夹具仅提供行业层面的公开线索，不能推出企业个体经营结果。",
             evidence: [{ sourceId: sources[0]!.id, quote: sources[0]!.content.slice(0, 35) }], counterEvidence: "单元夹具没有企业级订单、成本和现金流水。" }],
           recommendations: [{ action: "人类顾问复核原文口径与报告期间后，再形成客户适用建议。", basis: [sources[0]!.id], owner: "人类顾问",
-            verification: "来源、报告期间、推断与缺失证据均能逐项回溯。" }], missingEvidence: ["企业级经营资料"], humanReviewRequired: true };
+            verification: "来源、报告期间、推断与缺失证据均能逐项回溯。" }], missingEvidence: ["企业级经营资料"], humanReviewRequired: true,
+          ...(input.system?.includes("质检官") ? { reviewDecision: hooks.qualityDecision ?? "approved" } : {}) };
       }
       await hooks.afterModel?.(index); return completion(JSON.stringify(answer), index);
     },
@@ -166,6 +173,23 @@ describe("consulting native task execution (local real workflow and file fixture
     expect(report.content).toContain("独立质检"); expect(report.content).toContain("unit1.wenzhou.gov.cn");
     expect(report.content).toContain("第6步单元夹具研究");
     expect([...f.store.events.values()].flat().some((event) => event.action === "thread.execution.bound" && event.data.executionSource === "consulting-report")).toBe(true);
+  });
+
+  it("keeps the compiled report readable but requires a human when the independent quality gate does not approve", async () => {
+    const f = await fixture("T-UNIT-QUALITY-HOLD");
+    f.hooks.qualityDecision = "changes_requested";
+    expect((await f.service.execute(scope, f.input)).status).toBe("paused");
+    const view = await f.service.view(scope, f.input.threadId);
+    expect(view).toMatchObject({
+      status: "human_required",
+      phase: "draft_ready",
+      error: { code: "QUALITY_REVIEW_REQUIRED" },
+      humanReviewRequired: true,
+    });
+    expect(view.finalArtifact).toMatchObject({ kind: "report", synced: true });
+    const report = await f.service.report(scope, f.input.threadId);
+    expect(report.content).toContain("机器判定：changes_requested");
+    expect(view.availableActions.resume.enabled).toBe(true);
   });
 
   it("reopening the task and reading/downloading its report does not infer or search again", async () => {

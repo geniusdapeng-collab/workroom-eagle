@@ -1,0 +1,65 @@
+{
+  "id": "MC-006",
+  "kind": "problem",
+  "level": "L4",
+  "severity": "P1",
+  "batch": 2,
+  "title": "规划器幻觉跨员工技能导致整张有效计划被拒收",
+  "state": "open",
+  "evidence": [
+    {
+      "type": "code",
+      "ref": "apps/server/src/industry/consulting/workflow-core.ts:92@c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "sha256": "8a37dccfeeb59ad4c3920256f13f04110f60cd07a0244404810d75611aa56e54",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "基线实现只要 skillId 不在员工 skills 内就丢弃整张计划"
+    },
+    {
+      "type": "doc",
+      "ref": "evidence/complex-plan-rejected.md",
+      "sha256": "fd164ae7e96bb8b189599e419fbff0fd853a36ae4b004cf88c96bca180c4d991",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "真实规划把 org-hr-counselor 配成 ops 的 org-process-reeng，其余六角色与目标均有效"
+    },
+    {
+      "type": "doc",
+      "ref": "evidence/complex-plan-skill-mismatch.json",
+      "sha256": "62084226cc60b723777abb09f98cf7789b2189ee8940b210d9181c137e730b5f",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "真实沙箱任务因 SKILL_NOT_ASSIGNED 在首步规划后阻断，只产生 1 次真实调用"
+    }
+  ],
+  "root_cause": {
+    "file": "apps/server/src/industry/consulting/workflow-core.ts",
+    "line": 92,
+    "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+    "symbol": "parsePlan"
+  },
+  "trigger_path": "真实规划器选择正确员工但给出该员工未绑定的相似技能 ID；严格校验使整张六步计划作废，需要新任务和新付费规划才能继续。",
+  "fix_plan": "员工选择仍是硬门禁；无效/跨员工 skillId 仅在所选员工的 published skills 内确定性回退到首个绑定技能，不重买规划，也不借用其他员工技能。",
+  "assertions": [
+    {
+      "kind": "sample",
+      "given": "org-hr-counselor 被错误配置 org-process-reeng",
+      "expect": "计划保留该员工与目标，skillId 修正为该员工已发布技能",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"hallucinated cross-employee skill\"",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/workflow.test.ts", "-t", "hallucinated cross-employee skill", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    },
+    {
+      "kind": "property",
+      "given": "任意模型的 skillId",
+      "expect": "最终 plan.skillId 只能为 null 或该 employeeKey 自身 skills 的成员，绝不跨员工",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"hallucinated cross-employee skill\"",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/workflow.test.ts", "-t", "hallucinated cross-employee skill", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    }
+  ],
+  "regression": {
+    "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"hallucinated cross-employee skill\""
+  },
+  "fixed_by": null,
+  "verified_by": null,
+  "verified_at": null,
+  "verification_evidence": null
+}

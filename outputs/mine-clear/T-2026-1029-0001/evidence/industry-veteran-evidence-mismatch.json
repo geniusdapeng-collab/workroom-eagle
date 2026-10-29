@@ -1,0 +1,151 @@
+{
+  "id": "SINGLE-industry-veteran",
+  "employeeKey": "industry-veteran",
+  "status": "failed",
+  "precondition": "isolated, explicitly marked evaluation-only dossier; real provider and one shared persisted budget",
+  "goal": "解释制造业交期、返工率与订单变更的指标口径及适用边界；本题没有行业基准，不得虚构分位或把客户指标当行业平均。",
+  "expected": "one selected employee, substantive cited internal draft, real model usage, real event/file receipt",
+  "steps": [],
+  "startedAt": "2026-10-29T05:04:11.300Z",
+  "dossier": {
+    "enterpriseId": "eval-b544ecd9d7c0ed5431dda601",
+    "sources": [
+      {
+        "id": "S_OPS",
+        "title": "评测输入：月度与运营记录",
+        "content": "评测专用资料，非客户经营事实。月收入由120万元降至90万元。客户设定的月收入异动阈值为相对基线下降15%。生产订单交期由20天升至28天，返工率由3%升至8%。客户口头称销量稳定；没有提供销量台账、单价和产品结构数据，因而收入下降不能直接归因为销量。数据均来自本题资料，未独立核实。"
+      },
+      {
+        "id": "S_SCOPE",
+        "title": "评测输入：授权、服务范围与约束",
+        "content": "评测专用资料，非客户经营事实。本次授权仅限隔离档案内的内部分析草稿；不得外发、报价承诺、删除档案、联系专家或代替顾问访谈。客户需要90天经营改善与AI部署候选方案。现有ERP支持CSV导出，销售和生产没有共享变更台账。AI场景尚未做数据权限盘点。专家库本轮为空，没有已签NDA专家。不存在可引用的行业基准或已验证节省金额。"
+      }
+    ],
+    "sourceDigest": "7ad521d1f735eb8d59e659e29dc0cf8a63e7efe5a5bd7d4b6b490753dcb5d4fb",
+    "receipt": {
+      "eventId": "E-9159",
+      "hash": "68fcf6a2773edf1ea232f09a24d9c8786d074f7b4d156e4cea5d04d4af2cfac9",
+      "synced": true
+    },
+    "sourceTrust": "customer-provided-unverified"
+  },
+  "runId": "CR-e3b56817c6bf9844eb2ae6f6",
+  "lastObservedRun": {
+    "id": "CR-e3b56817c6bf9844eb2ae6f6",
+    "goal": "解释制造业交期、返工率与订单变更的指标口径及适用边界；本题没有行业基准，不得虚构分位或把客户指标当行业平均。",
+    "steps": [
+      {
+        "id": "s1",
+        "skillId": "ind-mfg-lean",
+        "dependsOn": [],
+        "objective": "按行业专家的职责、技能与边界完成本次材料分析，输出可审阅草稿",
+        "employeeKey": "industry-veteran"
+      }
+    ],
+    "sources": [
+      {
+        "id": "S_OPS",
+        "title": "评测输入：月度与运营记录",
+        "content": "评测专用资料，非客户经营事实。月收入由120万元降至90万元。客户设定的月收入异动阈值为相对基线下降15%。生产订单交期由20天升至28天，返工率由3%升至8%。客户口头称销量稳定；没有提供销量台账、单价和产品结构数据，因而收入下降不能直接归因为销量。数据均来自本题资料，未独立核实。"
+      },
+      {
+        "id": "S_SCOPE",
+        "title": "评测输入：授权、服务范围与约束",
+        "content": "评测专用资料，非客户经营事实。本次授权仅限隔离档案内的内部分析草稿；不得外发、报价承诺、删除档案、联系专家或代替顾问访谈。客户需要90天经营改善与AI部署候选方案。现有ERP支持CSV导出，销售和生产没有共享变更台账。AI场景尚未做数据权限盘点。专家库本轮为空，没有已签NDA专家。不存在可引用的行业基准或已验证节省金额。"
+      }
+    ],
+    "inputHash": "f13cc6b9b203e16299334f0465019fc0a885cf6402eb3688c6d2b4e24691725e",
+    "rationale": "成员明确指定单员工与已绑定技能",
+    "sourceTrust": "customer-provided-unverified",
+    "enterpriseId": "eval-b544ecd9d7c0ed5431dda601",
+    "sourceDigest": "7ad521d1f735eb8d59e659e29dc0cf8a63e7efe5a5bd7d4b6b490753dcb5d4fb",
+    "dossierReceipt": {
+      "hash": "68fcf6a2773edf1ea232f09a24d9c8786d074f7b4d156e4cea5d04d4af2cfac9",
+      "synced": true,
+      "eventId": "E-9159"
+    },
+    "workforceFingerprint": "c0dc0a5c646b4a2a4f2b1c5e170ce63582357838c50419e722cdcc43b37c280d",
+    "status": "blocked",
+    "completed": [],
+    "active": {
+      "stepId": "s1",
+      "executionId": "fb9b5cf7-bb30-4d46-8320-5769161deeef",
+      "requestKey": "37d150c54f21a8bc4450488eb0b39344f5772927183c090b2841ca6f07fdb0d0"
+    },
+    "requests": [
+      "37d150c54f21a8bc4450488eb0b39344f5772927183c090b2841ca6f07fdb0d0"
+    ],
+    "error": {
+      "code": "EVIDENCE_MISMATCH",
+      "message": "产物引用不在本任务档案原文中，拒绝伪造或漂移引用"
+    },
+    "lastReceipt": {
+      "eventId": "E-9162",
+      "hash": "e4a195b532a5507432ac65c3e0ed15482cab8776a5c3546d1039d1b20bef2ac0",
+      "synced": true
+    },
+    "humanReviewRequired": true,
+    "failureEvidence": {
+      "model": {
+        "model": "deepseek-flash",
+        "usage": {
+          "totalTokens": 2843,
+          "promptTokens": 1803,
+          "completionTokens": 1040
+        },
+        "provider": "deepseek",
+        "requestId": "683b5ded-1b31-4f42-ad4b-46bd93e686b8",
+        "finishReason": "stop",
+        "modelMetadata": {
+          "id": "deepseek-flash",
+          "name": "DeepSeek-V4.1-Flash",
+          "verifiedAt": "2026-10-29T05:04:11.765Z",
+          "contextWindow": 1048576,
+          "tokenizerProof": {
+            "source": "https://cdn.deepseek.com/api-docs/deepseek_v4_tokenizer.zip",
+            "algorithm": "ByteLevel BPE; empty normalizer; no added prefix; all 256 byte symbols in vocabulary",
+            "reviewedOn": "2026-10-24",
+            "modelVersion": "DeepSeek-V4.1-Flash-1017",
+            "artifactSha256": "e7310d1dafe0a86d8a5629fe78a7c763760f651db9b8682718a1781dcd6fe495",
+            "framingAllowance": 1024
+          },
+          "maxOutputTokens": 393216
+        },
+        "reservationId": "7219e434-db1e-4972-aa5e-482682c865d4",
+        "requestedModel": "deepseek-flash"
+      },
+      "phase": "analysis",
+      "stepId": "s1",
+      "executionId": "fb9b5cf7-bb30-4d46-8320-5769161deeef",
+      "responseBytes": 4396,
+      "inputDisclosure": {
+        "mode": "all-prior-structured-artifacts-full",
+        "inputSha256": "c840cf4113b5e5e62c1b8022ccba6b110ac500c4c98b991cc7335a225d46b555",
+        "completePriorStepIds": [],
+        "systemAndPromptUtf8Bytes": 7415
+      },
+      "rejectedArtifact": {
+        "path": "/Users/mac/Documents/Codex/2026-10-29/https-github-com-geniusdapeng-collab-workroom/work/eagle-live/client-runtime-round2/consulting/4301c86d1c1bfbf3a2712848/CR-e3b56817c6bf9844eb2ae6f6/s1-b2092074-9681-4173-ae35-29356739f3f9.md",
+        "bytes": 4501,
+        "sha256": "d5e3026bd9e3a2b3a13e13cd812261fc2236c31792e10269e022073ae54c44e7"
+      },
+      "rejectedArtifactId": "b2092074-9681-4173-ae35-29356739f3f9"
+    },
+    "evaluationTransportExitCode": 9
+  },
+  "reusedCompletedSteps": [],
+  "initialPlan": {
+    "steps": [
+      {
+        "id": "s1",
+        "skillId": "ind-mfg-lean",
+        "dependsOn": [],
+        "objective": "按行业专家的职责、技能与边界完成本次材料分析，输出可审阅草稿",
+        "employeeKey": "industry-veteran"
+      }
+    ],
+    "rationale": "成员明确指定单员工与已绑定技能"
+  },
+  "error": "step 1 failed: EVIDENCE_MISMATCH",
+  "finishedAt": "2026-10-29T05:04:19.867Z"
+}

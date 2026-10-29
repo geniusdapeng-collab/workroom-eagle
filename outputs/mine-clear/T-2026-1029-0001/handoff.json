@@ -1,0 +1,709 @@
+{
+  "schema": "workloom.mine-clear/handoff@1",
+  "task_id": "T-2026-1029-0001",
+  "repo": "workroom-eagle-github",
+  "generated_at": "2026-10-29T16:23:01.898Z",
+  "audit_baseline": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+  "repair_baseline": "9f4b1552a731c1873fb18c41e72a230bfe0a129d",
+  "acceptance_baseline": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad",
+  "environment_claim": "client-runtime",
+  "invariants": [
+    {
+      "id": "INV-1",
+      "text": "租户边界覆盖数据库 RLS、运行时上下文、事件、缓存和外部连接器。",
+      "source": "AGENTS.md#4.1"
+    },
+    {
+      "id": "INV-2",
+      "text": "经营事件、审批和关键回执只增不改；纠正通过新事件表达，不静默覆盖证据。",
+      "source": "AGENTS.md#4.2"
+    },
+    {
+      "id": "INV-3",
+      "text": "所有外部或变更性动作及其子调用，统一经过权限、PII、围栏和审批链路。",
+      "source": "AGENTS.md#4.3"
+    },
+    {
+      "id": "INV-4",
+      "text": "涉钱、敏感数据、群发、公开发布、交易和破坏性变更必须按高风险处理并由人审批。",
+      "source": "AGENTS.md#4.4"
+    },
+    {
+      "id": "INV-5",
+      "text": "没有真实回执就不能标记完成；mock、模拟和体验模式在数据结构与界面上都要明确区分。",
+      "source": "AGENTS.md#4.5"
+    },
+    {
+      "id": "INV-6",
+      "text": "客户原始经营数据不得上行；蜂群只接受白名单化、最小化、匿名化且可审计的元数据或派生经验。",
+      "source": "AGENTS.md#4.6"
+    },
+    {
+      "id": "INV-7",
+      "text": "租户覆盖层只能收紧围栏，不能放宽平台不可变红线。",
+      "source": "AGENTS.md#4.7"
+    },
+    {
+      "id": "INV-8",
+      "text": "模型、提示词、技能、bundle、策略和热更新必须先评测再灰度，且始终可回滚。",
+      "source": "AGENTS.md#4.8"
+    },
+    {
+      "id": "INV-9",
+      "text": "platform-ops、平台账户运营和平台秘密只属于 Andromeda。",
+      "source": "AGENTS.md#4.9"
+    },
+    {
+      "id": "INV-10",
+      "text": "Tiger 在获得单独的合规审查和用户明确授权前，只能模拟或纸面交易。",
+      "source": "AGENTS.md#4.10"
+    },
+    {
+      "id": "INV-11",
+      "text": "令牌、密码、API key、私钥、客户凭证和私密客户数据不得进入源码、文档、上下文、提示词、日志或提交。",
+      "source": "AGENTS.md#4.11"
+    },
+    {
+      "id": "INV-12",
+      "text": "个性化与行业扩展不得形成公共机制的第二事实源。",
+      "source": "AGENTS.md#4.12"
+    }
+  ],
+  "closed_problems": [
+    {
+      "id": "MC-001",
+      "title": "咨询研究报告未注册行业岗位认领，真实派单落到兜底总参谋长",
+      "verified_by": "codex-independent-acceptance-2026-10-30",
+      "verified_at": "2026-10-29T16:21:24.072Z",
+      "verification_evidence": {
+        "path": "runs/MC-001-0-1793290882788.json",
+        "sha256": "075d03a65ed95d1f3e684f7872a46e7e65149ca68fa8b0fbd094c021b0e68ff1",
+        "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+      },
+      "assertions": [
+        {
+          "kind": "sample",
+          "given": "目标“做一个温州市制造业数字化转型现状研究报告”",
+          "expect": "选择 intel-researcher，selection 不是 arbitrary fallback",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/dispatch-routing.test.ts",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/dispatch-routing.test.ts",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-001-0-1793290882788.txt",
+            "sha256": "c56376374d9e3f92ce014d05410548648d97c956f43645726dac7273489d29a5",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-001-0-1793290882788.json",
+            "sha256": "075d03a65ed95d1f3e684f7872a46e7e65149ca68fa8b0fbd094c021b0e68ff1",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        },
+        {
+          "kind": "property",
+          "given": "财务、应收、运营、组织、合规、数字化、质检和跨部门目标",
+          "expect": "每个领域只认领其对应岗位，未知目标不伪造认领",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/dispatch-routing.test.ts",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/dispatch-routing.test.ts",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-001-1-1793290883472.txt",
+            "sha256": "db089e9355af4a0d6ddb43327fef756d9e50a4bf7f5ebdea88e247bfe570941f",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-001-1-1793290883472.json",
+            "sha256": "867e4b6d92ca98b89cd23f1d96cac1038e06fc7c885cc9683ff3f62511ff8a5b",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        }
+      ]
+    },
+    {
+      "id": "MC-002",
+      "title": "岗位绑定专项技能后，模型提示遗漏岗位目标和硬约束",
+      "verified_by": "codex-independent-acceptance-2026-10-30",
+      "verified_at": "2026-10-29T16:21:27.473Z",
+      "verification_evidence": {
+        "path": "runs/MC-002-0-1793290884244.json",
+        "sha256": "d256fa44162216f7df72ab87672d5a54f931a67a24486211cc64e6607d0dd9a3",
+        "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+      },
+      "assertions": [
+        {
+          "kind": "property",
+          "given": "财务资本顾问绑定 fin-statement-analysis 执行单岗任务",
+          "expect": "system prompt 同时包含岗位所有 goals、constraints 和输出契约，prompt 继续包含技能全文",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"employee's goals and constraints\"",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/workflow.test.ts",
+              "-t",
+              "employee's goals and constraints",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-002-0-1793290884244.txt",
+            "sha256": "b675c6c8fa83f5c3baf28244999e8f4496b65cf4a5674fdf906d4e86db2282f3",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-002-0-1793290884244.json",
+            "sha256": "d256fa44162216f7df72ab87672d5a54f931a67a24486211cc64e6607d0dd9a3",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        },
+        {
+          "kind": "sample",
+          "given": "真实复杂任务第六步质检官",
+          "expect": "质检官输入含其 C-R2/C-R7 岗位边界，而不是仅有 red-team-review 技能正文",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"employee's goals and constraints\"",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/workflow.test.ts",
+              "-t",
+              "employee's goals and constraints",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-002-1-1793290885980.txt",
+            "sha256": "f787016c76281d1721e54dd1ace65d50182b363e48ffd20e9361bfb341dc371b",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-002-1-1793290885980.json",
+            "sha256": "bffe41eff7b245088f81758d12cecbf29b8b86a8859f285213e7da53e532d98b",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        }
+      ]
+    },
+    {
+      "id": "MC-003",
+      "title": "质检官退回意见不可机判，任务仍被评估为通过并发布待审报告",
+      "verified_by": "codex-independent-acceptance-2026-10-30",
+      "verified_at": "2026-10-29T16:21:34.256Z",
+      "verification_evidence": {
+        "path": "runs/MC-003-0-1793290887682.json",
+        "sha256": "9b612d344c3808a0d4e0ea6bb46232daca085e2e7aae16a12d04878be3510acb",
+        "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+      },
+      "assertions": [
+        {
+          "kind": "sample",
+          "given": "质检官返回 reviewDecision=changes_requested",
+          "expect": "报告文件仍可回读，但任务状态为 human_required、错误码 QUALITY_REVIEW_REQUIRED、不会计为 approved",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/task-execution.test.ts -t \"independent quality gate does not approve\"",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/task-execution.test.ts",
+              "-t",
+              "independent quality gate does not approve",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-003-0-1793290887682.txt",
+            "sha256": "3b27eeda99a5b80fb92dccef3fdb4f62f337e9dfacba763af2b8c6d2e92def51",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-003-0-1793290887682.json",
+            "sha256": "9b612d344c3808a0d4e0ea6bb46232daca085e2e7aae16a12d04878be3510acb",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        },
+        {
+          "kind": "property",
+          "given": "独立质检步骤的输出",
+          "expect": "必须有 approved/changes_requested/rejected；缺失或非法值 fail closed",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"machine-readable quality verdict\"",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/workflow.test.ts",
+              "-t",
+              "machine-readable quality verdict",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-003-1-1793290889570.txt",
+            "sha256": "86c5a68ee734cd4660be049a0b279e776a28d7a96477c61a68bb72a53283e443",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-003-1-1793290889570.json",
+            "sha256": "09aa658da2ff305fd4c22d882e4d36abb27d2791d7eac5d6d95e5ca44f7ac9bd",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        },
+        {
+          "kind": "property",
+          "given": "质检官面对已在受控引证块中的缺陷原文、轻微重复或格式建议",
+          "expect": "这些非实质问题不得触发 changes_requested；提示必须明确要求判 approved 并保留非阻断改进建议",
+          "command": "node_modules/.bin/vitest run apps/server/src/industry/consulting/workflow.test.ts -t \"defines quality approval\" --testTimeout 30000",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/workflow.test.ts",
+              "-t",
+              "defines quality approval",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-003-2-1793290891771.txt",
+            "sha256": "110b5816de8cac696cb9779104db4bab051a5832ea99924dcce9dfc28ff476f3",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-003-2-1793290891771.json",
+            "sha256": "6f16e3ec8b710938471041ddb5e92367373b63c273d9aea3b71fa82db74c4621",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        }
+      ]
+    },
+    {
+      "id": "MC-004",
+      "title": "工单幂等键仅按工作区唯一，跨用户可回读他人原单",
+      "verified_by": "codex-independent-acceptance-2026-10-30",
+      "verified_at": "2026-10-29T16:21:38.196Z",
+      "verification_evidence": {
+        "path": "runs/MC-004-0-1793290894639.json",
+        "sha256": "791dd860e5679c46bdf1d001f755a4df55add15608b0b379d64e4e3959699827",
+        "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+      },
+      "assertions": [
+        {
+          "kind": "sample",
+          "given": "用户 A、B 在同一工作区使用相同幂等键",
+          "expect": "B 得 409，响应不含 A 的工单、标题、房间或回执",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/service/contract.test.ts -t \"同工作区跨用户\"",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/service/contract.test.ts",
+              "-t",
+              "同工作区跨用户",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-004-0-1793290894639.txt",
+            "sha256": "04b92d7c627d1bdbe88deba5cea8b8e6c77ab72863436c0b0d8cfc6886d659ac",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-004-0-1793290894639.json",
+            "sha256": "791dd860e5679c46bdf1d001f755a4df55add15608b0b379d64e4e3959699827",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        },
+        {
+          "kind": "property",
+          "given": "同一用户相同键但 kind/title/payload 任一变化",
+          "expect": "返回 409；同用户同请求才允许 deduped 回放",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/service/contract.test.ts -t \"同工作区跨用户|确认工单同键\"",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/service/contract.test.ts",
+              "-t",
+              "同工作区跨用户|确认工单同键",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-004-1-1793290896292.txt",
+            "sha256": "1acb69010e69a82add19d0123f30034fd76ab1ce0d1cd14fbaf86233903038fd",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-004-1-1793290896292.json",
+            "sha256": "71e00dc32b85a90847636c07fd37048aed82a1bc168efbcd975cad096af5bb49",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        }
+      ]
+    },
+    {
+      "id": "MC-005",
+      "title": "模型把绑定技能正文误作证据来源，行业专家真实任务被拒收",
+      "verified_by": "codex-independent-acceptance-2026-10-30",
+      "verified_at": "2026-10-29T16:21:42.230Z",
+      "verification_evidence": {
+        "path": "runs/MC-005-0-1793290898392.json",
+        "sha256": "c3a91403ec2937491aba4f38fcfc6ca13427ddb6883e9686f8b4b0dd9fb773e6",
+        "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+      },
+      "assertions": [
+        {
+          "kind": "sample",
+          "given": "单岗任务仅有 ledger 一份授权原始资料且绑定专项技能",
+          "expect": "system prompt 明确 evidence.sourceId 只能取 ledger，并明确技能正文不能作来源",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"only citable source IDs\"",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/workflow.test.ts",
+              "-t",
+              "only citable source IDs",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-005-0-1793290898392.txt",
+            "sha256": "732e7bbb36d0fc454e0c4c5184169788ca7ddd17d04d9df7deb373ed104b2a23",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-005-0-1793290898392.json",
+            "sha256": "c3a91403ec2937491aba4f38fcfc6ca13427ddb6883e9686f8b4b0dd9fb773e6",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        },
+        {
+          "kind": "property",
+          "given": "任一咨询任务与任一技能组合",
+          "expect": "允许引用集合始终等于本次授权 sources.id，不包含技能/岗位/前序产物 ID",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"only citable source IDs\"",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/workflow.test.ts",
+              "-t",
+              "only citable source IDs",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-005-1-1793290900116.txt",
+            "sha256": "2a6d77bf98d7e3cd38510be14465d72805a1c599c67232c5c1ae086400f68360",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-005-1-1793290900116.json",
+            "sha256": "48a3c67b22d6a5bd47edd2cfaecd122b9e796cd05cc351d0f86276f81cc5f8ec",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        }
+      ]
+    },
+    {
+      "id": "MC-006",
+      "title": "规划器幻觉跨员工技能导致整张有效计划被拒收",
+      "verified_by": "codex-independent-acceptance-2026-10-30",
+      "verified_at": "2026-10-29T16:21:48.465Z",
+      "verification_evidence": {
+        "path": "runs/MC-006-0-1793290902451.json",
+        "sha256": "36895a9bf069702c8fd6f666aa930162b065452534fde45c2d79e848a2334d81",
+        "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+      },
+      "assertions": [
+        {
+          "kind": "sample",
+          "given": "org-hr-counselor 被错误配置 org-process-reeng",
+          "expect": "计划保留该员工与目标，skillId 修正为该员工已发布技能",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"hallucinated cross-employee skill\"",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/workflow.test.ts",
+              "-t",
+              "hallucinated cross-employee skill",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-006-0-1793290902451.txt",
+            "sha256": "12ec7886da6028398edb58ef43119a21d5479a6d42a20dfdb794cce5bea62e4c",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-006-0-1793290902451.json",
+            "sha256": "36895a9bf069702c8fd6f666aa930162b065452534fde45c2d79e848a2334d81",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        },
+        {
+          "kind": "property",
+          "given": "任意模型的 skillId",
+          "expect": "最终 plan.skillId 只能为 null 或该 employeeKey 自身 skills 的成员，绝不跨员工",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"hallucinated cross-employee skill\"",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/workflow.test.ts",
+              "-t",
+              "hallucinated cross-employee skill",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-006-1-1793290905543.txt",
+            "sha256": "c72160a44afa8d723d5fa27f76fc366b06bd707673caac6e81eac1f2a66cdf93",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-006-1-1793290905543.json",
+            "sha256": "bd60e6733168aabec8e3ed091ce6ac901c4d274c3cd08a33c6725d9d04955842",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        }
+      ]
+    },
+    {
+      "id": "MC-007",
+      "title": "结构化产物输出预算和字段数量过紧，长任务截断或拒收",
+      "verified_by": "codex-independent-acceptance-2026-10-30",
+      "verified_at": "2026-10-29T16:21:57.854Z",
+      "verification_evidence": {
+        "path": "runs/MC-007-0-1793290908749.json",
+        "sha256": "1a68bf01fd604372bc0f66c3d8fd9fba9539e62670c94e9357662ab9e27c3c4b",
+        "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+      },
+      "assertions": [
+        {
+          "kind": "sample",
+          "given": "单岗结构化分析调用",
+          "expect": "向供应商声明的 max_tokens 为 4096",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"output budget\"",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/workflow.test.ts",
+              "-t",
+              "output budget",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-007-0-1793290908749.txt",
+            "sha256": "deef33750c9f8ba4e00869c4cdb91d08f824f5cd047940e84704848d4952e714",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-007-0-1793290908749.json",
+            "sha256": "1a68bf01fd604372bc0f66c3d8fd9fba9539e62670c94e9357662ab9e27c3c4b",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        },
+        {
+          "kind": "property",
+          "given": "仍小于 10000 字节的详细合法产物",
+          "expect": "通过 schema 校验，不因原 500/400 字符细项上限拒绝",
+          "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"detailed but still byte-bounded\"",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/workflow.test.ts",
+              "-t",
+              "detailed but still byte-bounded",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-007-1-1793290910795.txt",
+            "sha256": "3568b90a0b122488abf24c29e7be262659721095c9b06dd5960887f586ae3777",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-007-1-1793290910795.json",
+            "sha256": "b7c7f4fad1e0762585832781be94d0354536ed51b040f76d3474d1097a2745cd",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        },
+        {
+          "kind": "sample",
+          "given": "真实全量轮产生 1295 字摘要与 12605 字符合法完整报告",
+          "expect": "总 JSON 高于旧 12000 且低于 14000 字节契约时通过，不再因旧上限拒绝",
+          "command": "node_modules/.bin/vitest run apps/server/src/industry/consulting/workflow.test.ts -t \"above the earlier 12000-byte ceiling\" --testTimeout 30000",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/workflow.test.ts",
+              "-t",
+              "above the earlier 12000-byte ceiling",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-007-2-1793290912788.txt",
+            "sha256": "3e531d9ae11071453c14d178c489cda3706d8b5dfec4a5418db169937704ca5c",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-007-2-1793290912788.json",
+            "sha256": "b7bb8e7f3bf26664df22f2fc0c4de6e14463602056c05776ba09cc88a615a671",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        },
+        {
+          "kind": "sample",
+          "given": "完整前序输入达到旧 80000 字节契约以上、但低于新的 100000 字节上界",
+          "expect": "连接器使用 100000 字节上界完成预占，禁止超限输入仍不发起供应商请求",
+          "command": "node --test bundles/consulting/connectors/deepseek.test.mjs",
+          "exec": {
+            "file": "node",
+            "args": [
+              "--test",
+              "bundles/consulting/connectors/deepseek.test.mjs"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-007-3-1793290916691.txt",
+            "sha256": "4f7c23a0d6a1d1d9bb831c709ba2330124f989da366f2e57549ceef474a21ace",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-007-3-1793290916691.json",
+            "sha256": "5a1ff6afbdb97a4790dc5baf978ea4e73311d1904429870334adebbf533c6f95",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        }
+      ]
+    },
+    {
+      "id": "MC-008",
+      "title": "确定性算术校验误判百分比点差值与非公式括号说明",
+      "verified_by": "codex-independent-acceptance-2026-10-30",
+      "verified_at": "2026-10-29T16:21:59.438Z",
+      "verification_evidence": {
+        "path": "runs/MC-008-0-1793290918068.json",
+        "sha256": "ed9c51f4b2b72ff7385be5a3af0cc5a96bc575dceeaf1136e71fe9435c714975",
+        "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+      },
+      "assertions": [
+        {
+          "kind": "sample",
+          "given": "8%-3%=5个百分点 与 8%-3%=+5个百分点",
+          "expect": "两项均实际通过算术校验，不产生 mismatch",
+          "command": "node_modules/.bin/vitest run apps/server/src/industry/consulting/arithmetic.test.ts -t \"checks known units\" --testTimeout 30000",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/arithmetic.test.ts",
+              "-t",
+              "checks known units",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-008-0-1793290918068.txt",
+            "sha256": "78ded1339d4d0c934d326e3d5d6cab756fcd1079e07cc727c351b75c9d3d57c4",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-008-0-1793290918068.json",
+            "sha256": "ed9c51f4b2b72ff7385be5a3af0cc5a96bc575dceeaf1136e71fe9435c714975",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        },
+        {
+          "kind": "property",
+          "given": "任一百分比后接纯百分点差量附注",
+          "expect": "不得反向解释为前一百分比由该附注推导；真正含除零、非有限或明确冲突的公式仍失败关闭",
+          "command": "node_modules/.bin/vitest run apps/server/src/industry/consulting/arithmetic.test.ts -t \"accepts correctly rounded displays\" --testTimeout 30000",
+          "exec": {
+            "file": "node_modules/.bin/vitest",
+            "args": [
+              "run",
+              "apps/server/src/industry/consulting/arithmetic.test.ts",
+              "-t",
+              "accepts correctly rounded displays",
+              "--testTimeout",
+              "30000"
+            ]
+          },
+          "last_result": "pass",
+          "evidence": {
+            "path": "evidence/MC-008-1-1793290918722.txt",
+            "sha256": "053a0d86e587fb346f8ca7ba21edf045b5e4b6ee4c466d8cf113a282cb6df603",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          },
+          "run": {
+            "path": "runs/MC-008-1-1793290918722.json",
+            "sha256": "d35c60e41719c3a27c1701b3c6aa3e2359aae9ff5fa2e5bf9379bddf54913d31",
+            "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+          }
+        }
+      ]
+    }
+  ],
+  "open_problems": [],
+  "acceptance_commands": [
+    "pnpm acceptance:profile:check",
+    "node scripts/acceptance/fleet-run.mjs --repo workroom-eagle-github --env client-runtime",
+    "node scripts/acceptance/fleet-run.mjs --repo workroom-eagle-github --env client-runtime --live-only   # 生产最小侵入档"
+  ],
+  "notes": "交接前确认验收基线是修复基线的后代：git merge-base --is-ancestor <修复commit> <验收commit>"
+}

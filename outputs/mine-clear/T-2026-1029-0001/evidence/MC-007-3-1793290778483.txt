@@ -1,0 +1,194 @@
+TAP version 13
+# Subtest: one call uses the documented exact Flash alias, bounded output and real usage
+ok 1 - one call uses the documented exact Flash alias, bounded output and real usage
+  ---
+  duration_ms: 21.126917
+  type: 'test'
+  ...
+# Subtest: unsafe endpoint and silent model substitution are rejected before network I/O
+ok 2 - unsafe endpoint and silent model substitution are rejected before network I/O
+  ---
+  duration_ms: 0.438208
+  type: 'test'
+  ...
+# Subtest: missing key, oversized and malformed input make no HTTP request
+ok 3 - missing key, oversized and malformed input make no HTTP request
+  ---
+  duration_ms: 1.19425
+  type: 'test'
+  ...
+# Subtest: token bound covers full UTF8 prompt and fixed chat framing
+ok 4 - token bound covers full UTF8 prompt and fixed chat framing
+  ---
+  duration_ms: 0.094875
+  type: 'test'
+  ...
+# Subtest: complete full-upstream input stays finite and reserves all 100000 UTF8 bytes before paid I/O
+ok 5 - complete full-upstream input stays finite and reserves all 100000 UTF8 bytes before paid I/O
+  ---
+  duration_ms: 0.955458
+  type: 'test'
+  ...
+# Subtest: concurrent attempts reserve calls and tokens before I/O; no automatic retry
+ok 6 - concurrent attempts reserve calls and tokens before I/O; no automatic retry
+  ---
+  duration_ms: 0.47925
+  type: 'test'
+  ...
+# Subtest: token and cost reservations reject before network I/O
+ok 7 - token and cost reservations reject before network I/O
+  ---
+  duration_ms: 0.423917
+  type: 'test'
+  ...
+# Subtest: HTTP failures retain unknown reservation, freeze all paid I/O, and never expose body
+ok 8 - HTTP failures retain unknown reservation, freeze all paid I/O, and never expose body
+  ---
+  duration_ms: 0.730041
+  type: 'test'
+  ...
+# Subtest: missing usage fails closed and freezes budget
+ok 9 - missing usage fails closed and freezes budget
+  ---
+  duration_ms: 0.365333
+  type: 'test'
+  ...
+# Subtest: negative usage fails closed and freezes budget
+ok 10 - negative usage fails closed and freezes budget
+  ---
+  duration_ms: 0.318458
+  type: 'test'
+  ...
+# Subtest: inconsistent usage fails closed and freezes budget
+ok 11 - inconsistent usage fails closed and freezes budget
+  ---
+  duration_ms: 0.247625
+  type: 'test'
+  ...
+# Subtest: unverified model fails closed and freezes budget
+ok 12 - unverified model fails closed and freezes budget
+  ---
+  duration_ms: 0.285042
+  type: 'test'
+  ...
+# Subtest: truncated or empty answers cannot be presented as a successful deliverable
+ok 13 - truncated or empty answers cannot be presented as a successful deliverable
+  ---
+  duration_ms: 0.47975
+  type: 'test'
+  ...
+# Subtest: actual usage above reserved bound freezes budget and rejects success
+ok 14 - actual usage above reserved bound freezes budget and rejects success
+  ---
+  duration_ms: 0.227792
+  type: 'test'
+  ...
+# Subtest: caller abort propagates and no retry occurs
+ok 15 - caller abort propagates and no retry occurs
+  ---
+  duration_ms: 0.109209
+  type: 'test'
+  ...
+# Subtest: search and fetch use dedicated documented endpoints and keep source receipts
+ok 16 - search and fetch use dedicated documented endpoints and keep source receipts
+  ---
+  duration_ms: 0.530167
+  type: 'test'
+  ...
+# Subtest: invalid search and private/credentialed fetch URLs are denied before network
+ok 17 - invalid search and private/credentialed fetch URLs are denied before network
+  ---
+  duration_ms: 0.258667
+  type: 'test'
+  ...
+# Subtest: search empty result is explicit, not a fabricated source
+ok 18 - search empty result is explicit, not a fabricated source
+  ---
+  duration_ms: 0.890333
+  type: 'test'
+  ...
+# Subtest: persisted budget survives a new client; another environment cannot reset quota
+ok 19 - persisted budget survives a new client; another environment cannot reset quota
+  ---
+  duration_ms: 30.500584
+  type: 'test'
+  ...
+# Subtest: corrupt or policy-changed persistent ledger cannot be silently replaced
+ok 20 - corrupt or policy-changed persistent ledger cannot be silently replaced
+  ---
+  duration_ms: 1.343333
+  type: 'test'
+  ...
+# Subtest: metadata drift stops before any paid call
+ok 21 - metadata drift stops before any paid call
+  ---
+  duration_ms: 0.331083
+  type: 'test'
+  ...
+# Subtest: network failures and malformed JSON never get converted into completed work
+ok 22 - network failures and malformed JSON never get converted into completed work
+  ---
+  duration_ms: 0.425
+  type: 'test'
+  ...
+# Subtest: wall-clock budget and web-request count are checked before I/O
+ok 23 - wall-clock budget and web-request count are checked before I/O
+  ---
+  duration_ms: 0.346542
+  type: 'test'
+  ...
+# Subtest: search and fetch share one total eight-operation ceiling across clients and restarts
+ok 24 - search and fetch share one total eight-operation ceiling across clients and restarts
+  ---
+  duration_ms: 133.172291
+  type: 'test'
+  ...
+# Subtest: budget directory symlinks and readable, linked or symbolic ledgers stop before provider I/O
+ok 25 - budget directory symlinks and readable, linked or symbolic ledgers stop before provider I/O
+  ---
+  duration_ms: 24.875958
+  type: 'test'
+  ...
+# Subtest: per-task production budget refuses symbolic parent directories before creating external files
+ok 26 - per-task production budget refuses symbolic parent directories before creating external files
+  ---
+  duration_ms: 2.836625
+  type: 'test'
+  ...
+# Subtest: production uses per-task durable quotas; finishing 40 calls cannot disable the next business task
+ok 27 - production uses per-task durable quotas; finishing 40 calls cannot disable the next business task
+  ---
+  duration_ms: 388.621708
+  type: 'test'
+  ...
+# Subtest: credentials cannot be sent as prompt text, search query or fetched URL
+ok 28 - credentials cannot be sent as prompt text, search query or fetched URL
+  ---
+  duration_ms: 0.461417
+  type: 'test'
+  ...
+# Subtest: supplier credential echoes are rejected before provider results or ledger receipts can persist them
+ok 29 - supplier credential echoes are rejected before provider results or ledger receipts can persist them
+  ---
+  duration_ms: 32.793375
+  type: 'test'
+  ...
+# Subtest: JSON workflow output explicitly enables the official JSON response mode; UI prose does not
+ok 30 - JSON workflow output explicitly enables the official JSON response mode; UI prose does not
+  ---
+  duration_ms: 1.270708
+  type: 'test'
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 735.029042
+
+
+exit_code=0 signal=none error=none
+assertion_validation={"ok":true,"errors":[],"testSummary":{"total":30,"passed":30,"failed":0,"cancelled":0,"skipped":0,"todo":0}}

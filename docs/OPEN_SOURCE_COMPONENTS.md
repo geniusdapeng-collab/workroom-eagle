@@ -245,7 +245,7 @@
 | `@trpc/server` | 11.19.0（声明） | 11.19.0 | 生产 | .workloom-runtime-deps/package.json、apps/server/package.json | 11.19.0（历史记录；未核实或已过期） |
 | `@types/js-yaml` | 4.0.9（声明） | ^4.0.9 | 开发 | vendor/dsh/package.json | 4.0.9（历史记录；未核实或已过期） |
 | `@types/node` | 24.0.0 / 24.13.3 | ^24.0.0 | 开发 | apps/server/package.json、package.json | 26.6.1（历史记录；未核实或已过期） |
-| `@types/pg` | 8.23.1（声明） | ^8.23.1 | 开发 | apps/server/package.json、packages/base/package.json、packages/db/package.json 等 4 处 | 8.23.1（历史记录；未核实或已过期） |
+| `@types/pg` | 8.23.1 | 8.23.1 / ^8.23.1 | 开发 | apps/server/package.json、package.json、packages/base/package.json 等 5 处 | 8.23.1（历史记录；未核实或已过期） |
 | `@types/react` | 19.2.0（声明） | ^19.2.0 | 开发 | apps/web/package.json、apps/webb/package.json、apps/webc/package.json | 19.3.0（历史记录；未核实或已过期） |
 | `@types/react-dom` | 19.2.0（声明） | ^19.2.0 | 开发 | apps/web/package.json、apps/webb/package.json、apps/webc/package.json | 19.3.0（历史记录；未核实或已过期） |
 | `@types/three` | 0.186.0（声明） | ^0.186.0 | 开发 | apps/web/package.json | 0.186.0（历史记录；未核实或已过期） |

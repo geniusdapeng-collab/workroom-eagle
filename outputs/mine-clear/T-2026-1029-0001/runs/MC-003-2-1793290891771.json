@@ -1,0 +1,40 @@
+{
+  "schema": "workloom.evidence-run/v1",
+  "id": "MC-003-2-1793290891771",
+  "command": "node_modules/.bin/vitest run apps/server/src/industry/consulting/workflow.test.ts -t \"defines quality approval\" --testTimeout 30000",
+  "exec": {
+    "file": "node_modules/.bin/vitest",
+    "args": [
+      "run",
+      "apps/server/src/industry/consulting/workflow.test.ts",
+      "-t",
+      "defines quality approval",
+      "--testTimeout",
+      "30000"
+    ]
+  },
+  "actor": "codex-independent-acceptance-2026-10-30",
+  "role": "acceptance",
+  "subject": {
+    "card_id": "MC-003",
+    "assertion_index": 2
+  },
+  "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad",
+  "working_tree_dirty": false,
+  "started_at": "2026-10-29T16:21:31.771Z",
+  "finished_at": "2026-10-29T16:21:34.172Z",
+  "exit_code": 0,
+  "signal": null,
+  "validation": {
+    "ok": true,
+    "errors": []
+  },
+  "result": "pass",
+  "outputs": [
+    {
+      "path": "evidence/MC-003-2-1793290891771.txt",
+      "sha256": "110b5816de8cac696cb9779104db4bab051a5832ea99924dcce9dfc28ff476f3",
+      "commit": "5973dea5dbbd3ba6fd54eb4a903d7386b18d19ad"
+    }
+  ]
+}

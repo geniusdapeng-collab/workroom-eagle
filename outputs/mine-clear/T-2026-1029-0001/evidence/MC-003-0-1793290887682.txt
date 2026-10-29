@@ -1,0 +1,13 @@
+
+ RUN  v4.1.11 /Users/mac/WorkLoom-fleet/workroom-eagle-github
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed | 15 skipped (16)
+   Start at  00:21:28
+   Duration  1.36s (transform 404ms, setup 0ms, import 937ms, tests 284ms, environment 0ms)
+
+
+
+exit_code=0 signal=none error=none
+assertion_validation={"ok":true,"errors":[]}

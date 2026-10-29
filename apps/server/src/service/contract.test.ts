@@ -6,6 +6,7 @@
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Hono } from "hono";
+import { registeredBusinessAdapterIds } from "./adapters/business-registry.js";
 
 process.env.DATABASE_URL ??= "postgres://postgres:workloom@localhost:5432/workloom";
 process.env.DATABASE_APP_URL ??= "postgres://workloom_app:workloom_dev_app@localhost:5432/workloom";
@@ -23,6 +24,7 @@ if (process.env.RUN_DB_TESTS === "1" && !FIXTURE_WORKSPACE_ID) {
 }
 if (FIXTURE_WORKSPACE_ID) process.env.SERVICE_C_WORKSPACE_ID = FIXTURE_WORKSPACE_ID;
 const fixtureDescribe = FIXTURE_WORKSPACE_ID ? describe : describe.skip;
+const adapterDescribe = FIXTURE_WORKSPACE_ID && registeredBusinessAdapterIds().length > 0 ? describe : describe.skip;
 
 let app: Hono;
 const RUN = `contract-${Date.now().toString(36)}`;
@@ -82,7 +84,7 @@ fixtureDescribe("契约 · session（S2）", () => {
   });
 });
 
-fixtureDescribe("契约 · member / orders / notifications（H6）", () => {
+adapterDescribe("契约 · member / orders（H6，仅在 Bundle 声明业务适配器时）", () => {
   it("未绑定身份：/member 返回中文展示摘要，/orders 返回空集与绑定引导", async () => {
     const { token } = await makeSession(`${RUN}-guest`);
     const m = (await (await req("/member", {}, token)).json()) as Record<string, unknown>;
@@ -97,6 +99,9 @@ fixtureDescribe("契约 · member / orders / notifications（H6）", () => {
     expect(o.orders).toEqual([]);
   });
 
+});
+
+fixtureDescribe("契约 · notifications（H6）", () => {
   it("/notifications 每项含 read:false 占位", async () => {
     const { token } = await makeSession(`${RUN}-ntf`);
     // 先建一单触发受理通知
@@ -217,7 +222,7 @@ fixtureDescribe("契约 · 工单（H1/H2/H6/L9/M9）", () => {
   });
 });
 
-fixtureDescribe("契约 · 身份绑定信任链", () => {
+adapterDescribe("契约 · 身份绑定信任链（仅在 Bundle 声明业务适配器时）", () => {
   it("演示验证码明确标 demo，绑定后返回真实会员与请求回执", async () => {
     const { token } = await makeSession(`${RUN}-identity`);
     const codeRes = await req("/identity/code", {

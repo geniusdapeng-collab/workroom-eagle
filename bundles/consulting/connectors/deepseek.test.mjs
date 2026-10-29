@@ -44,12 +44,12 @@ test('token bound covers full UTF8 prompt and fixed chat framing', () => {
   assert.equal(inputTokenUpperBound('顾问', '😀甲'), Buffer.byteLength('顾问😀甲', 'utf8') + 1024);
 });
 
-test('complete full-upstream input stays finite and reserves all64000 UTF8bytes before paid I/O', async () => {
+test('complete full-upstream input stays finite and reserves all 100000 UTF8 bytes before paid I/O', async () => {
   const text = 'a'.repeat(DEEPSEEK_MAX_INPUT_BYTES);
   let reserved;
   const api = client(async () => { reserved = api.getBudget().reservedTokens; return response(good()); });
   await api.complete({ prompt: text, maxTokens: 4096 });
-  assert.equal(reserved, 64000 + 1024 + 4096);
+  assert.equal(reserved, 100000 + 1024 + 4096);
   await assert.rejects(api.complete({ system: '界', prompt: text }), /MODEL_INPUT_INVALID/);
   assert.equal(api.getBudget().llmAttempts, 1);
 });

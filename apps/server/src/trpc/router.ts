@@ -24,7 +24,7 @@ import { gatewayAppend, gatewayAppendOnClient, insertWithReadableId, MockEmbedde
 import { INTENT_ROUTE_TIMEOUT_DISPATCH_MS, makeReadableId } from "@workloom/shared";
 import { registerAskKbSearch } from "@workloom/runtime";
 
-import { loadGoalArchive, registerIndustryQuestPlanner, registerIndustryThreadExecutor, resolveDispatchPresetKey, runQuestForThread } from "../runtime/thread-runner.js";
+import { loadGoalArchive, registerIndustryGoalClaim, registerIndustryQuestPlanner, registerIndustryThreadExecutor, resolveDispatchPresetKey, runQuestForThread } from "../runtime/thread-runner.js";
 import { claimDispatchRequest, dispatchFingerprint, readDispatchRequest, settleDispatchRequest, type DispatchResult } from "../runtime/thread-dispatch-request.js";
 import { assertThreadInputSafe } from "../runtime/thread-input.js";
 import { threadNoteProcedure } from "./thread-note.js";
@@ -62,6 +62,7 @@ import { accountsRouter } from "./accounts-router.js";
 import { searchKB } from "../service/kb.js";
 import { acquisitionQuestPlanner } from "../industry/hotel/acquisition-planner.js";
 import { consultingRouter, createConsultingIndustryThreadExecutor } from "../industry/consulting/router.js";
+import { selectConsultingDispatchPreset } from "../industry/consulting/dispatch-routing.js";
 import { runRouterReviewBeat } from "@workloom/base/model-router";
 import {
   loadCharter, parseCharter, transition, defaultCharter,
@@ -3649,6 +3650,7 @@ export type { IntelItem, RepoPulse } from "../service/aipm.js";
  */
 registerIndustryQuestPlanner((goal) => acquisitionQuestPlanner(goal));
 registerIndustryThreadExecutor(createConsultingIndustryThreadExecutor());
+registerIndustryGoalClaim((goal, preset) => selectConsultingDispatchPreset(goal) === preset.presetKey);
 registerAskKbSearch(async (scope, question, limit) => {
   const hits = await searchKB({ workspaceId: scope.workspaceId, query: question, limit });
   return hits.map((hit) => ({

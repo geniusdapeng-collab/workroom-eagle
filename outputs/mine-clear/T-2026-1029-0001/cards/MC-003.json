@@ -1,0 +1,66 @@
+{
+  "id": "MC-003",
+  "kind": "problem",
+  "level": "L4",
+  "severity": "P1",
+  "batch": 1,
+  "title": "质检官退回意见不可机判，任务仍被评估为通过并发布待审报告",
+  "state": "open",
+  "evidence": [
+    {
+      "type": "doc",
+      "ref": "evidence/complex-quality-officer-s6.md",
+      "sha256": "8e94cf9bfffb0c1beb643dcb1e32a7419af0d4d5a7e92be5799895542ee2632c",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "真实质检官输出“挂起待补、退回”，但旧提交/评估契约没有机器可读 verdict"
+    },
+    {
+      "type": "doc",
+      "ref": "evidence/public-task-report.json",
+      "sha256": "031b7f92f5ed874f3b67b79dc3789150069cf0c2e2296bbede16b317bb430e21",
+      "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+      "note": "另一条真实公开任务中质检官列明“三项不通过”，报告仍以 draft_ready 和 synced finalArtifact 产出"
+    }
+  ],
+  "root_cause": {
+    "file": "apps/server/src/industry/consulting/workflow-core.ts",
+    "line": 30,
+    "commit": "c65cf1561f4e870cd930344948f5278de5e03dcf",
+    "symbol": "artifactSchema"
+  },
+  "trigger_path": "复杂任务第六步质检官在摘要或发现中写退回/不通过时，服务端只校验结构化 artifact 与回执；consulting-eval 仍把 run 记为 passed，task 层仍把最终报告作为审核通过前的 draft_ready 交付。",
+  "fix_plan": "为质检产物增加可选 reviewDecision 枚举（不建表、不迁移），独立质检步骤强制该字段；非 approved 时保留可读报告但把父任务转 human_required，并让评估器只在 approved 时通过复杂任务。质检提示同时限定只有可指认的实质缺陷可退回，受控引证、同义反复和格式/表格建议不得被升级为阻断项。",
+  "assertions": [
+    {
+      "kind": "sample",
+      "given": "质检官返回 reviewDecision=changes_requested",
+      "expect": "报告文件仍可回读，但任务状态为 human_required、错误码 QUALITY_REVIEW_REQUIRED、不会计为 approved",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/task-execution.test.ts -t \"independent quality gate does not approve\"",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/task-execution.test.ts", "-t", "independent quality gate does not approve", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    },
+    {
+      "kind": "property",
+      "given": "独立质检步骤的输出",
+      "expect": "必须有 approved/changes_requested/rejected；缺失或非法值 fail closed",
+      "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts -t \"machine-readable quality verdict\"",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/workflow.test.ts", "-t", "machine-readable quality verdict", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    },
+    {
+      "kind": "property",
+      "given": "质检官面对已在受控引证块中的缺陷原文、轻微重复或格式建议",
+      "expect": "这些非实质问题不得触发 changes_requested；提示必须明确要求判 approved 并保留非阻断改进建议",
+      "command": "node_modules/.bin/vitest run apps/server/src/industry/consulting/workflow.test.ts -t \"defines quality approval\" --testTimeout 30000",
+      "exec": { "file": "node_modules/.bin/vitest", "args": ["run", "apps/server/src/industry/consulting/workflow.test.ts", "-t", "defines quality approval", "--testTimeout", "30000"] },
+      "last_result": "not-run"
+    }
+  ],
+  "regression": {
+    "command": "pnpm --config.verify-deps-before-run=false --filter @workloom/server exec vitest run src/industry/consulting/workflow.test.ts src/industry/consulting/task-execution.test.ts"
+  },
+  "fixed_by": null,
+  "verified_by": null,
+  "verified_at": null,
+  "verification_evidence": null
+}
