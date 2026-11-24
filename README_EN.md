@@ -1,6 +1,6 @@
 # Eagle · AI Consulting Workspace
 
-**Eagle helps consulting teams keep client context from intake through follow-up.** Each company has a case file for evidence, findings, deliverables, and open actions. Digital staff assist with research, drafting, and tracking. Human consultants lead key interviews, final diagnoses, and sensitive recommendations.
+**Eagle is a client-service and research workspace for consulting teams.** Each company has a case file for evidence, findings, deliverables, and open actions. Consultants can dispatch internal research, inspect its sources and progress, and read the draft together with its verification receipt. Human consultants lead key interviews and review formal findings and client-facing reports.
 
 [简体中文](README.md) · [Consulting bundle](bundles/consulting) · [Agent setup](docs/AGENT-CLIENTS.md)
 
