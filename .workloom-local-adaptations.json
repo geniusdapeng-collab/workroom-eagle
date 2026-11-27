@@ -6,9 +6,9 @@
     ".workloom-ui-governance.json": "6163db35ba9974670b71141de0431526d6705b5c304f7afd9364ac0dd43f8c4d"
   },
   "task": {
-    "id": "T-2026-1024-0002",
-    "issue": "https://github.com/geniusdapeng-collab/workroom-eagle/issues/28",
-    "reason": "从已合并主线接通Codex公开研究的真实CLI/MCP调用，修复输入白名单与空证据验收问题，逐文件保留原适配及两份不可变基座状态。"
+    "id": "T-2026-1127-4201",
+    "issue": "https://github.com/geniusdapeng-collab/workroom-eagle/issues/34",
+    "reason": "保留原工作区文件的逐项来源和不可变基座状态。此次重新封存 CI 文件以加入经营事实与常驻 BOT 的 PostgreSQL 回归。"
   },
   "files": [
     {
@@ -19,11 +19,11 @@
         "mode": 420
       },
       "after": {
-        "sha256": "3847aacf26256a169e5effb1e7598282d343d870bea8498e17b259c9bd2346e9",
+        "sha256": "1fef98c96803f1a54ed9eb7ffc9206fe5966da2b9a257c7be1c20cdbe5b96cdb",
         "mode": 420
       },
-      "canonicalGitDiffSha256": "d431ad11813dd4c5c212f505c00c5c9135fc4f76a409229c274b64c660476331",
-      "reason": "CI完整拉取Git基线并运行实际来源、安装与正式默认门禁，新增公开研究CLI/MCP回归随主门禁执行。"
+      "canonicalGitDiffSha256": "02cc605a13819f75280509011540fd069474e378fb216dafdf939656868a0c88",
+      "reason": "CI完整拉取Git基线并运行实际来源、安装与正式默认门禁，新增公开研究CLI/MCP回归随主门禁执行。 在正式咨询测试之后运行经营领域及常驻 BOT 的真实数据库回归。"
     },
     {
       "path": ".github/workflows/workloom-ui-contract.yml",

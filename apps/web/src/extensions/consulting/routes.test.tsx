@@ -17,7 +17,7 @@ const manifest = JSON.parse(readFileSync(
 
 describe("鹰眼咨询行业路由", () => {
   it("使用咨询命名空间的语义路由并与能力一一对应", () => {
-    expect(industryRoutes).toHaveLength(5);
+    expect(industryRoutes).toHaveLength(6);
     expect(new Set(industryRoutes.map((route) => route.path)).size).toBe(industryRoutes.length);
     expect(new Set(industryRoutes.map((route) => route.capabilityId)).size).toBe(industryRoutes.length);
     for (const route of industryRoutes) {
@@ -26,11 +26,13 @@ describe("鹰眼咨询行业路由", () => {
     }
   });
 
-  it("PC 扩展与 Bundle 导航槽逐项一致，且同一能力覆盖 B端移动", () => {
+  it("PC 扩展与 Bundle 导航槽逐项一致，保留咨询移动投影", () => {
     const slots = manifest.workloom.ui.navigation.slots;
     expect(industryRoutes.map(({ path, capabilityId }) => ({ path, capabilityId }))).toEqual(
       slots.map(({ route: path, capabilityId }) => ({ path, capabilityId })),
     );
-    expect(slots.every((slot) => slot.clients.includes("pc") && slot.clients.includes("b-mobile"))).toBe(true);
+    expect(slots.every((slot) => slot.clients.includes("pc"))).toBe(true);
+    expect(slots.filter((slot) => slot.capabilityId !== "consulting.business").every((slot) => slot.clients.includes("b-mobile"))).toBe(true);
+    expect(slots.find((slot) => slot.capabilityId === "consulting.business")?.clients).toEqual(["pc"]);
   });
 });
