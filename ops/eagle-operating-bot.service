@@ -1,0 +1,23 @@
+[Unit]
+Description=Eagle operating brief worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=eagle-bot
+Group=eagle-bot
+WorkingDirectory=/srv/workroom-eagle
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/workroom-eagle/operating-bot.env
+ExecStart=/usr/bin/node --import tsx apps/server/src/industry/operating-bot/worker.ts
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=135
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

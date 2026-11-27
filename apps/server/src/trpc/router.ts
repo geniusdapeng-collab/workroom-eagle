@@ -61,6 +61,7 @@ import { overlayRouter } from "./overlay-router.js";
 import { accountsRouter } from "./accounts-router.js";
 import { searchKB } from "../service/kb.js";
 import { acquisitionQuestPlanner } from "../industry/hotel/acquisition-planner.js";
+import { businessRouter } from "../industry/business/router.js";
 import { consultingRouter, createConsultingIndustryThreadExecutor } from "../industry/consulting/router.js";
 import { selectConsultingDispatchPreset } from "../industry/consulting/dispatch-routing.js";
 import { runRouterReviewBeat } from "@workloom/base/model-router";
@@ -3630,6 +3631,7 @@ export const appRouter = router({
   evolution: evolutionRouter,
   overlay: overlayRouter,
   accounts: accountsRouter,
+  business: businessRouter,
   consulting: consultingRouter,
 });
 

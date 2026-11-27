@@ -1,4 +1,5 @@
 import ConsultingHub from "./ConsultingHub";
+import BusinessWorkbench from "./business/BusinessWorkbench";
 
 /**
  * 鹰眼咨询页面只在行业扩展目录注册。入口、权限与排序均来自已经验证的
@@ -10,4 +11,5 @@ export const industryRoutes = [
   { path: "/consulting/interviews", capabilityId: "consulting.interviews", element: <ConsultingHub view="interviews" /> },
   { path: "/consulting/diagnosis", capabilityId: "consulting.diagnosis", element: <ConsultingHub view="diagnosis" /> },
   { path: "/consulting/deliveries", capabilityId: "consulting.deliveries", element: <ConsultingHub view="deliveries" /> },
+  { path: "/consulting/business", capabilityId: "consulting.business", element: <BusinessWorkbench /> },
 ] as const;

@@ -339,6 +339,19 @@
             "permissions": [
               "consulting.deliveries.read"
             ]
+          },
+          {
+            "capabilityId": "consulting.business",
+            "title": "经营工作台",
+            "route": "/consulting/business",
+            "group": "operations",
+            "icon": "report",
+            "clients": [
+              "pc"
+            ],
+            "permissions": [
+              "consulting.business.read"
+            ]
           }
         ]
       },
@@ -427,6 +440,7 @@
       },
       "permissions": [
         "consulting.archives.read",
+        "consulting.business.read",
         "consulting.deliveries.read",
         "consulting.diagnosis.read",
         "consulting.interviews.read",
@@ -437,7 +451,7 @@
   },
   "integrity": {
     "algorithm": "sha256",
-    "digest": "25ff5020903484758b60b95f6d78f25cf242d23d87d6c6c934b976085410c3ac",
+    "digest": "3bc77cf79caf92023c21ff60a2692a6635c787001842f30a6d20774e6fb96a25",
     "assets": {
       "feedback-enums.yml": "e0df698795297ae9bdc3ff06cdbded0dd74d4001790ecf38cf5f92476c9f6872",
       "fences/consulting-baseline.yml": "e51d0a34427d97fbfc505d91c256997fab1eaa0380931fc10cae3c569081e5a8",
