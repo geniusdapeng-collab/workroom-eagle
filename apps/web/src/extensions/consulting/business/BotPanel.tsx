@@ -4,8 +4,7 @@ import { trpc } from "../../../lib/trpc";
 import { WriteFeedback } from "./WorkCards";
 import { businessDay, dateAndTimeIso, displayTime } from "./format";
 import { useBusinessResource, useBusinessWrite } from "./useWork";
-
-type BotStatus = Awaited<ReturnType<typeof trpc.business.botStatus.query>>;
+import type { BotStatus } from "./types";
 type Task = BotStatus["tasks"][number];
 type Mandate = BotStatus["mandates"][number];
 

@@ -7,8 +7,7 @@ import { BotPanel } from "./BotPanel";
 import { BriefPanel } from "./BriefPanel";
 import { SellerPanel } from "./SellerPanel";
 import { useBusinessResource } from "./useWork";
-
-type BusinessContext = Awaited<ReturnType<typeof trpc.business.context.query>>;
+import type { BusinessContext } from "./types";
 type Mode = "brief" | "today" | "bot";
 
 function BusinessMode({ scope, business, mode, artifactId, onViewBrief }: {

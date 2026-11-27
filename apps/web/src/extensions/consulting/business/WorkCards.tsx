@@ -4,9 +4,7 @@ import { trpc } from "../../../lib/trpc";
 import { FactDetail } from "./FactDetail";
 import { displayTime } from "./format";
 import { useBusinessResource, useBusinessWrite } from "./useWork";
-
-export type OperatingAction = Awaited<ReturnType<typeof trpc.business.listActions.query>>[number];
-export type OperatingFact = Awaited<ReturnType<typeof trpc.business.listFacts.query>>[number];
+import type { OperatingAction } from "./types";
 
 interface Feedback {
   message: string;

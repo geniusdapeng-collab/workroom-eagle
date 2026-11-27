@@ -1,8 +1,8 @@
 import { clientChineseText } from "@workloom/ui";
-import type { trpc } from "../../../lib/trpc";
+import type { Preview } from "./types";
 import { displayMoney, displayTime } from "./format";
 
-type Fact = Awaited<ReturnType<typeof trpc.business.previewFacts.mutate>>["rows"][number];
+type Fact = Preview["rows"][number];
 
 const TYPE_LABEL: Record<Fact["kind"], string> = {
   lead: "线索", interaction: "客户跟进", opportunity: "商机节点", contract: "签约",

@@ -4,11 +4,9 @@ import { operationFailure } from "../../../lib/ui-state";
 import { trpc } from "../../../lib/trpc";
 import { FactDetail } from "./FactDetail";
 import { businessDay } from "./format";
-import { WorkCard, WriteFeedback, type OperatingAction, type OperatingFact } from "./WorkCards";
+import { WorkCard, WriteFeedback } from "./WorkCards";
+import type { OperatingAction, OperatingFact, Preview, PreviewInput } from "./types";
 import { useBusinessWrite } from "./useWork";
-
-type PreviewInput = Parameters<typeof trpc.business.previewFacts.mutate>[0];
-type Preview = Awaited<ReturnType<typeof trpc.business.previewFacts.mutate>>;
 
 function Capture({ scope, canImport, reload }: { scope: string; canImport: boolean; reload: () => Promise<void> }) {
   const [kind, setKind] = useState<"interaction" | "lead">("interaction");

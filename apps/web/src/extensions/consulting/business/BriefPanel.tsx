@@ -2,7 +2,8 @@ import { useCallback, useState, type FormEvent } from "react";
 import { AsyncState, Badge, Button, Card } from "@workloom/ui";
 import { trpc } from "../../../lib/trpc";
 import { businessDay, dateAndTimeIso, displayMoney, displayTime } from "./format";
-import { Evidence, WorkCard, WriteFeedback, type OperatingAction } from "./WorkCards";
+import { Evidence, WorkCard, WriteFeedback } from "./WorkCards";
+import type { Brief, OperatingAction } from "./types";
 import { useBusinessResource, useBusinessWrite } from "./useWork";
 
 export interface BusinessMember {
@@ -10,7 +11,6 @@ export interface BusinessMember {
   name: string;
 }
 
-type Brief = NonNullable<Awaited<ReturnType<typeof trpc.business.getBrief.query>>>;
 type Insight = Brief["insights"][number];
 
 function InsightDetail({ brief, insight, members, scope, canAssign, onChange }: {
